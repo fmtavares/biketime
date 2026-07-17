@@ -1,0 +1,14 @@
+{
+  "name": "biketime",
+  "private": true,
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev:site": "npm run dev -w @biketime/site",
+    "dev:gestao": "npm run dev -w @biketime/gestao",
+    "build:site": "npm run build -w @biketime/site",
+    "build:gestao": "npm run build -w @biketime/gestao",
+    "lint": "npm run lint -w @biketime/site && npm run lint -w @biketime/gestao"
+  }
+}

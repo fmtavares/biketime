@@ -1,0 +1,1 @@
+ALTER TABLE public.bikes_estoque ADD COLUMN IF NOT EXISTS valor_mercado numeric;

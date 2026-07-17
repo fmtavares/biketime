@@ -1,0 +1,1 @@
+ALTER TABLE public.bikes_estoque DROP COLUMN IF EXISTS descricao;

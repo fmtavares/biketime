@@ -1,0 +1,5 @@
+-- Vault secret sync_dest_service_key deve ser criado manualmente no Dashboard
+-- (Project Settings → Vault / Secrets). Nunca versionar a chave no git.
+--
+-- Exemplo (rode no SQL Editor com o valor real, sem commit):
+-- SELECT vault.create_secret('<SERVICE_KEY>', 'sync_dest_service_key');
