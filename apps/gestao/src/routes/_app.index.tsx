@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/AppLayout";
-import { Bike, Wrench, Crown, AlertTriangle, Calendar, DollarSign, Cake } from "lucide-react";
+import { Bike, Wrench, AlertTriangle, Calendar, DollarSign, Cake } from "lucide-react";
 
 
 export const Route = createFileRoute("/_app/")({
@@ -40,17 +40,15 @@ function Dashboard() {
   const { data } = useQuery({
     queryKey: ["dashboard"],
     queryFn: async () => {
-      const [bikes, os, clientes, osList, aniv] = await Promise.all([
+      const [bikes, os, aniv] = await Promise.all([
         supabase.from("bikes").select("id", { count: "exact", head: true }),
         supabase
           .from("ordens_servico")
           .select("id, numero, status, data_prevista, proxima_revisao, valor_aprovado, valor_pecas, valor_mao_obra, clientes(nome), bikes(marca, modelo)")
           .order("created_at", { ascending: false }),
-        supabase.from("clientes").select("id, nome, vip").eq("vip", true),
-        supabase.from("ordens_servico").select("status"),
         supabase.from("clientes").select("id, nome, data_nascimento").not("data_nascimento", "is", null),
       ]);
-      return { bikes, os, clientes, osList, aniv };
+      return { bikes, os, aniv };
     },
   });
 
@@ -71,59 +69,46 @@ function Dashboard() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <Stat icon={Wrench} label="Bikes em oficina" value={emOficina.length} accent />
         <Stat icon={AlertTriangle} label="OS atrasadas" value={atrasadas.length} />
-        <Stat icon={Crown} label="Clientes VIP" value={data?.clientes.data?.length ?? 0} />
         <Stat icon={Bike} label="Bikes cadastradas" value={data?.bikes.count ?? 0} />
+        <Stat
+          icon={DollarSign}
+          label="A Receber"
+          value={`R$ ${faturamento.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
+        />
       </div>
 
-      <div className="grid lg:grid-cols-3 gap-4 mt-4">
-        <div
-          className="rounded-xl border p-5 bg-foreground text-background"
-          style={{ boxShadow: "var(--shadow-card)" }}
-        >
-          <div className="flex items-center justify-between">
-            <span className="text-xs uppercase tracking-wider opacity-70">
-              A Receber
-            </span>
-            <DollarSign className="size-4 opacity-70" />
-          </div>
-          <div className="mt-3 text-3xl font-display font-bold">
-            R$ {faturamento.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-          </div>
+      <div className="mt-4 rounded-xl border bg-card p-5">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-display font-bold">Últimas OS</h3>
+          <Link to="/oficina" className="text-xs text-muted-foreground hover:text-foreground">
+            Ver Kanban →
+          </Link>
         </div>
-
-        <div className="lg:col-span-2 rounded-xl border bg-card p-5">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-display font-bold">Últimas OS</h3>
-            <Link to="/oficina" className="text-xs text-muted-foreground hover:text-foreground">
-              Ver Kanban →
-            </Link>
-          </div>
-          <div className="space-y-2">
-            {ordens.slice(0, 6).map((o) => (
-              <div
-                key={o.id}
-                className="flex items-center justify-between text-sm py-2 border-b last:border-0"
-              >
-                <div className="flex items-center gap-3">
-                  <span className="font-mono text-xs px-2 py-1 rounded bg-secondary">
-                    {o.numero}
-                  </span>
-                  <span>{(o as any).clientes?.nome}</span>
-                  <span className="text-muted-foreground">
-                    {(o as any).bikes?.marca} {(o as any).bikes?.modelo}
-                  </span>
-                </div>
-                <span className="text-xs uppercase tracking-wider px-2 py-1 rounded bg-accent/40">
-                  {o.status.replace(/_/g, " ")}
+        <div className="space-y-2">
+          {ordens.slice(0, 5).map((o) => (
+            <div
+              key={o.id}
+              className="flex items-center justify-between text-sm py-2 border-b last:border-0"
+            >
+              <div className="flex items-center gap-3">
+                <span className="font-mono text-xs px-2 py-1 rounded bg-secondary">
+                  {o.numero}
+                </span>
+                <span>{(o as any).clientes?.nome}</span>
+                <span className="text-muted-foreground">
+                  {(o as any).bikes?.marca} {(o as any).bikes?.modelo}
                 </span>
               </div>
-            ))}
-            {ordens.length === 0 && (
-              <p className="text-sm text-muted-foreground py-8 text-center">
-                Nenhuma OS ainda. Crie a primeira na aba Oficina.
-              </p>
-            )}
-          </div>
+              <span className="text-xs uppercase tracking-wider px-2 py-1 rounded bg-accent/40">
+                {o.status.replace(/_/g, " ")}
+              </span>
+            </div>
+          ))}
+          {ordens.length === 0 && (
+            <p className="text-sm text-muted-foreground py-8 text-center">
+              Nenhuma OS ainda. Crie a primeira na aba Oficina.
+            </p>
+          )}
         </div>
       </div>
 

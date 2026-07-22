@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { calcBike, fmtBRL, fmtPct, type FinancialSettings } from "@/lib/finance";
 import { toast } from "sonner";
 import { Trash2, Send, ArrowLeft, Sparkles, Loader2 } from "lucide-react";
+import { ImageCropDialog } from "@/components/ImageCropDialog";
 
 export const Route = createFileRoute("/_app/vendas_/$id")({ component: BikeEstoqueDetail });
 
@@ -45,10 +46,23 @@ function BikeEstoqueDetail() {
       const obsWithNames = obs.map((o: any) => ({ ...o, autor: profilesMap[o.user_id] ?? "Usuário" }));
       return { bike, settings: settings as unknown as FinancialSettings, obs: obsWithNames };
     },
+    // Evita refetch ao abrir o seletor de arquivo (blur da janela), que apagava edições locais
+    refetchOnWindowFocus: false,
   });
 
   const [edit, setEdit] = useState<any>(null);
-  useEffect(() => { if (data?.bike) setEdit(data.bike); }, [data?.bike]);
+  /** Garante que o formulário só é hidratado uma vez por bike (não a cada refetch). */
+  const hydratedId = useRef<string | null>(null);
+  useEffect(() => {
+    hydratedId.current = null;
+    setEdit(null);
+  }, [id]);
+  useEffect(() => {
+    if (data?.bike && hydratedId.current !== data.bike.id) {
+      setEdit(data.bike);
+      hydratedId.current = data.bike.id;
+    }
+  }, [data?.bike]);
 
   const [overrideVenda, setOverrideVenda] = useState<number | "">("");
   const [desconto, setDesconto] = useState<number | "">("");
@@ -88,12 +102,41 @@ function BikeEstoqueDetail() {
 
   const dias = Math.floor((Date.now() - new Date(b.data_entrada).getTime()) / 86400000);
 
+  /**
+   * Persiste os dados da bike e atualiza o formulário com o retorno do servidor
+   * (sem depender de refetch que poderia sobrescrever o estado).
+   */
   async function saveEdits() {
     const { id: _id, created_at, updated_at, created_by, ...rest } = edit;
-    const { error } = await supabase.from("bikes_estoque").update(rest).eq("id", id);
+    const moneyKeys = [
+      "custo_bike", "frete", "seguro", "montagem", "revisao_inicial", "custos_adicionais",
+      "valor_mercado", "valor_proposto", "valor_minimo",
+      "override_icms_pct", "override_imposto_venda_pct", "override_taxa_financeira_pct",
+      "override_comissao_pct", "override_markup_pct", "peso", "quilometragem", "ano",
+    ];
+    for (const k of moneyKeys) {
+      if (rest[k] === "" || rest[k] === undefined) rest[k] = null;
+      else if (rest[k] != null) {
+        const n = Number(rest[k]);
+        rest[k] = Number.isFinite(n) ? n : null;
+      }
+    }
+
+    const { data: saved, error } = await supabase
+      .from("bikes_estoque")
+      .update(rest)
+      .eq("id", id)
+      .select("*")
+      .single();
     if (error) return toast.error(error.message);
+    if (saved) {
+      setEdit(saved);
+      hydratedId.current = saved.id;
+      qc.setQueryData(["bike-estoque", id], (old: any) =>
+        old ? { ...old, bike: saved } : old,
+      );
+    }
     toast.success("Salvo");
-    qc.invalidateQueries({ queryKey: ["bike-estoque", id] });
   }
   async function deleteBike() {
     if (!confirm("Excluir esta bike?")) return;
@@ -425,21 +468,42 @@ function Row({ label, value, bold, tone }: { label: string; value: string; bold?
   );
 }
 
+/**
+ * Slot de foto do estoque: abre cropper (zoom/posição) antes do upload.
+ */
 function PhotoSlot({ label, url, bikeId, field, isAdmin, onChange }: {
   label: string; url: string | null; bikeId: string; field: string; isAdmin: boolean;
   onChange: (url: string | null) => void;
 }) {
   const [busy, setBusy] = useState(false);
+  const [cropOpen, setCropOpen] = useState(false);
+  const [cropSrc, setCropSrc] = useState<string | null>(null);
 
-  async function handleFile(file: File) {
+  /** Abre o dialog de ajuste com preview da imagem escolhida. */
+  function onPickFile(file: File) {
+    if (cropSrc) URL.revokeObjectURL(cropSrc);
+    const src = URL.createObjectURL(file);
+    setCropSrc(src);
+    setCropOpen(true);
+  }
+
+  /** Envia ao Storage o arquivo já recortado pelo ImageCropDialog. */
+  async function uploadCropped(file: File) {
     setBusy(true);
-    const ext = file.name.split(".").pop() || "jpg";
-    const path = `${bikeId}/${field}-${Date.now()}.${ext}`;
-    const { error: upErr } = await supabase.storage.from("bikes-estoque-photos").upload(path, file, { upsert: true });
-    if (upErr) { setBusy(false); return toast.error(upErr.message); }
+    const path = `${bikeId}/${field}-${Date.now()}.jpg`;
+    const { error: upErr } = await supabase.storage
+      .from("bikes-estoque-photos")
+      .upload(path, file, { upsert: true, contentType: "image/jpeg" });
+    if (upErr) {
+      setBusy(false);
+      return toast.error(upErr.message);
+    }
     const { data: pub } = supabase.storage.from("bikes-estoque-photos").getPublicUrl(path);
     const newUrl = pub.publicUrl;
-    const { error: dbErr } = await supabase.from("bikes_estoque").update({ [field]: newUrl } as any).eq("id", bikeId);
+    const { error: dbErr } = await supabase
+      .from("bikes_estoque")
+      .update({ [field]: newUrl } as any)
+      .eq("id", bikeId);
     setBusy(false);
     if (dbErr) return toast.error(dbErr.message);
     onChange(newUrl);
@@ -458,7 +522,7 @@ function PhotoSlot({ label, url, bikeId, field, isAdmin, onChange }: {
   return (
     <div className="space-y-2">
       <Label className="text-xs uppercase">{label}</Label>
-      <div className="relative aspect-square overflow-hidden rounded-md border bg-secondary/30">
+      <div className="relative aspect-[4/3] overflow-hidden rounded-md border bg-secondary/30">
         {url ? (
           <img src={url} alt={label} className="h-full w-full object-cover" />
         ) : (
@@ -468,8 +532,16 @@ function PhotoSlot({ label, url, bikeId, field, isAdmin, onChange }: {
       {isAdmin && (
         <div className="flex gap-2">
           <label className="flex-1">
-            <input type="file" accept="image/*" className="hidden"
-              onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); e.target.value = ""; }} />
+            <input
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) onPickFile(f);
+                e.target.value = "";
+              }}
+            />
             <span className="inline-flex h-8 w-full cursor-pointer items-center justify-center rounded-md border bg-background px-2 text-xs hover:bg-secondary">
               {busy ? "Enviando…" : url ? "Trocar" : "Enviar"}
             </span>
@@ -481,6 +553,23 @@ function PhotoSlot({ label, url, bikeId, field, isAdmin, onChange }: {
           )}
         </div>
       )}
+
+      <ImageCropDialog
+        open={cropOpen}
+        imageSrc={cropSrc}
+        title={`Ajustar · ${label}`}
+        aspect={4 / 3}
+        onOpenChange={(open) => {
+          setCropOpen(open);
+          if (!open && cropSrc) {
+            URL.revokeObjectURL(cropSrc);
+            setCropSrc(null);
+          }
+        }}
+        onConfirm={(file) => {
+          void uploadCropped(file);
+        }}
+      />
     </div>
   );
 }

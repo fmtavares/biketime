@@ -109,7 +109,22 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      loja_bikes: {
+        Row: {
+          id: string
+          marca: string
+          modelo: string
+          ano: number | null
+          tamanho: string | null
+          cor: string | null
+          categoria: string | null
+          condicao: string | null
+          valor_proposto: number | null
+          foto_completa: string | null
+          observacoes_tecnicas: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       has_role: {

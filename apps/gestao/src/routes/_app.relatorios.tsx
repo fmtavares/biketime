@@ -1,29 +1,91 @@
+import { useMemo, useState } from "react";
 import { createFileRoute, Navigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/AppLayout";
 import { useAuth } from "@/lib/auth-context";
-import { DollarSign, Wrench, Bike, Users, TrendingUp, Crown } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { CalendarRange, DollarSign, Wrench, Bike, Users, TrendingUp, Crown } from "lucide-react";
 
 export const Route = createFileRoute("/_app/relatorios")({
   component: Relatorios,
 });
 
+/** Retorna o primeiro dia do mês (00:00). */
+function startOfMonth(d = new Date()) {
+  return new Date(d.getFullYear(), d.getMonth(), 1, 0, 0, 0, 0);
+}
+
+/** Retorna o último dia do mês (23:59:59). */
+function endOfMonth(d = new Date()) {
+  return new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59, 999);
+}
+
+/** Converte Date → yyyy-mm-dd para input type=date. */
+function toInputDate(d: Date) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+/** Converte yyyy-mm-dd → Date no início do dia. */
+function parseStart(s: string) {
+  const [y, m, d] = s.split("-").map(Number);
+  return new Date(y, m - 1, d, 0, 0, 0, 0);
+}
+
+/** Converte yyyy-mm-dd → Date no fim do dia. */
+function parseEnd(s: string) {
+  const [y, m, d] = s.split("-").map(Number);
+  return new Date(y, m - 1, d, 23, 59, 59, 999);
+}
+
+/** Verifica se a data ISO está dentro do período selecionado. */
+function inPeriod(iso: string | null | undefined, from: Date, to: Date) {
+  if (!iso) return false;
+  const d = new Date(iso);
+  return d >= from && d <= to;
+}
+
+/**
+ * Card de indicador do relatório (valores longos em R$ usam fonte menor para não quebrar).
+ */
 function Stat({ icon: Icon, label, value, sub }: any) {
   return (
-    <div className="rounded-xl border bg-card p-5" style={{ boxShadow: "var(--shadow-card)" }}>
-      <div className="flex items-center justify-between text-muted-foreground">
-        <span className="text-xs uppercase tracking-wider">{label}</span>
-        <Icon className="size-4" />
+    <div className="rounded-xl border bg-card p-3 sm:p-4 min-w-0" style={{ boxShadow: "var(--shadow-card)" }}>
+      <div className="flex items-center justify-between gap-2 text-muted-foreground">
+        <span className="text-[10px] sm:text-xs uppercase tracking-wide truncate">{label}</span>
+        <Icon className="size-3.5 sm:size-4 shrink-0" />
       </div>
-      <div className="mt-3 text-3xl font-display font-bold">{value}</div>
-      {sub && <div className="text-xs text-muted-foreground mt-1">{sub}</div>}
+      <div className="mt-2 text-base sm:text-lg lg:text-xl font-display font-bold tabular-nums leading-tight break-words">
+        {value}
+      </div>
+      {sub && <div className="text-[10px] sm:text-xs text-muted-foreground mt-1 truncate">{sub}</div>}
     </div>
   );
 }
 
 function Relatorios() {
   const { isAdmin, loading } = useAuth();
+
+  const mesPadraoFrom = toInputDate(startOfMonth());
+  const mesPadraoTo = toInputDate(endOfMonth());
+
+  const [from, setFrom] = useState(mesPadraoFrom);
+  const [to, setTo] = useState(mesPadraoTo);
+  const [periodOpen, setPeriodOpen] = useState(false);
+  const [draftFrom, setDraftFrom] = useState(mesPadraoFrom);
+  const [draftTo, setDraftTo] = useState(mesPadraoTo);
 
   const { data } = useQuery({
     queryKey: ["relatorios"],
@@ -38,6 +100,17 @@ function Relatorios() {
     enabled: isAdmin,
   });
 
+  const periodo = useMemo(() => {
+    const start = parseStart(from);
+    const end = parseEnd(to);
+    const isMesAtual =
+      from === toInputDate(startOfMonth()) && to === toInputDate(endOfMonth());
+    const label = isMesAtual
+      ? start.toLocaleDateString("pt-BR", { month: "long", year: "numeric" })
+      : `${start.toLocaleDateString("pt-BR")} — ${end.toLocaleDateString("pt-BR")}`;
+    return { start, end, isMesAtual, label };
+  }, [from, to]);
+
   if (loading) return <div className="p-8 text-muted-foreground">Carregando…</div>;
   if (!isAdmin) return <Navigate to="/" />;
 
@@ -45,21 +118,14 @@ function Relatorios() {
   const valorOS = (o: any) =>
     Number(o.valor_aprovado ?? Number(o.valor_pecas ?? 0) + Number(o.valor_mao_obra ?? 0));
 
-  // Resumo financeiro = mês corrente
-  const hoje = new Date();
-  const mesAtual = hoje.getMonth();
-  const anoAtual = hoje.getFullYear();
-  const noMesAtual = (iso?: string | null) => {
-    if (!iso) return false;
-    const d = new Date(iso);
-    return d.getMonth() === mesAtual && d.getFullYear() === anoAtual;
-  };
   const dataPaga = (o: any) => o.data_pagamento ?? o.data_entrega ?? o.data_conclusao ?? o.created_at;
   const dataEntregue = (o: any) => o.data_entrega ?? o.data_conclusao ?? o.created_at;
 
-  const pagas = ordens.filter((o) => o.status === "pago" && noMesAtual(dataPaga(o)));
+  const pagas = ordens.filter((o) => o.status === "pago" && inPeriod(dataPaga(o), periodo.start, periodo.end));
   const aReceberOS = ordens.filter(
-    (o) => (o.status === "entregue" || o.status === "finalizada") && noMesAtual(dataEntregue(o)),
+    (o) =>
+      (o.status === "entregue" || o.status === "finalizada") &&
+      inPeriod(dataEntregue(o), periodo.start, periodo.end),
   );
   const recebido = pagas.reduce((s, o) => s + valorOS(o), 0);
   const aReceber = aReceberOS.reduce((s, o) => s + valorOS(o), 0);
@@ -67,16 +133,23 @@ function Relatorios() {
   const entregues = [...pagas, ...aReceberOS];
   const totalServico = entregues.reduce((s, o) => s + Number(o.valor_mao_obra ?? 0), 0);
   const totalPecas = entregues.reduce((s, o) => s + Number(o.valor_pecas ?? 0), 0);
-  const mesLabel = hoje.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
 
-  // Origem dos leads
+  const ordensNoPeriodo = ordens.filter((o) =>
+    inPeriod(o.data_entrada ?? o.created_at, periodo.start, periodo.end),
+  );
+
+  const clientesNoPeriodo = (data?.clientes ?? []).filter((c) =>
+    inPeriod(c.created_at, periodo.start, periodo.end),
+  );
+
+  // Origem dos leads (clientes criados no período)
   const origens: Record<string, number> = {};
-  (data?.clientes ?? []).forEach((c) => {
+  clientesNoPeriodo.forEach((c) => {
     const k = c.origem_lead ?? "Sem origem";
     origens[k] = (origens[k] ?? 0) + 1;
   });
 
-  // Marcas mais comuns
+  // Marcas mais comuns (base completa de bikes)
   const marcas: Record<string, number> = {};
   (data?.bikes ?? []).forEach((b) => {
     marcas[b.marca] = (marcas[b.marca] ?? 0) + 1;
@@ -84,19 +157,69 @@ function Relatorios() {
   const topMarcas = Object.entries(marcas).sort((a, b) => b[1] - a[1]).slice(0, 5);
   const topOrigens = Object.entries(origens).sort((a, b) => b[1] - a[1]);
 
-  // Status breakdown
+  // Status breakdown (OS do período)
   const statusCount: Record<string, number> = {};
-  ordens.forEach((o) => (statusCount[o.status] = (statusCount[o.status] ?? 0) + 1));
+  ordensNoPeriodo.forEach((o) => (statusCount[o.status] = (statusCount[o.status] ?? 0) + 1));
+
+  /** Abre o dialog com o período atual como rascunho. */
+  const openPeriod = () => {
+    setDraftFrom(from);
+    setDraftTo(to);
+    setPeriodOpen(true);
+  };
+
+  /** Aplica o período escolhido no dialog. */
+  const applyPeriod = () => {
+    if (draftFrom > draftTo) return;
+    setFrom(draftFrom);
+    setTo(draftTo);
+    setPeriodOpen(false);
+  };
+
+  /** Volta o filtro para o mês corrente. */
+  const resetMesAtual = () => {
+    const f = toInputDate(startOfMonth());
+    const t = toInputDate(endOfMonth());
+    setDraftFrom(f);
+    setDraftTo(t);
+    setFrom(f);
+    setTo(t);
+    setPeriodOpen(false);
+  };
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
-      <PageHeader title="Relatórios" description="Indicadores da operação" />
+      <PageHeader
+        title="Relatórios"
+        description="Indicadores da operação"
+        action={
+          <Button variant="outline" onClick={openPeriod}>
+            <CalendarRange className="size-4" />
+            Selecionar período
+          </Button>
+        }
+      />
 
-      <div className="mb-2 text-xs uppercase tracking-wider text-muted-foreground">
-        Resumo financeiro · <span className="capitalize">{mesLabel}</span>
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+        <div className="text-xs uppercase tracking-wider text-muted-foreground">
+          Resumo financeiro ·{" "}
+          <span className="capitalize text-foreground font-medium">{periodo.label}</span>
+          {periodo.isMesAtual && (
+            <span className="ml-2 normal-case tracking-normal text-muted-foreground">(mês atual)</span>
+          )}
+        </div>
+        {!periodo.isMesAtual && (
+          <button
+            type="button"
+            onClick={resetMesAtual}
+            className="text-xs text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
+          >
+            Voltar ao mês atual
+          </button>
+        )}
       </div>
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
 
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
         <Stat
           icon={DollarSign}
           label="Faturamento total"
@@ -134,7 +257,7 @@ function Relatorios() {
           </h3>
           <div className="space-y-2">
             {Object.entries(statusCount).map(([k, v]) => {
-              const pct = ordens.length ? (v / ordens.length) * 100 : 0;
+              const pct = ordensNoPeriodo.length ? (v / ordensNoPeriodo.length) * 100 : 0;
               return (
                 <div key={k}>
                   <div className="flex justify-between text-xs mb-1">
@@ -147,7 +270,9 @@ function Relatorios() {
                 </div>
               );
             })}
-            {ordens.length === 0 && <p className="text-sm text-muted-foreground">Sem dados ainda.</p>}
+            {ordensNoPeriodo.length === 0 && (
+              <p className="text-sm text-muted-foreground">Sem dados no período.</p>
+            )}
           </div>
         </div>
 
@@ -157,7 +282,7 @@ function Relatorios() {
           </h3>
           <div className="space-y-2">
             {topOrigens.map(([k, v]) => {
-              const pct = (data?.clientes.length ?? 0) ? (v / data!.clientes.length) * 100 : 0;
+              const pct = clientesNoPeriodo.length ? (v / clientesNoPeriodo.length) * 100 : 0;
               return (
                 <div key={k}>
                   <div className="flex justify-between text-xs mb-1">
@@ -170,7 +295,9 @@ function Relatorios() {
                 </div>
               );
             })}
-            {topOrigens.length === 0 && <p className="text-sm text-muted-foreground">Sem dados ainda.</p>}
+            {topOrigens.length === 0 && (
+              <p className="text-sm text-muted-foreground">Sem leads no período.</p>
+            )}
           </div>
         </div>
 
@@ -194,11 +321,64 @@ function Relatorios() {
             <Crown className="size-4 text-accent" /> Clientes
           </h3>
           <div className="grid grid-cols-2 gap-3">
-            <Stat icon={Users} label="Total" value={data?.clientes.length ?? 0} />
-            <Stat icon={Crown} label="VIPs" value={(data?.clientes ?? []).filter((c) => c.vip).length} />
+            {(() => {
+              const totalClientes = data?.clientes.length ?? 0;
+              const novos = clientesNoPeriodo.length;
+              const vips = (data?.clientes ?? []).filter((c) => c.vip).length;
+              return (
+                <>
+                  <Stat
+                    icon={Users}
+                    label="Novos no período"
+                    value={`${novos}/${totalClientes}`}
+                  />
+                  <Stat
+                    icon={Crown}
+                    label="VIPs"
+                    value={`${vips}/${totalClientes}`}
+                  />
+                </>
+              );
+            })()}
           </div>
         </div>
       </div>
+
+      <Dialog open={periodOpen} onOpenChange={setPeriodOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Selecionar período</DialogTitle>
+          </DialogHeader>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-2">
+            <div className="space-y-1.5">
+              <Label className="text-xs">De</Label>
+              <Input
+                type="date"
+                value={draftFrom}
+                onChange={(e) => setDraftFrom(e.target.value)}
+                max={draftTo}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Até</Label>
+              <Input
+                type="date"
+                value={draftTo}
+                onChange={(e) => setDraftTo(e.target.value)}
+                min={draftFrom}
+              />
+            </div>
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button type="button" variant="ghost" onClick={resetMesAtual}>
+              Mês atual
+            </Button>
+            <Button type="button" onClick={applyPeriod} disabled={!draftFrom || !draftTo || draftFrom > draftTo}>
+              Aplicar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

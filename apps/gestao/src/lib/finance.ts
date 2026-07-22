@@ -26,6 +26,7 @@ export type CalcInput = BikeCosts & {
   desconto?: number;
 };
 
+/** Calcula custos, preço sugerido (por markup), lucro e margem. */
 export function calcBike(input: CalcInput) {
   const s = input.settings;
   const icms_pct = input.override_icms_pct ?? s.icms_pct;

@@ -25,14 +25,28 @@ function VendasDashboard() {
   if (isLoading || !data) return <div className="text-muted-foreground">Carregando…</div>;
 
   const { bikes, settings } = data;
-  const calcs = bikes.map((b) => ({ b, c: calcBike({ ...(b as any), settings }) }));
+  /** Cálculos usando valor_proposto (valor sugerido) como preço de venda. */
+  const calcs = bikes.map((b: any) => {
+    const valorSugerido = Number(b.valor_proposto) || 0;
+    return {
+      b,
+      valorSugerido,
+      c: calcBike({
+        ...b,
+        settings,
+        override_venda: valorSugerido > 0 ? valorSugerido : undefined,
+      }),
+    };
+  });
   const emEstoque = calcs.filter((x) => x.b.status === "em_estoque");
   const vendidas = calcs.filter((x) => x.b.status === "vendida");
 
   const valorEstoque = emEstoque.reduce((s, x) => s + x.c.custo_total, 0);
   const lucroPotencial = emEstoque.reduce((s, x) => s + x.c.lucro, 0);
   const margemMedia = emEstoque.length ? emEstoque.reduce((s, x) => s + x.c.margem_pct, 0) / emEstoque.length : 0;
-  const ticketMedio = vendidas.length ? vendidas.reduce((s, x) => s + x.c.venda, 0) / vendidas.length : 0;
+  const ticketMedio = vendidas.length
+    ? vendidas.reduce((s, x) => s + x.valorSugerido, 0) / vendidas.length
+    : 0;
 
   const today = Date.now();
   const diasEstoque = (entrada: string) => Math.floor((today - new Date(entrada).getTime()) / 86400000);

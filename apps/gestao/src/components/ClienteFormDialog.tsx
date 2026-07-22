@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { toast } from "sonner";
+import { formatCpf, formatPhoneBr } from "@/lib/utils";
 
 const ORIGENS = ["Instagram", "Indicação", "Loja", "Site", "Evento"];
 const NIVEIS = ["Iniciante", "Intermediário", "Avançado"];
@@ -84,7 +85,15 @@ export function ClienteFormDialog({
   const [usuarios, setUsuarios] = useState<any[]>([]);
 
   useEffect(() => {
-    if (cliente) setForm({ ...cliente, modalidades: cliente.modalidades ?? [] });
+    if (cliente) {
+      setForm({
+        ...cliente,
+        modalidades: cliente.modalidades ?? [],
+        whatsapp: formatPhoneBr(cliente.whatsapp ?? ""),
+        telefone_secundario: formatPhoneBr(cliente.telefone_secundario ?? ""),
+        cpf: formatCpf(cliente.cpf ?? ""),
+      });
+    }
   }, [cliente]);
 
   useEffect(() => {
@@ -167,12 +176,21 @@ export function ClienteFormDialog({
                 <Input value={form.nome} onChange={(e) => set("nome", e.target.value)} />
               </Field>
               <Field label="WhatsApp principal">
-                <Input value={form.whatsapp} onChange={(e) => set("whatsapp", e.target.value)} />
+                <Input
+                  value={form.whatsapp}
+                  onChange={(e) => set("whatsapp", formatPhoneBr(e.target.value))}
+                  inputMode="tel"
+                  placeholder="(00) 00000-0000"
+                  maxLength={15}
+                />
               </Field>
               <Field label="Telefone secundário">
                 <Input
                   value={form.telefone_secundario}
-                  onChange={(e) => set("telefone_secundario", e.target.value)}
+                  onChange={(e) => set("telefone_secundario", formatPhoneBr(e.target.value))}
+                  inputMode="tel"
+                  placeholder="(00) 00000-0000"
+                  maxLength={15}
                 />
               </Field>
               <Field label="E-mail">
@@ -182,7 +200,13 @@ export function ClienteFormDialog({
                 <Input value={form.instagram} onChange={(e) => set("instagram", e.target.value)} />
               </Field>
               <Field label="CPF">
-                <Input value={form.cpf} onChange={(e) => set("cpf", e.target.value)} />
+                <Input
+                  value={form.cpf}
+                  onChange={(e) => set("cpf", formatCpf(e.target.value))}
+                  inputMode="numeric"
+                  placeholder="000.000.000-00"
+                  maxLength={14}
+                />
               </Field>
               <Field label="Data de nascimento">
                 <Input

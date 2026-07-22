@@ -86,7 +86,15 @@ function EstoquePage() {
       ) : (
         <div className="grid gap-3">
           {filtered.map((b: any) => {
-            const c = data ? calcBike({ ...b, settings: data.settings }) : null;
+            const valorSugerido = Number(b.valor_proposto) || 0;
+            const c = data
+              ? calcBike({
+                  ...b,
+                  settings: data.settings,
+                  // Margem/lucro coerentes com o valor sugerido (proposto)
+                  override_venda: valorSugerido > 0 ? valorSugerido : undefined,
+                })
+              : null;
             const dias = Math.floor((Date.now() - new Date(b.data_entrada).getTime()) / 86400000);
             const isSeminova = b.condicao === "seminova";
             return (
@@ -105,7 +113,7 @@ function EstoquePage() {
                     </div>
                     <div className="text-right">
                       <div className="text-xs uppercase text-muted-foreground">Venda</div>
-                      <div className="font-semibold">{c ? fmtBRL(c.venda) : "—"}</div>
+                      <div className="font-semibold">{fmtBRL(valorSugerido)}</div>
                     </div>
                     <div className="text-right">
                       <div className="text-xs uppercase text-muted-foreground">Margem</div>
