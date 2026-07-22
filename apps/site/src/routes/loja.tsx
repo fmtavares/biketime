@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import { useMemo, useState } from "react";
 import { Bike } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { fmtPreco, type LojaBike } from "@/lib/loja";
@@ -21,11 +22,56 @@ export const Route = createFileRoute("/loja")({
   component: LojaPage,
 });
 
+const FILTROS = [
+  { id: "todas", label: "Todas" },
+  { id: "road", label: "Road" },
+  { id: "triatlo", label: "Triatlo" },
+  { id: "mtb", label: "MTB" },
+  { id: "trail", label: "Trail" },
+] as const;
+
+type FiltroId = (typeof FILTROS)[number]["id"];
+
+/**
+ * Verifica se a bike cabe no filtro rápido (categoria + nome do modelo).
+ */
+function matchFiltro(bike: LojaBike, filtro: FiltroId): boolean {
+  if (filtro === "todas") return true;
+  const cat = (bike.categoria ?? "").toLowerCase().trim();
+  const modelo = (bike.modelo ?? "").toLowerCase();
+  const texto = `${cat} ${modelo}`;
+
+  switch (filtro) {
+    case "road":
+      return cat === "road" || texto.includes("road");
+    case "triatlo":
+      return (
+        cat === "triathlon" ||
+        cat === "triatlo" ||
+        texto.includes("triath") ||
+        texto.includes("triatlo")
+      );
+    case "mtb":
+      return cat === "mtb" || texto.includes("mtb");
+    case "trail":
+      return (
+        cat === "trail" ||
+        cat === "gravel" ||
+        texto.includes("trail") ||
+        texto.includes("gravel")
+      );
+    default:
+      return true;
+  }
+}
+
 /**
  * Lista pública do showroom (bikes com visivel_ecommerce).
  * Sem link na navegação — acesso por URL /loja.
  */
 function LojaPage() {
+  const [filtro, setFiltro] = useState<FiltroId>("todas");
+
   const { data: bikes = [], isLoading, isError } = useQuery({
     queryKey: ["loja-bikes"],
     queryFn: async () => {
@@ -39,6 +85,11 @@ function LojaPage() {
     },
   });
 
+  const filtradas = useMemo(
+    () => bikes.filter((b) => matchFiltro(b, filtro)),
+    [bikes, filtro],
+  );
+
   return (
     <div>
       <section className="container-px mx-auto max-w-7xl py-20 md:py-28">
@@ -51,6 +102,26 @@ function LojaPage() {
         <p className="mt-5 max-w-2xl text-lg text-muted-foreground">
           Seleção especial do nosso estoque, fale conosco pelo WhatsApp.
         </p>
+
+        <div className="mt-10 flex flex-wrap gap-2">
+          {FILTROS.map((f) => {
+            const ativo = filtro === f.id;
+            return (
+              <button
+                key={f.id}
+                type="button"
+                onClick={() => setFiltro(f.id)}
+                className={`rounded-full border px-4 py-2 text-sm font-semibold transition-colors ${
+                  ativo
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "border-border bg-surface/60 text-muted-foreground hover:border-primary/40 hover:text-foreground"
+                }`}
+              >
+                {f.label}
+              </button>
+            );
+          })}
+        </div>
       </section>
 
       <section className="container-px mx-auto max-w-7xl pb-24">
@@ -70,9 +141,16 @@ function LojaPage() {
             </p>
           </div>
         )}
-        {bikes.length > 0 && (
+        {!isLoading && !isError && bikes.length > 0 && filtradas.length === 0 && (
+          <div className="rounded-2xl border border-border bg-surface/60 px-8 py-16 text-center">
+            <p className="text-muted-foreground">
+              Nenhuma bike nesta categoria. Tente outro filtro.
+            </p>
+          </div>
+        )}
+        {filtradas.length > 0 && (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {bikes.map((b) => (
+            {filtradas.map((b) => (
               <BikeCard key={b.id} bike={b} />
             ))}
           </div>
