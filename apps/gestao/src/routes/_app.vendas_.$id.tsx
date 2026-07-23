@@ -14,6 +14,7 @@ import { calcBike, fmtBRL, fmtPct, type FinancialSettings } from "@/lib/finance"
 import { toast } from "sonner";
 import { Trash2, Send, ArrowLeft, Sparkles, Loader2 } from "lucide-react";
 import { ImageCropDialog } from "@/components/ImageCropDialog";
+import { CategoriaBikeSelect } from "@/components/CategoriaBikeSelect";
 
 export const Route = createFileRoute("/_app/vendas_/$id")({ component: BikeEstoqueDetail });
 
@@ -107,7 +108,20 @@ function BikeEstoqueDetail() {
    * (sem depender de refetch que poderia sobrescrever o estado).
    */
   async function saveEdits() {
-    const { id: _id, created_at, updated_at, created_by, ...rest } = edit;
+    const {
+      id: _id,
+      created_at,
+      updated_at,
+      created_by,
+      // Fotos são salvas só pelo PhotoSlot — evita sobrescrever com URL antiga em cache
+      foto_completa: _fc,
+      foto_cambio_frente: _ff,
+      foto_cambio_traseiro: _ft,
+      foto_freio: _fr,
+      foto_numero_serie: _fn,
+      fotos: _fotos,
+      ...rest
+    } = edit;
     const moneyKeys = [
       "custo_bike", "frete", "seguro", "montagem", "revisao_inicial", "custos_adicionais",
       "valor_mercado", "valor_proposto", "valor_minimo",
@@ -379,11 +393,19 @@ function BikeEstoqueDetail() {
                   {Object.entries(statusLabel).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
                 </select>
               </div>
-              {["marca","modelo","tamanho","categoria","ano","cor","material_quadro","fornecedor","grupo","modelo_grupo","relacao","freios","rodas","suspensao"].map((k) => (
+              {["marca","modelo","tamanho","ano","cor","material_quadro","fornecedor","grupo","modelo_grupo","relacao","freios","rodas","suspensao"].map((k) => (
                 <div key={k}><Label className="text-xs uppercase">{k.replace("_"," ")}</Label>
                   <Input disabled={!isAdmin} value={edit[k] ?? ""} onChange={(e) => setEdf(k, e.target.value)} />
                 </div>
               ))}
+              <div>
+                <Label className="text-xs uppercase">categoria</Label>
+                <CategoriaBikeSelect
+                  disabled={!isAdmin}
+                  value={edit.categoria ?? ""}
+                  onChange={(v) => setEdf("categoria", v || null)}
+                />
+              </div>
               <div><Label className="text-xs uppercase">Condição</Label>
                 <select disabled={!isAdmin} value={edit.condicao ?? ""} onChange={(e) => setEdf("condicao", e.target.value)}
                   className="h-9 w-full rounded-md border bg-background px-3 text-sm">

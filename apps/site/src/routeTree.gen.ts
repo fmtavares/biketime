@@ -19,6 +19,7 @@ import { Route as ContatoRouteImport } from './routes/contato'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as LojaIdRouteImport } from './routes/loja_.$id'
+import { Route as LojaProdutoIdRouteImport } from './routes/loja_.produto.$id'
 
 const SobreRoute = SobreRouteImport.update({
   id: '/sobre',
@@ -70,6 +71,11 @@ const LojaIdRoute = LojaIdRouteImport.update({
   path: '/loja/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LojaProdutoIdRoute = LojaProdutoIdRouteImport.update({
+  id: '/loja_/produto/$id',
+  path: '/loja/produto/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -82,6 +88,7 @@ export interface FileRoutesByFullPath {
   '/servicos': typeof ServicosRoute
   '/sobre': typeof SobreRoute
   '/loja/$id': typeof LojaIdRoute
+  '/loja/produto/$id': typeof LojaProdutoIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -94,6 +101,7 @@ export interface FileRoutesByTo {
   '/servicos': typeof ServicosRoute
   '/sobre': typeof SobreRoute
   '/loja/$id': typeof LojaIdRoute
+  '/loja/produto/$id': typeof LojaProdutoIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -107,6 +115,7 @@ export interface FileRoutesById {
   '/servicos': typeof ServicosRoute
   '/sobre': typeof SobreRoute
   '/loja_/$id': typeof LojaIdRoute
+  '/loja_/produto/$id': typeof LojaProdutoIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -121,6 +130,7 @@ export interface FileRouteTypes {
     | '/servicos'
     | '/sobre'
     | '/loja/$id'
+    | '/loja/produto/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -133,6 +143,7 @@ export interface FileRouteTypes {
     | '/servicos'
     | '/sobre'
     | '/loja/$id'
+    | '/loja/produto/$id'
   id:
     | '__root__'
     | '/'
@@ -145,6 +156,7 @@ export interface FileRouteTypes {
     | '/servicos'
     | '/sobre'
     | '/loja_/$id'
+    | '/loja_/produto/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -158,6 +170,7 @@ export interface RootRouteChildren {
   ServicosRoute: typeof ServicosRoute
   SobreRoute: typeof SobreRoute
   LojaIdRoute: typeof LojaIdRoute
+  LojaProdutoIdRoute: typeof LojaProdutoIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -232,6 +245,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LojaIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/loja_/produto/$id': {
+      id: '/loja_/produto/$id'
+      path: '/loja/produto/$id'
+      fullPath: '/loja/produto/$id'
+      preLoaderRoute: typeof LojaProdutoIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -246,6 +266,7 @@ const rootRouteChildren: RootRouteChildren = {
   ServicosRoute: ServicosRoute,
   SobreRoute: SobreRoute,
   LojaIdRoute: LojaIdRoute,
+  LojaProdutoIdRoute: LojaProdutoIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

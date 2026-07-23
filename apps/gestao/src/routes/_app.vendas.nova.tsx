@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import { Sparkles, Loader2 } from "lucide-react";
+import { CategoriaBikeSelect } from "@/components/CategoriaBikeSelect";
 
 export const Route = createFileRoute("/_app/vendas/nova")({ component: NovaBike });
 
@@ -140,9 +141,10 @@ function NovaBike() {
           <Field label="Modelo *"><Input required value={form.modelo ?? ""} onChange={(e) => set("modelo", e.target.value)} /></Field>
           <Field label="Ano"><Input type="number" value={form.ano ?? ""} onChange={(e) => set("ano", e.target.value ? +e.target.value : null)} /></Field>
           <Field label="Categoria">
-            <select value={form.categoria ?? ""} onChange={(e) => set("categoria", e.target.value)} className="h-9 w-full rounded-md border bg-background px-3 text-sm">
-              <option value="">—</option><option>Road</option><option>MTB</option><option>Gravel</option><option>Triathlon</option><option>Urbana</option>
-            </select>
+            <CategoriaBikeSelect
+              value={form.categoria ?? ""}
+              onChange={(v) => set("categoria", v || null)}
+            />
           </Field>
           <Field label="Tamanho"><Input value={form.tamanho ?? ""} onChange={(e) => set("tamanho", e.target.value)} /></Field>
           <Field label="Material do quadro"><Input value={form.material_quadro ?? ""} onChange={(e) => set("material_quadro", e.target.value)} /></Field>

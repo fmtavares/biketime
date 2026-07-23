@@ -797,10 +797,92 @@ export type Database = {
           },
         ]
       }
+      bike_categorias: {
+        Row: {
+          id: string
+          nome: string
+          slug: string
+          ativo: boolean
+          ordem: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          nome: string
+          slug: string
+          ativo?: boolean
+          ordem?: number
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          nome?: string
+          slug?: string
+          ativo?: boolean
+          ordem?: number
+          created_at?: string
+        }
+        Relationships: []
+      }
+      produto_categorias: {
+        Row: {
+          id: string
+          nome: string
+          slug: string
+          ativo: boolean
+          ordem: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          nome: string
+          slug: string
+          ativo?: boolean
+          ordem?: number
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          nome?: string
+          slug?: string
+          ativo?: boolean
+          ordem?: number
+          created_at?: string
+        }
+        Relationships: []
+      }
+      produto_marcas: {
+        Row: {
+          id: string
+          nome: string
+          slug: string
+          ativo: boolean
+          ordem: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          nome: string
+          slug: string
+          ativo?: boolean
+          ordem?: number
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          nome?: string
+          slug?: string
+          ativo?: boolean
+          ordem?: number
+          created_at?: string
+        }
+        Relationships: []
+      }
       produtos: {
         Row: {
           ativo: boolean
           categoria: string | null
+          categoria_id: string | null
           codigo_barras: string | null
           created_at: string
           created_by: string | null
@@ -812,6 +894,7 @@ export type Database = {
           fotos: string[] | null
           id: string
           marca: string | null
+          marca_id: string | null
           modelo: string | null
           nome: string
           observacoes: string | null
@@ -825,6 +908,7 @@ export type Database = {
         Insert: {
           ativo?: boolean
           categoria?: string | null
+          categoria_id?: string | null
           codigo_barras?: string | null
           created_at?: string
           created_by?: string | null
@@ -836,6 +920,7 @@ export type Database = {
           fotos?: string[] | null
           id?: string
           marca?: string | null
+          marca_id?: string | null
           modelo?: string | null
           nome: string
           observacoes?: string | null
@@ -849,6 +934,7 @@ export type Database = {
         Update: {
           ativo?: boolean
           categoria?: string | null
+          categoria_id?: string | null
           codigo_barras?: string | null
           created_at?: string
           created_by?: string | null
@@ -860,6 +946,7 @@ export type Database = {
           fotos?: string[] | null
           id?: string
           marca?: string | null
+          marca_id?: string | null
           modelo?: string | null
           nome?: string
           observacoes?: string | null
@@ -870,7 +957,22 @@ export type Database = {
           valor_minimo?: number | null
           visivel_ecommerce?: boolean
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "produtos_categoria_id_fkey"
+            columns: ["categoria_id"]
+            isOneToOne: false
+            referencedRelation: "produto_categorias"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "produtos_marca_id_fkey"
+            columns: ["marca_id"]
+            isOneToOne: false
+            referencedRelation: "produto_marcas"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {

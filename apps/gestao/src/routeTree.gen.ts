@@ -23,6 +23,7 @@ import { Route as AppClientesRouteImport } from './routes/_app.clientes'
 import { Route as AppBikesRouteImport } from './routes/_app.bikes'
 import { Route as AppVendasIndexRouteImport } from './routes/_app.vendas.index'
 import { Route as AppVendasIdRouteImport } from './routes/_app.vendas_.$id'
+import { Route as AppVendasProdutosRouteImport } from './routes/_app.vendas.produtos'
 import { Route as AppVendasNovaRouteImport } from './routes/_app.vendas.nova'
 import { Route as AppVendasEstoqueRouteImport } from './routes/_app.vendas.estoque'
 import { Route as AppClientesIdRouteImport } from './routes/_app.clientes_.$id'
@@ -97,6 +98,11 @@ const AppVendasIdRoute = AppVendasIdRouteImport.update({
   path: '/vendas/$id',
   getParentRoute: () => AppRoute,
 } as any)
+const AppVendasProdutosRoute = AppVendasProdutosRouteImport.update({
+  id: '/produtos',
+  path: '/produtos',
+  getParentRoute: () => AppVendasRoute,
+} as any)
 const AppVendasNovaRoute = AppVendasNovaRouteImport.update({
   id: '/nova',
   path: '/nova',
@@ -134,6 +140,7 @@ export interface FileRoutesByFullPath {
   '/clientes/$id': typeof AppClientesIdRoute
   '/vendas/estoque': typeof AppVendasEstoqueRoute
   '/vendas/nova': typeof AppVendasNovaRoute
+  '/vendas/produtos': typeof AppVendasProdutosRoute
   '/vendas/$id': typeof AppVendasIdRoute
   '/vendas/': typeof AppVendasIndexRoute
 }
@@ -152,6 +159,7 @@ export interface FileRoutesByTo {
   '/clientes/$id': typeof AppClientesIdRoute
   '/vendas/estoque': typeof AppVendasEstoqueRoute
   '/vendas/nova': typeof AppVendasNovaRoute
+  '/vendas/produtos': typeof AppVendasProdutosRoute
   '/vendas/$id': typeof AppVendasIdRoute
   '/vendas': typeof AppVendasIndexRoute
 }
@@ -173,6 +181,7 @@ export interface FileRoutesById {
   '/_app/clientes_/$id': typeof AppClientesIdRoute
   '/_app/vendas/estoque': typeof AppVendasEstoqueRoute
   '/_app/vendas/nova': typeof AppVendasNovaRoute
+  '/_app/vendas/produtos': typeof AppVendasProdutosRoute
   '/_app/vendas_/$id': typeof AppVendasIdRoute
   '/_app/vendas/': typeof AppVendasIndexRoute
 }
@@ -194,6 +203,7 @@ export interface FileRouteTypes {
     | '/clientes/$id'
     | '/vendas/estoque'
     | '/vendas/nova'
+    | '/vendas/produtos'
     | '/vendas/$id'
     | '/vendas/'
   fileRoutesByTo: FileRoutesByTo
@@ -212,6 +222,7 @@ export interface FileRouteTypes {
     | '/clientes/$id'
     | '/vendas/estoque'
     | '/vendas/nova'
+    | '/vendas/produtos'
     | '/vendas/$id'
     | '/vendas'
   id:
@@ -232,6 +243,7 @@ export interface FileRouteTypes {
     | '/_app/clientes_/$id'
     | '/_app/vendas/estoque'
     | '/_app/vendas/nova'
+    | '/_app/vendas/produtos'
     | '/_app/vendas_/$id'
     | '/_app/vendas/'
   fileRoutesById: FileRoutesById
@@ -341,6 +353,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppVendasIdRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/vendas/produtos': {
+      id: '/_app/vendas/produtos'
+      path: '/produtos'
+      fullPath: '/vendas/produtos'
+      preLoaderRoute: typeof AppVendasProdutosRouteImport
+      parentRoute: typeof AppVendasRoute
+    }
     '/_app/vendas/nova': {
       id: '/_app/vendas/nova'
       path: '/nova'
@@ -375,12 +394,14 @@ declare module '@tanstack/react-router' {
 interface AppVendasRouteChildren {
   AppVendasEstoqueRoute: typeof AppVendasEstoqueRoute
   AppVendasNovaRoute: typeof AppVendasNovaRoute
+  AppVendasProdutosRoute: typeof AppVendasProdutosRoute
   AppVendasIndexRoute: typeof AppVendasIndexRoute
 }
 
 const AppVendasRouteChildren: AppVendasRouteChildren = {
   AppVendasEstoqueRoute: AppVendasEstoqueRoute,
   AppVendasNovaRoute: AppVendasNovaRoute,
+  AppVendasProdutosRoute: AppVendasProdutosRoute,
   AppVendasIndexRoute: AppVendasIndexRoute,
 }
 

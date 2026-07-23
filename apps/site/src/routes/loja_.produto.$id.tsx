@@ -1,40 +1,43 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Bike, MessageCircle } from "lucide-react";
+import { ArrowLeft, MessageCircle, Package } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import {
   fmtPreco,
-  whatsappInteresse,
-  etiquetaCondicao,
-  type LojaBike,
+  fotoProduto,
+  whatsappInteresseProduto,
+  type LojaProduto,
 } from "@/lib/loja";
 
-export const Route = createFileRoute("/loja_/$id")({
+export const Route = createFileRoute("/loja_/produto/$id")({
   head: ({ params }) => ({
     meta: [
-      { title: `Bike · Showroom BikeTime` },
-      { property: "og:url", content: `https://biketime.com.br/loja/${params.id}` },
+      { title: `Produto · Showroom BikeTime` },
+      {
+        property: "og:url",
+        content: `https://biketime.com.br/loja/produto/${params.id}`,
+      },
     ],
   }),
-  component: LojaDetalhePage,
+  component: LojaProdutoDetalhePage,
 });
 
 /**
- * Detalhe de uma bike do showroom + CTA WhatsApp (sem pagamento).
+ * Detalhe de um produto/acessório do showroom + CTA WhatsApp (sem pagamento).
  */
-function LojaDetalhePage() {
+function LojaProdutoDetalhePage() {
   const { id } = Route.useParams();
 
-  const { data: bike, isLoading, isError } = useQuery({
-    queryKey: ["loja-bike", id],
+  const { data: produto, isLoading, isError } = useQuery({
+    queryKey: ["loja-produto", id],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("loja_bikes")
+        .from("loja_produtos")
         .select("*")
         .eq("id", id)
         .maybeSingle();
       if (error) throw error;
-      return data as LojaBike | null;
+      return data as LojaProduto | null;
     },
   });
 
@@ -46,7 +49,7 @@ function LojaDetalhePage() {
     );
   }
 
-  if (isError || !bike) {
+  if (isError || !produto) {
     return (
       <div className="container-px mx-auto max-w-7xl py-20">
         <Link
@@ -55,14 +58,13 @@ function LojaDetalhePage() {
         >
           <ArrowLeft size={14} /> Voltar ao showroom
         </Link>
-        <p className="mt-8 text-muted-foreground">Bike não encontrada no showroom.</p>
+        <p className="mt-8 text-muted-foreground">Produto não encontrado no showroom.</p>
       </div>
     );
   }
 
-  const nome = `${bike.marca} ${bike.modelo}`;
-  const wa = whatsappInteresse(bike);
-  const etiqueta = etiquetaCondicao(bike.condicao);
+  const foto = fotoProduto(produto);
+  const wa = whatsappInteresseProduto(produto);
 
   return (
     <div className="container-px mx-auto max-w-7xl py-12 md:py-20">
@@ -76,20 +78,15 @@ function LojaDetalhePage() {
       <div className="mt-8 grid gap-10 lg:grid-cols-2 lg:items-start">
         <div className="overflow-hidden rounded-2xl border border-border bg-surface/60">
           <div className="relative aspect-[4/3] bg-secondary/40">
-            {etiqueta && (
-              <span className="absolute bottom-3 left-1/2 z-10 -translate-x-1/2 rounded-md bg-primary px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-primary-foreground shadow-sm">
-                {etiqueta}
-              </span>
-            )}
-            {bike.foto_completa ? (
+            {foto ? (
               <img
-                src={bike.foto_completa}
-                alt={nome}
+                src={foto}
+                alt={produto.nome}
                 className="h-full w-full object-cover"
               />
             ) : (
               <div className="flex h-full w-full items-center justify-center text-muted-foreground">
-                <Bike className="h-16 w-16 opacity-40" />
+                <Package className="h-16 w-16 opacity-40" />
               </div>
             )}
           </div>
@@ -99,26 +96,26 @@ function LojaDetalhePage() {
           <span className="text-xs font-semibold uppercase tracking-widest text-primary">
             / Showroom
           </span>
-          <h1 className="mt-3 font-display text-4xl font-bold md:text-5xl">{nome}</h1>
+          <h1 className="mt-3 font-display text-4xl font-bold md:text-5xl">
+            {produto.nome}
+          </h1>
           <p className="mt-3 text-sm text-muted-foreground">
-            {[
-              bike.ano && String(bike.ano),
-              bike.tamanho && `Tamanho ${bike.tamanho}`,
-              bike.cor,
-              bike.categoria,
-              bike.condicao,
-            ]
-              .filter(Boolean)
-              .join(" · ")}
+            {[produto.categoria, produto.marca, produto.modelo].filter(Boolean).join(" · ")}
           </p>
 
           <div className="mt-8 font-display text-3xl font-bold text-primary">
-            {fmtPreco(bike.valor_proposto)}
+            {fmtPreco(produto.preco_venda)}
           </div>
 
-          {bike.observacoes_tecnicas && (
+          {produto.descricao && (
             <div className="mt-8 whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
-              {bike.observacoes_tecnicas}
+              {produto.descricao}
+            </div>
+          )}
+
+          {produto.observacoes && (
+            <div className="mt-4 whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
+              {produto.observacoes}
             </div>
           )}
 

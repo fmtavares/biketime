@@ -125,6 +125,21 @@ export type Database = {
         }
         Relationships: []
       }
+      loja_produtos: {
+        Row: {
+          id: string
+          nome: string
+          marca: string | null
+          modelo: string | null
+          categoria: string | null
+          categoria_slug: string | null
+          descricao: string | null
+          preco_venda: number | null
+          fotos: string[] | null
+          observacoes: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       has_role: {

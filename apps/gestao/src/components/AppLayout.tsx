@@ -16,6 +16,7 @@ import {
   DollarSign,
   ShoppingCart,
   ListChecks,
+  Package,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -41,6 +42,8 @@ const vendasSection: NavSection = {
   label: "Vendas",
   items: [
     { to: "/vendas", label: "Vendas", icon: ShoppingCart },
+    { to: "/vendas/estoque", label: "Bikes", icon: Bike },
+    { to: "/vendas/produtos", label: "Produtos", icon: Package },
     { to: "/marketing", label: "Marketing", icon: Sparkles },
   ],
 };
@@ -93,6 +96,21 @@ export function AppLayout() {
     );
   }
 
+  const allNavItems = sections.flatMap((s) => s.items);
+
+  /**
+   * Destaca só o item de nav mais específico (ex.: /vendas/produtos → Produtos, não Vendas).
+   */
+  function isNavActive(item: NavItem): boolean {
+    const matches = (i: NavItem) =>
+      i.exact ? path === i.to : path === i.to || path.startsWith(`${i.to}/`);
+    if (!matches(item)) return false;
+    const best = allNavItems
+      .filter(matches)
+      .reduce((a, b) => (a.to.length >= b.to.length ? a : b));
+    return best.to === item.to;
+  }
+
   const navItems = (onClick?: () => void) =>
     sections.map((section, idx) => (
       <div key={section.label ?? `section-${idx}`} className={idx > 0 ? "pt-3 mt-3 border-t border-border/50" : ""}>
@@ -104,7 +122,7 @@ export function AppLayout() {
         <div className="space-y-1">
           {section.items.map((item) => {
             const Icon = item.icon;
-            const active = item.exact ? path === item.to : path.startsWith(item.to);
+            const active = isNavActive(item);
             return (
               <Link
                 key={item.to}
