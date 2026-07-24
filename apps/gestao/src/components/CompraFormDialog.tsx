@@ -23,6 +23,7 @@ import {
 import { toast } from "sonner";
 import { fmtBRL } from "@/lib/finance";
 import { Plus, Trash2 } from "lucide-react";
+import { CurrencyInput } from "@/components/CurrencyInput";
 
 export const FORMAS_PAGAMENTO_COMPRA = [
   "Dinheiro",
@@ -399,7 +400,7 @@ export function CompraFormDialog({
             </Button>
           </div>
           {itens.map((it, idx) => (
-            <div key={idx} className="grid gap-2 sm:grid-cols-[1fr_80px_110px_36px]">
+            <div key={idx} className="grid gap-2 sm:grid-cols-[1fr_80px_140px_36px]">
               <Input
                 placeholder="Descrição"
                 value={it.descricao}
@@ -421,12 +422,9 @@ export function CompraFormDialog({
                   );
                 }}
               />
-              <Input
-                inputMode="decimal"
-                placeholder="Valor unit."
+              <CurrencyInput
                 value={it.valor}
-                onChange={(e) => {
-                  const v = e.target.value;
+                onChange={(v) => {
                   setItens((prev) =>
                     prev.map((row, i) => (i === idx ? { ...row, valor: v } : row)),
                   );
@@ -489,11 +487,9 @@ export function CompraFormDialog({
                       );
                     }}
                   />
-                  <Input
-                    inputMode="decimal"
+                  <CurrencyInput
                     value={p.valor}
-                    onChange={(e) => {
-                      const v = e.target.value;
+                    onChange={(v) => {
                       setParcelas((prev) =>
                         prev.map((row, i) => (i === idx ? { ...row, valor: v } : row)),
                       );

@@ -1004,6 +1004,149 @@ export type Database = {
           },
         ]
       }
+      despesa_categorias: {
+        Row: {
+          id: string
+          nome: string
+          slug: string
+          ativo: boolean
+          ordem: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          nome: string
+          slug: string
+          ativo?: boolean
+          ordem?: number
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          nome?: string
+          slug?: string
+          ativo?: boolean
+          ordem?: number
+          created_at?: string
+        }
+        Relationships: []
+      }
+      despesa_recorrentes: {
+        Row: {
+          id: string
+          descricao: string
+          categoria_id: string | null
+          dia_vencimento: number
+          valor_estimado: number | null
+          forma_pagamento: string | null
+          ativo: boolean
+          observacoes: string | null
+          created_by: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          descricao: string
+          categoria_id?: string | null
+          dia_vencimento: number
+          valor_estimado?: number | null
+          forma_pagamento?: string | null
+          ativo?: boolean
+          observacoes?: string | null
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          descricao?: string
+          categoria_id?: string | null
+          dia_vencimento?: number
+          valor_estimado?: number | null
+          forma_pagamento?: string | null
+          ativo?: boolean
+          observacoes?: string | null
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "despesa_recorrentes_categoria_id_fkey"
+            columns: ["categoria_id"]
+            isOneToOne: false
+            referencedRelation: "despesa_categorias"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      despesas: {
+        Row: {
+          id: string
+          descricao: string
+          categoria_id: string | null
+          recorrente_id: string | null
+          data_vencimento: string
+          competencia: string
+          valor: number
+          forma_pagamento: string | null
+          status: string
+          data_pagamento: string | null
+          observacoes: string | null
+          created_by: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          descricao: string
+          categoria_id?: string | null
+          recorrente_id?: string | null
+          data_vencimento: string
+          competencia: string
+          valor?: number
+          forma_pagamento?: string | null
+          status?: string
+          data_pagamento?: string | null
+          observacoes?: string | null
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          descricao?: string
+          categoria_id?: string | null
+          recorrente_id?: string | null
+          data_vencimento?: string
+          competencia?: string
+          valor?: number
+          forma_pagamento?: string | null
+          status?: string
+          data_pagamento?: string | null
+          observacoes?: string | null
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "despesas_categoria_id_fkey"
+            columns: ["categoria_id"]
+            isOneToOne: false
+            referencedRelation: "despesa_categorias"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "despesas_recorrente_id_fkey"
+            columns: ["recorrente_id"]
+            isOneToOne: false
+            referencedRelation: "despesa_recorrentes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       produto_categorias: {
         Row: {
           id: string

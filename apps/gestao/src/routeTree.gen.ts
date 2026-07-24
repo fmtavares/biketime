@@ -19,6 +19,7 @@ import { Route as AppPendenciasRouteImport } from './routes/_app.pendencias'
 import { Route as AppOficinaRouteImport } from './routes/_app.oficina'
 import { Route as AppMarketingRouteImport } from './routes/_app.marketing'
 import { Route as AppFornecedoresRouteImport } from './routes/_app.fornecedores'
+import { Route as AppDespesasRouteImport } from './routes/_app.despesas'
 import { Route as AppContasAPagarRouteImport } from './routes/_app.contas-a-pagar'
 import { Route as AppConfiguracoesRouteImport } from './routes/_app.configuracoes'
 import { Route as AppComprasRouteImport } from './routes/_app.compras'
@@ -80,6 +81,11 @@ const AppMarketingRoute = AppMarketingRouteImport.update({
 const AppFornecedoresRoute = AppFornecedoresRouteImport.update({
   id: '/fornecedores',
   path: '/fornecedores',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppDespesasRoute = AppDespesasRouteImport.update({
+  id: '/despesas',
+  path: '/despesas',
   getParentRoute: () => AppRoute,
 } as any)
 const AppContasAPagarRoute = AppContasAPagarRouteImport.update({
@@ -156,6 +162,7 @@ export interface FileRoutesByFullPath {
   '/compras': typeof AppComprasRoute
   '/configuracoes': typeof AppConfiguracoesRoute
   '/contas-a-pagar': typeof AppContasAPagarRoute
+  '/despesas': typeof AppDespesasRoute
   '/fornecedores': typeof AppFornecedoresRoute
   '/marketing': typeof AppMarketingRoute
   '/oficina': typeof AppOficinaRoute
@@ -179,6 +186,7 @@ export interface FileRoutesByTo {
   '/compras': typeof AppComprasRoute
   '/configuracoes': typeof AppConfiguracoesRoute
   '/contas-a-pagar': typeof AppContasAPagarRoute
+  '/despesas': typeof AppDespesasRoute
   '/fornecedores': typeof AppFornecedoresRoute
   '/marketing': typeof AppMarketingRoute
   '/oficina': typeof AppOficinaRoute
@@ -204,6 +212,7 @@ export interface FileRoutesById {
   '/_app/compras': typeof AppComprasRoute
   '/_app/configuracoes': typeof AppConfiguracoesRoute
   '/_app/contas-a-pagar': typeof AppContasAPagarRoute
+  '/_app/despesas': typeof AppDespesasRoute
   '/_app/fornecedores': typeof AppFornecedoresRoute
   '/_app/marketing': typeof AppMarketingRoute
   '/_app/oficina': typeof AppOficinaRoute
@@ -231,6 +240,7 @@ export interface FileRouteTypes {
     | '/compras'
     | '/configuracoes'
     | '/contas-a-pagar'
+    | '/despesas'
     | '/fornecedores'
     | '/marketing'
     | '/oficina'
@@ -254,6 +264,7 @@ export interface FileRouteTypes {
     | '/compras'
     | '/configuracoes'
     | '/contas-a-pagar'
+    | '/despesas'
     | '/fornecedores'
     | '/marketing'
     | '/oficina'
@@ -278,6 +289,7 @@ export interface FileRouteTypes {
     | '/_app/compras'
     | '/_app/configuracoes'
     | '/_app/contas-a-pagar'
+    | '/_app/despesas'
     | '/_app/fornecedores'
     | '/_app/marketing'
     | '/_app/oficina'
@@ -371,6 +383,13 @@ declare module '@tanstack/react-router' {
       path: '/fornecedores'
       fullPath: '/fornecedores'
       preLoaderRoute: typeof AppFornecedoresRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/despesas': {
+      id: '/_app/despesas'
+      path: '/despesas'
+      fullPath: '/despesas'
+      preLoaderRoute: typeof AppDespesasRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/contas-a-pagar': {
@@ -491,6 +510,7 @@ interface AppRouteChildren {
   AppComprasRoute: typeof AppComprasRoute
   AppConfiguracoesRoute: typeof AppConfiguracoesRoute
   AppContasAPagarRoute: typeof AppContasAPagarRoute
+  AppDespesasRoute: typeof AppDespesasRoute
   AppFornecedoresRoute: typeof AppFornecedoresRoute
   AppMarketingRoute: typeof AppMarketingRoute
   AppOficinaRoute: typeof AppOficinaRoute
@@ -511,6 +531,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppComprasRoute: AppComprasRoute,
   AppConfiguracoesRoute: AppConfiguracoesRoute,
   AppContasAPagarRoute: AppContasAPagarRoute,
+  AppDespesasRoute: AppDespesasRoute,
   AppFornecedoresRoute: AppFornecedoresRoute,
   AppMarketingRoute: AppMarketingRoute,
   AppOficinaRoute: AppOficinaRoute,

@@ -20,6 +20,7 @@ import {
   Truck,
   Receipt,
   Wallet,
+  CircleDollarSign,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -60,6 +61,13 @@ const fornecedoresSection: NavSection = {
   ],
 };
 
+const financeiroSection: NavSection = {
+  label: "Financeiro",
+  items: [
+    { to: "/despesas", label: "Despesas", icon: CircleDollarSign },
+  ],
+};
+
 const organizacaoSectionAdmin: NavSection = {
   label: "Organização",
   items: [
@@ -90,6 +98,7 @@ export function AppLayout() {
         oficinaSection,
         vendasSection,
         fornecedoresSection,
+        financeiroSection,
         organizacaoSectionAdmin,
         configSection,
       ]
