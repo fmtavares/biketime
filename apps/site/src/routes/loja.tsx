@@ -57,7 +57,7 @@ function slugBike(bike: LojaBike): string {
 }
 
 /**
- * Estilo dos chips de filtro (principal ou subfiltro).
+ * Estilo dos chips do menu principal (Todas / Bikes / Capacetes…).
  */
 function chipClass(ativo: boolean) {
   return `rounded-full border px-4 py-2 text-sm font-semibold transition-colors ${
@@ -65,6 +65,78 @@ function chipClass(ativo: boolean) {
       ? "border-primary bg-primary text-primary-foreground"
       : "border-border bg-surface/60 text-muted-foreground hover:border-primary/40 hover:text-foreground"
   }`;
+}
+
+/**
+ * Estilo dos subfiltros de bike no desktop (mais discretos que o menu principal).
+ */
+function subChipClass(ativo: boolean) {
+  return `shrink-0 whitespace-nowrap border-b-2 px-3 py-1.5 text-sm font-medium transition-colors ${
+    ativo
+      ? "border-primary text-foreground"
+      : "border-transparent text-muted-foreground hover:text-foreground"
+  }`;
+}
+
+/**
+ * Subfiltro de tipo de bike: select no mobile, chips em scroll no desktop.
+ */
+function SubfiltroBike({
+  opcoes,
+  value,
+  onChange,
+}: {
+  opcoes: { id: string; label: string }[];
+  value: SubBike;
+  onChange: (v: SubBike) => void;
+}) {
+  return (
+    <>
+      {/* Mobile: um único select — evita segunda fileira de pills */}
+      <div className="mt-4 md:hidden">
+        <label htmlFor="subfiltro-bike" className="sr-only">
+          Tipo de bike
+        </label>
+        <select
+          id="subfiltro-bike"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="h-11 w-full rounded-xl border border-border bg-surface/60 px-3 text-sm font-semibold text-foreground"
+        >
+          <option value="todas">Todas</option>
+          {opcoes.map((t) => (
+            <option key={t.id} value={t.id}>
+              {t.label}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {/* Desktop: chips finos em scroll horizontal */}
+      <div className="relative mt-4 hidden md:block">
+        <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-10 bg-gradient-to-l from-background to-transparent" />
+        <div className="flex gap-1 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <button
+            type="button"
+            onClick={() => onChange("todas")}
+            className={subChipClass(value === "todas")}
+          >
+            Todas
+          </button>
+          {opcoes.map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => onChange(t.id)}
+              className={subChipClass(value === t.id)}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+      </div>
+    </>
+  );
 }
 
 /**
@@ -137,7 +209,7 @@ function LojaPage() {
   /** Menu principal: Todas + Bikes (se houver) + categorias de produto. */
   const filtrosPrincipais = useMemo(() => {
     const items: { id: FiltroPrincipal; label: string }[] = [
-      { id: "todas", label: "Todas" },
+      { id: "todas", label: "Tudo" },
     ];
     if (bikes.length > 0) {
       items.push({ id: "bikes", label: "Bikes" });
@@ -201,7 +273,6 @@ function LojaPage() {
         </h1>
         <p className="mt-5 max-w-4xl text-lg text-muted-foreground md:max-w-5xl">
           Bikes e acessórios cuidadosamente selecionados. Não encontrou o que procura?
-          <br />
           Nossa equipe localiza e negocia a melhor opção para você.
         </p>
 
@@ -219,25 +290,11 @@ function LojaPage() {
         </div>
 
         {mostrandoBikes && subfiltrosBike.length > 0 && (
-          <div className="mt-3 flex flex-wrap gap-2 border-t border-border/50 pt-4">
-            <button
-              type="button"
-              onClick={() => setSubBike("todas")}
-              className={chipClass(subBike === "todas")}
-            >
-              Todas
-            </button>
-            {subfiltrosBike.map((t) => (
-              <button
-                key={t.id}
-                type="button"
-                onClick={() => setSubBike(t.id)}
-                className={chipClass(subBike === t.id)}
-              >
-                {t.label}
-              </button>
-            ))}
-          </div>
+          <SubfiltroBike
+            opcoes={subfiltrosBike}
+            value={subBike}
+            onChange={setSubBike}
+          />
         )}
       </section>
 

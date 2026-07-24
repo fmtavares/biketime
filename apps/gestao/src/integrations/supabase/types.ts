@@ -824,6 +824,186 @@ export type Database = {
         }
         Relationships: []
       }
+      fornecedores: {
+        Row: {
+          id: string
+          nome: string
+          nome_fantasia: string | null
+          cnpj: string | null
+          contato: string | null
+          telefone: string | null
+          email: string | null
+          cidade: string | null
+          estado: string | null
+          observacoes: string | null
+          ativo: boolean
+          created_by: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          nome: string
+          nome_fantasia?: string | null
+          cnpj?: string | null
+          contato?: string | null
+          telefone?: string | null
+          email?: string | null
+          cidade?: string | null
+          estado?: string | null
+          observacoes?: string | null
+          ativo?: boolean
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          nome?: string
+          nome_fantasia?: string | null
+          cnpj?: string | null
+          contato?: string | null
+          telefone?: string | null
+          email?: string | null
+          cidade?: string | null
+          estado?: string | null
+          observacoes?: string | null
+          ativo?: boolean
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      compras: {
+        Row: {
+          id: string
+          fornecedor_id: string
+          data_compra: string
+          forma_pagamento: string
+          valor_total: number
+          numero_nf: string | null
+          observacoes: string | null
+          created_by: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          fornecedor_id: string
+          data_compra?: string
+          forma_pagamento: string
+          valor_total?: number
+          numero_nf?: string | null
+          observacoes?: string | null
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          fornecedor_id?: string
+          data_compra?: string
+          forma_pagamento?: string
+          valor_total?: number
+          numero_nf?: string | null
+          observacoes?: string | null
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "compras_fornecedor_id_fkey"
+            columns: ["fornecedor_id"]
+            isOneToOne: false
+            referencedRelation: "fornecedores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      compra_itens: {
+        Row: {
+          id: string
+          compra_id: string
+          descricao: string
+          quantidade: number
+          valor: number
+          ordem: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          compra_id: string
+          descricao: string
+          quantidade?: number
+          valor?: number
+          ordem?: number
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          compra_id?: string
+          descricao?: string
+          quantidade?: number
+          valor?: number
+          ordem?: number
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "compra_itens_compra_id_fkey"
+            columns: ["compra_id"]
+            isOneToOne: false
+            referencedRelation: "compras"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      compra_parcelas: {
+        Row: {
+          id: string
+          compra_id: string
+          numero: number
+          valor: number
+          data_vencimento: string
+          status: string
+          data_pagamento: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          compra_id: string
+          numero: number
+          valor: number
+          data_vencimento: string
+          status?: string
+          data_pagamento?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          compra_id?: string
+          numero?: number
+          valor?: number
+          data_vencimento?: string
+          status?: string
+          data_pagamento?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "compra_parcelas_compra_id_fkey"
+            columns: ["compra_id"]
+            isOneToOne: false
+            referencedRelation: "compras"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       produto_categorias: {
         Row: {
           id: string

@@ -17,6 +17,9 @@ import {
   ShoppingCart,
   ListChecks,
   Package,
+  Truck,
+  Receipt,
+  Wallet,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -48,6 +51,15 @@ const vendasSection: NavSection = {
   ],
 };
 
+const fornecedoresSection: NavSection = {
+  label: "Fornecedores",
+  items: [
+    { to: "/fornecedores", label: "Fornecedores", icon: Truck },
+    { to: "/compras", label: "Compras", icon: Receipt },
+    { to: "/contas-a-pagar", label: "A Pagar", icon: Wallet },
+  ],
+};
+
 const organizacaoSectionAdmin: NavSection = {
   label: "Organização",
   items: [
@@ -73,7 +85,14 @@ const configSection: NavSection = {
 export function AppLayout() {
   const { user, loading, signOut, isAdmin } = useAuth();
   const sections: NavSection[] = isAdmin
-    ? [dashboardSection, oficinaSection, vendasSection, organizacaoSectionAdmin, configSection]
+    ? [
+        dashboardSection,
+        oficinaSection,
+        vendasSection,
+        fornecedoresSection,
+        organizacaoSectionAdmin,
+        configSection,
+      ]
     : [dashboardSection, oficinaSection, organizacaoSectionUser];
   const navigate = useNavigate();
   const path = useRouterState({ select: (s) => s.location.pathname });
