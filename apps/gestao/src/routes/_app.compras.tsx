@@ -6,7 +6,8 @@ import { useAuth } from "@/lib/auth-context";
 import { PageHeader, SearchBar } from "@/components/AppLayout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 import { CompraFormDialog } from "@/components/CompraFormDialog";
 import { fmtBRL } from "@/lib/finance";
 
@@ -97,6 +98,29 @@ function ComprasPage() {
     const prox = abertas[0];
     const quitada = total > 0 && pagas === total;
     return { total, pagas, prox, quitada };
+  }
+
+  /**
+   * Exclui compra e cascata (itens + parcelas). Só admin.
+   */
+  async function excluirCompra(c: any) {
+    if (!isAdmin) return toast.error("Somente administradores");
+    const nf = c.numero_nf ? ` NF ${c.numero_nf}` : "";
+    const forn = c.fornecedores?.nome ?? "fornecedor";
+    if (
+      !confirm(
+        `Excluir a compra${nf} de ${forn}?\nItens e parcelas também serão removidos.`,
+      )
+    ) {
+      return;
+    }
+    const { error } = await supabase.from("compras").delete().eq("id", c.id);
+    if (error) return toast.error(error.message);
+    toast.success("Compra excluída");
+    qc.invalidateQueries({ queryKey: ["compras-list"] });
+    qc.invalidateQueries({ queryKey: ["contas-a-pagar"] });
+    qc.invalidateQueries({ queryKey: ["fornecedor-compras"] });
+    qc.invalidateQueries({ queryKey: ["fechamento"] });
   }
 
   return (
@@ -208,16 +232,25 @@ function ComprasPage() {
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {isAdmin && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setEditId(c.id);
-                          setOpen(true);
-                        }}
-                      >
-                        Editar
-                      </Button>
+                      <>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setEditId(c.id);
+                            setOpen(true);
+                          }}
+                        >
+                          Editar
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => excluirCompra(c)}
+                        >
+                          <Trash2 className="size-3.5" /> Excluir
+                        </Button>
+                      </>
                     )}
                     {prox && (
                       <Button variant="secondary" size="sm" asChild>
@@ -318,16 +351,26 @@ function ComprasPage() {
                       <td className="px-4 py-3 text-right">
                         <div className="inline-flex flex-wrap justify-end gap-1">
                           {isAdmin && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => {
-                                setEditId(c.id);
-                                setOpen(true);
-                              }}
-                            >
-                              Editar
-                            </Button>
+                            <>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  setEditId(c.id);
+                                  setOpen(true);
+                                }}
+                              >
+                                Editar
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                title="Excluir compra"
+                                onClick={() => excluirCompra(c)}
+                              >
+                                <Trash2 className="size-3.5" />
+                              </Button>
+                            </>
                           )}
                           {prox && (
                             <Button variant="secondary" size="sm" asChild>

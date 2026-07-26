@@ -6,10 +6,11 @@ import { useAuth } from "@/lib/auth-context";
 import { PageHeader, SearchBar } from "@/components/AppLayout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Plus, Check, Repeat } from "lucide-react";
+import { Plus, Check, Repeat, CalendarDays } from "lucide-react";
 import { toast } from "sonner";
 import { DespesaFormDialog } from "@/components/DespesaFormDialog";
 import { DespesaRecorrenteFormDialog } from "@/components/DespesaRecorrenteFormDialog";
+import { DespesaCalendarioDialog } from "@/components/DespesaCalendarioDialog";
 import { fmtBRL } from "@/lib/finance";
 import {
   competenciaAtual,
@@ -17,6 +18,7 @@ import {
   labelCompetencia,
 } from "@/lib/despesas";
 import { garantirLancamentosDoMes } from "@/lib/despesas-gerar";
+import { agoraComoPagamentoISO } from "@/lib/datas";
 
 export const Route = createFileRoute("/_app/despesas")({
   component: DespesasPage,
@@ -42,6 +44,7 @@ function DespesasPage() {
   const [editDespesa, setEditDespesa] = useState<any | null>(null);
   const [openRec, setOpenRec] = useState(false);
   const [editRec, setEditRec] = useState<any | null>(null);
+  const [openCalendario, setOpenCalendario] = useState(false);
   /** Evita re-sync redundante do mesmo mês na mesma sessão de visualização. */
   const syncedCompetencia = useRef<string | null>(null);
 
@@ -150,7 +153,7 @@ function DespesasPage() {
     }
     const { error } = await supabase
       .from("despesas")
-      .update({ status: "paga", data_pagamento: new Date().toISOString() })
+      .update({ status: "paga", data_pagamento: agoraComoPagamentoISO() })
       .eq("id", d.id);
     if (error) return toast.error(error.message);
     toast.success("Despesa marcada como paga");
@@ -161,29 +164,38 @@ function DespesasPage() {
     <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
       <PageHeader
         title="Despesas"
-        description="Gastos do dia a dia e contas recorrentes"
+        description="Cadastro e recorrentes — a agenda do dia a dia fica em A Pagar"
         action={
-          isAdmin ? (
-            aba === "lancamentos" ? (
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+            {aba === "lancamentos" && (
               <Button
-                onClick={() => {
-                  setEditDespesa(null);
-                  setOpenDespesa(true);
-                }}
+                variant="outline"
+                onClick={() => setOpenCalendario(true)}
               >
-                <Plus className="size-4" /> Nova despesa
+                <CalendarDays className="size-4" /> Programação do mês
               </Button>
-            ) : (
-              <Button
-                onClick={() => {
-                  setEditRec(null);
-                  setOpenRec(true);
-                }}
-              >
-                <Plus className="size-4" /> Nova recorrente
-              </Button>
-            )
-          ) : undefined
+            )}
+            {isAdmin &&
+              (aba === "lancamentos" ? (
+                <Button
+                  onClick={() => {
+                    setEditDespesa(null);
+                    setOpenDespesa(true);
+                  }}
+                >
+                  <Plus className="size-4" /> Nova despesa
+                </Button>
+              ) : (
+                <Button
+                  onClick={() => {
+                    setEditRec(null);
+                    setOpenRec(true);
+                  }}
+                >
+                  <Plus className="size-4" /> Nova recorrente
+                </Button>
+              ))}
+          </div>
         }
       />
 
@@ -480,6 +492,19 @@ function DespesasPage() {
         </div>
       )}
 
+      <DespesaCalendarioDialog
+        open={openCalendario}
+        onOpenChange={setOpenCalendario}
+        mesRef={mesRef}
+        competencia={competencia}
+        despesas={despesas as any[]}
+        today={today}
+        onSelect={(d) => {
+          if (!isAdmin) return;
+          setEditDespesa(d);
+          setOpenDespesa(true);
+        }}
+      />
       <DespesaFormDialog
         open={openDespesa}
         onOpenChange={setOpenDespesa}

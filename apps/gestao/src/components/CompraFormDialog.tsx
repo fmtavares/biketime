@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { fmtBRL } from "@/lib/finance";
+import { agoraComoPagamentoISO } from "@/lib/datas";
 import { Plus, Trash2 } from "lucide-react";
 import { CurrencyInput } from "@/components/CurrencyInput";
 
@@ -76,6 +77,7 @@ export function CompraFormDialog({
   defaultFornecedorId,
   fornecedorLocked,
   onSaved,
+  onDeleted,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
@@ -83,6 +85,8 @@ export function CompraFormDialog({
   defaultFornecedorId?: string | null;
   fornecedorLocked?: boolean;
   onSaved?: () => void;
+  /** Chamado após excluir a compra em edição. */
+  onDeleted?: () => void;
 }) {
   const { user, isAdmin } = useAuth();
   const [busy, setBusy] = useState(false);
@@ -297,7 +301,7 @@ export function CompraFormDialog({
         status: p.status,
         data_pagamento:
           p.status === "paga"
-            ? p.data_pagamento || new Date().toISOString()
+            ? p.data_pagamento || agoraComoPagamentoISO()
             : null,
       })),
     );
@@ -306,6 +310,29 @@ export function CompraFormDialog({
     if (eParc) return toast.error(eParc.message);
 
     toast.success(compraId ? "Compra atualizada" : "Compra registrada");
+    onSaved?.();
+    onOpenChange(false);
+  }
+
+  /**
+   * Exclui a compra em edição (itens e parcelas em cascata).
+   */
+  async function excluir() {
+    if (!isAdmin || !compraId) return;
+    const nf = numeroNf.trim() ? ` NF ${numeroNf.trim()}` : "";
+    if (
+      !confirm(
+        `Excluir esta compra${nf}?\nItens e parcelas também serão removidos.`,
+      )
+    ) {
+      return;
+    }
+    setBusy(true);
+    const { error } = await supabase.from("compras").delete().eq("id", compraId);
+    setBusy(false);
+    if (error) return toast.error(error.message);
+    toast.success("Compra excluída");
+    onDeleted?.();
     onSaved?.();
     onOpenChange(false);
   }
@@ -506,7 +533,7 @@ export function CompraFormDialog({
                                 status: v as "aberta" | "paga",
                                 data_pagamento:
                                   v === "paga"
-                                    ? row.data_pagamento || new Date().toISOString()
+                                    ? row.data_pagamento || agoraComoPagamentoISO()
                                     : null,
                               }
                             : row,
@@ -528,13 +555,27 @@ export function CompraFormDialog({
           )}
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancelar
-          </Button>
-          <Button onClick={save} disabled={busy}>
-            {busy ? "Salvando…" : "Salvar"}
-          </Button>
+        <DialogFooter className="gap-2 sm:justify-between">
+          {compraId && isAdmin ? (
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={excluir}
+              disabled={busy}
+            >
+              Excluir
+            </Button>
+          ) : (
+            <span />
+          )}
+          <div className="flex flex-col-reverse gap-2 sm:flex-row">
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={save} disabled={busy}>
+              {busy ? "Salvando…" : "Salvar"}
+            </Button>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>

@@ -6,7 +6,7 @@ import { PageHeader } from "@/components/AppLayout";
 import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ShieldCheck, User, Trash2, Tag, Plus, Pencil, UserPlus, Wrench, SlidersHorizontal, ListChecks } from "lucide-react";
+import { ShieldCheck, User, Trash2, Plus, Pencil, UserPlus, Wrench } from "lucide-react";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -60,10 +60,10 @@ function Configuracoes() {
   };
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 max-w-5xl mx-auto">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
       <PageHeader
-        title="Configurações"
-        description="Gerencie usuários e permissões da equipe"
+        title="Usuários"
+        description="Gerencie usuários, permissões e funcionários da equipe"
       />
 
       <UsersManager
@@ -76,12 +76,6 @@ function Configuracoes() {
 
       <FuncionariosManager isAdmin={isAdmin} />
 
-      <MarcasManager isAdmin={isAdmin} />
-
-      <TipoAtividadeManager isAdmin={isAdmin} />
-
-      <ParametrosFinanceiros isAdmin={isAdmin} />
-
       <div className="mt-6 rounded-xl border bg-secondary/40 p-5 text-sm text-muted-foreground">
         <p className="font-medium text-foreground mb-2">Como funcionam os papéis</p>
         <ul className="list-disc pl-5 space-y-1">
@@ -91,211 +85,6 @@ function Configuracoes() {
           <li>Novos usuários começam como Vendas automaticamente.</li>
         </ul>
       </div>
-    </div>
-  );
-}
-
-function ParametrosFinanceiros({ isAdmin }: { isAdmin: boolean }) {
-  const fields = [
-    { k: "icms_pct", label: "ICMS %" },
-    { k: "imposto_venda_pct", label: "Imposto de venda %" },
-    { k: "taxa_financeira_pct", label: "Taxa financeira %" },
-    { k: "comissao_pct", label: "Comissão vendedor %" },
-    { k: "markup_pct", label: "Markup padrão %" },
-  ];
-  const { data, refetch } = useQuery({
-    queryKey: ["financial-settings"],
-    queryFn: async () => {
-      const { data } = await supabase.from("financial_settings").select("*").limit(1).maybeSingle();
-      return data;
-    },
-  });
-  const [form, setForm] = useState<any>(null);
-  const [busy, setBusy] = useState(false);
-  useEffect(() => { if (data) setForm(data); }, [data]);
-
-  const save = async () => {
-    if (!form) return;
-    setBusy(true);
-    const { id, updated_at, updated_by, ...rest } = form;
-    const { error } = await supabase.from("financial_settings").update(rest).eq("id", form.id);
-    setBusy(false);
-    if (error) return toast.error(error.message);
-    toast.success("Parâmetros salvos");
-    refetch();
-  };
-
-  return (
-    <div className="mt-6 rounded-xl border bg-card overflow-hidden">
-      <div className="px-5 py-4 border-b flex items-center gap-2">
-        <SlidersHorizontal className="size-4" />
-        <h2 className="font-display font-bold">Parâmetros financeiros (Vendas)</h2>
-      </div>
-      {!form ? (
-        <div className="px-5 py-6 text-sm text-muted-foreground">Carregando…</div>
-      ) : (
-        <div className="p-5 space-y-4">
-          <div className="grid gap-4 md:grid-cols-2">
-            {fields.map((f) => (
-              <div key={f.k}>
-                <Label>{f.label}</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  disabled={!isAdmin}
-                  value={form[f.k] ?? 0}
-                  onChange={(e) => setForm({ ...form, [f.k]: +e.target.value })}
-                />
-              </div>
-            ))}
-          </div>
-          {isAdmin && (
-            <div className="flex justify-end">
-              <Button onClick={save} disabled={busy}>{busy ? "Salvando…" : "Salvar"}</Button>
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function MarcasManager({ isAdmin }: { isAdmin: boolean }) {
-  const [nova, setNova] = useState("");
-  const [busy, setBusy] = useState(false);
-
-  const { data: marcas, refetch } = useQuery({
-    queryKey: ["marcas-bikes"],
-    queryFn: async () => {
-      const { data } = await supabase.from("marcas_bikes").select("*").order("nome");
-      return data ?? [];
-    },
-  });
-
-  const adicionar = async () => {
-    const nome = nova.trim();
-    if (!nome) return;
-    setBusy(true);
-    const { error } = await supabase.from("marcas_bikes").insert({ nome });
-    setBusy(false);
-    if (error) return toast.error(error.message);
-    toast.success("Marca adicionada");
-    setNova("");
-    refetch();
-  };
-
-  const remover = async (id: string) => {
-    if (!confirm("Remover esta marca?")) return;
-    const { error } = await supabase.from("marcas_bikes").delete().eq("id", id);
-    if (error) return toast.error(error.message);
-    toast.success("Marca removida");
-    refetch();
-  };
-
-  return (
-    <div className="mt-6 rounded-xl border bg-card overflow-hidden">
-      <div className="px-5 py-4 border-b flex items-center gap-2">
-        <Tag className="size-4" />
-        <h2 className="font-display font-bold">Marcas de bikes</h2>
-      </div>
-      {isAdmin && (
-        <div className="px-5 py-3 border-b flex flex-col sm:flex-row gap-2">
-          <Input
-            placeholder="Nova marca"
-            value={nova}
-            onChange={(e) => setNova(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && adicionar()}
-          />
-          <Button onClick={adicionar} disabled={busy}>
-            <Plus className="size-4" /> Adicionar
-          </Button>
-        </div>
-      )}
-      <ul className="divide-y">
-        {marcas?.map((m) => (
-          <li key={m.id} className="flex items-center justify-between px-5 py-2.5 text-sm">
-            <span>{m.nome}</span>
-            {isAdmin && (
-              <Button size="sm" variant="ghost" onClick={() => remover(m.id)}>
-                <Trash2 className="size-4" />
-              </Button>
-            )}
-          </li>
-        ))}
-        {(marcas?.length ?? 0) === 0 && (
-          <li className="px-5 py-6 text-center text-sm text-muted-foreground">Nenhuma marca cadastrada.</li>
-        )}
-      </ul>
-    </div>
-  );
-}
-
-function TipoAtividadeManager({ isAdmin }: { isAdmin: boolean }) {
-  const [novo, setNovo] = useState("");
-  const [busy, setBusy] = useState(false);
-
-  const { data: tipos, refetch } = useQuery({
-    queryKey: ["tipo-atividade"],
-    queryFn: async () => {
-      const { data } = await (supabase.from as any)("tipo_atividade").select("*").order("nome");
-      return data ?? [];
-    },
-  });
-
-  const adicionar = async () => {
-    const nome = novo.trim();
-    if (!nome) return;
-    setBusy(true);
-    const { error } = await (supabase.from as any)("tipo_atividade").insert({ nome });
-    setBusy(false);
-    if (error) return toast.error(error.message);
-    toast.success("Tipo adicionado");
-    setNovo("");
-    refetch();
-  };
-
-  const remover = async (id: string) => {
-    if (!confirm("Remover este tipo de atividade?")) return;
-    const { error } = await (supabase.from as any)("tipo_atividade").delete().eq("id", id);
-    if (error) return toast.error(error.message);
-    toast.success("Tipo removido");
-    refetch();
-  };
-
-  return (
-    <div className="mt-6 rounded-xl border bg-card overflow-hidden">
-      <div className="px-5 py-4 border-b flex items-center gap-2">
-        <ListChecks className="size-4" />
-        <h2 className="font-display font-bold">Tipos de atividade (Pendências)</h2>
-      </div>
-      {isAdmin && (
-        <div className="px-5 py-3 border-b flex flex-col sm:flex-row gap-2">
-          <Input
-            placeholder="Novo tipo de atividade"
-            value={novo}
-            onChange={(e) => setNovo(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && adicionar()}
-          />
-          <Button onClick={adicionar} disabled={busy}>
-            <Plus className="size-4" /> Adicionar
-          </Button>
-        </div>
-      )}
-      <ul className="divide-y">
-        {tipos?.map((t: any) => (
-          <li key={t.id} className="flex items-center justify-between px-5 py-2.5 text-sm">
-            <span>{t.nome}</span>
-            {isAdmin && (
-              <Button size="sm" variant="ghost" onClick={() => remover(t.id)}>
-                <Trash2 className="size-4" />
-              </Button>
-            )}
-          </li>
-        ))}
-        {(tipos?.length ?? 0) === 0 && (
-          <li className="px-5 py-6 text-center text-sm text-muted-foreground">Nenhum tipo cadastrado.</li>
-        )}
-      </ul>
     </div>
   );
 }

@@ -5,12 +5,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Edit, Plus, Check, Phone, Mail, MapPin } from "lucide-react";
+import { ArrowLeft, Edit, Plus, Check, Phone, Mail, MapPin, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { FornecedorFormDialog } from "@/components/FornecedorFormDialog";
 import { CompraFormDialog } from "@/components/CompraFormDialog";
 import { formatCnpj, formatPhoneBr } from "@/lib/utils";
 import { fmtBRL } from "@/lib/finance";
+import { agoraComoPagamentoISO } from "@/lib/datas";
 
 export const Route = createFileRoute("/_app/fornecedores_/$id")({
   component: FornecedorDetail,
@@ -77,12 +78,34 @@ function FornecedorDetail() {
     if (!isAdmin) return toast.error("Somente administradores");
     const { error } = await supabase
       .from("compra_parcelas")
-      .update({ status: "paga", data_pagamento: new Date().toISOString() })
+      .update({ status: "paga", data_pagamento: agoraComoPagamentoISO() })
       .eq("id", parcelaId);
     if (error) return toast.error(error.message);
     toast.success("Parcela marcada como paga");
     refetchCompras();
     qc.invalidateQueries({ queryKey: ["compras-list"] });
+  }
+
+  /**
+   * Exclui compra do fornecedor (itens e parcelas em cascata).
+   */
+  async function excluirCompra(c: any) {
+    if (!isAdmin) return toast.error("Somente administradores");
+    const nf = c.numero_nf ? ` NF ${c.numero_nf}` : "";
+    if (
+      !confirm(
+        `Excluir a compra${nf}?\nItens e parcelas também serão removidos.`,
+      )
+    ) {
+      return;
+    }
+    const { error } = await supabase.from("compras").delete().eq("id", c.id);
+    if (error) return toast.error(error.message);
+    toast.success("Compra excluída");
+    refetchCompras();
+    qc.invalidateQueries({ queryKey: ["compras-list"] });
+    qc.invalidateQueries({ queryKey: ["contas-a-pagar"] });
+    qc.invalidateQueries({ queryKey: ["fechamento"] });
   }
 
   if (!fornecedor) {
@@ -247,16 +270,25 @@ function FornecedorDetail() {
                       )}
                     </div>
                     {isAdmin && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setEditCompraId(c.id);
-                          setCompraOpen(true);
-                        }}
-                      >
-                        Editar
-                      </Button>
+                      <div className="flex flex-wrap gap-1">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setEditCompraId(c.id);
+                            setCompraOpen(true);
+                          }}
+                        >
+                          Editar
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => excluirCompra(c)}
+                        >
+                          <Trash2 className="size-3.5" /> Excluir
+                        </Button>
+                      </div>
                     )}
                   </div>
 

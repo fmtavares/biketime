@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { FORMAS_PAGAMENTO_DESPESA, competenciaMes } from "@/lib/despesas";
+import { agoraComoPagamentoISO } from "@/lib/datas";
 import { CurrencyInput } from "@/components/CurrencyInput";
 
 /**
@@ -107,7 +108,7 @@ export function DespesaFormDialog({
       status,
       data_pagamento:
         status === "paga"
-          ? despesa?.data_pagamento || new Date().toISOString()
+          ? despesa?.data_pagamento || agoraComoPagamentoISO()
           : null,
       observacoes: observacoes.trim() || null,
       recorrente_id: despesa?.recorrente_id ?? null,

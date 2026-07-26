@@ -157,8 +157,8 @@ function OficinaPage() {
   return (
     <div className="p-4 sm:p-6 lg:p-8">
       <PageHeader
-        title="Oficina"
-        description="Fluxo Kanban das ordens de serviço"
+        title="Painel"
+        description="Kanban das ordens de serviço"
         action={<Button onClick={() => { setEdit(null); setOpen(true); }}><Plus className="size-4" /> Nova OS</Button>}
       />
 

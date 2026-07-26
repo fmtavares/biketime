@@ -13,12 +13,16 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as AppIndexRouteImport } from './routes/_app.index'
 import { Route as AppVendasRouteImport } from './routes/_app.vendas'
+import { Route as AppTiposAtividadeRouteImport } from './routes/_app.tipos-atividade'
 import { Route as AppRelatoriosRouteImport } from './routes/_app.relatorios'
 import { Route as AppPrecosRouteImport } from './routes/_app.precos'
 import { Route as AppPendenciasRouteImport } from './routes/_app.pendencias'
+import { Route as AppParametrosFinanceirosRouteImport } from './routes/_app.parametros-financeiros'
 import { Route as AppOficinaRouteImport } from './routes/_app.oficina'
 import { Route as AppMarketingRouteImport } from './routes/_app.marketing'
+import { Route as AppMarcasRouteImport } from './routes/_app.marcas'
 import { Route as AppFornecedoresRouteImport } from './routes/_app.fornecedores'
+import { Route as AppFechamentoRouteImport } from './routes/_app.fechamento'
 import { Route as AppDespesasRouteImport } from './routes/_app.despesas'
 import { Route as AppContasAPagarRouteImport } from './routes/_app.contas-a-pagar'
 import { Route as AppConfiguracoesRouteImport } from './routes/_app.configuracoes'
@@ -29,8 +33,12 @@ import { Route as AppVendasIndexRouteImport } from './routes/_app.vendas.index'
 import { Route as AppVendasIdRouteImport } from './routes/_app.vendas_.$id'
 import { Route as AppVendasProdutosRouteImport } from './routes/_app.vendas.produtos'
 import { Route as AppVendasNovaRouteImport } from './routes/_app.vendas.nova'
+import { Route as AppVendasLojaVirtualRouteImport } from './routes/_app.vendas.loja-virtual'
 import { Route as AppVendasEstoqueRouteImport } from './routes/_app.vendas.estoque'
+import { Route as AppOficinaOrdensRouteImport } from './routes/_app.oficina_.ordens'
+import { Route as AppOficinaNovaRouteImport } from './routes/_app.oficina_.nova'
 import { Route as AppFornecedoresIdRouteImport } from './routes/_app.fornecedores_.$id'
+import { Route as AppClientesNovaRouteImport } from './routes/_app.clientes_.nova'
 import { Route as AppClientesIdRouteImport } from './routes/_app.clientes_.$id'
 import { Route as AppBikesIdRouteImport } from './routes/_app.bikes_.$id'
 
@@ -53,6 +61,11 @@ const AppVendasRoute = AppVendasRouteImport.update({
   path: '/vendas',
   getParentRoute: () => AppRoute,
 } as any)
+const AppTiposAtividadeRoute = AppTiposAtividadeRouteImport.update({
+  id: '/tipos-atividade',
+  path: '/tipos-atividade',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppRelatoriosRoute = AppRelatoriosRouteImport.update({
   id: '/relatorios',
   path: '/relatorios',
@@ -68,6 +81,12 @@ const AppPendenciasRoute = AppPendenciasRouteImport.update({
   path: '/pendencias',
   getParentRoute: () => AppRoute,
 } as any)
+const AppParametrosFinanceirosRoute =
+  AppParametrosFinanceirosRouteImport.update({
+    id: '/parametros-financeiros',
+    path: '/parametros-financeiros',
+    getParentRoute: () => AppRoute,
+  } as any)
 const AppOficinaRoute = AppOficinaRouteImport.update({
   id: '/oficina',
   path: '/oficina',
@@ -78,9 +97,19 @@ const AppMarketingRoute = AppMarketingRouteImport.update({
   path: '/marketing',
   getParentRoute: () => AppRoute,
 } as any)
+const AppMarcasRoute = AppMarcasRouteImport.update({
+  id: '/marcas',
+  path: '/marcas',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppFornecedoresRoute = AppFornecedoresRouteImport.update({
   id: '/fornecedores',
   path: '/fornecedores',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppFechamentoRoute = AppFechamentoRouteImport.update({
+  id: '/fechamento',
+  path: '/fechamento',
   getParentRoute: () => AppRoute,
 } as any)
 const AppDespesasRoute = AppDespesasRouteImport.update({
@@ -133,14 +162,34 @@ const AppVendasNovaRoute = AppVendasNovaRouteImport.update({
   path: '/nova',
   getParentRoute: () => AppVendasRoute,
 } as any)
+const AppVendasLojaVirtualRoute = AppVendasLojaVirtualRouteImport.update({
+  id: '/loja-virtual',
+  path: '/loja-virtual',
+  getParentRoute: () => AppVendasRoute,
+} as any)
 const AppVendasEstoqueRoute = AppVendasEstoqueRouteImport.update({
   id: '/estoque',
   path: '/estoque',
   getParentRoute: () => AppVendasRoute,
 } as any)
+const AppOficinaOrdensRoute = AppOficinaOrdensRouteImport.update({
+  id: '/oficina_/ordens',
+  path: '/oficina/ordens',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppOficinaNovaRoute = AppOficinaNovaRouteImport.update({
+  id: '/oficina_/nova',
+  path: '/oficina/nova',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppFornecedoresIdRoute = AppFornecedoresIdRouteImport.update({
   id: '/fornecedores_/$id',
   path: '/fornecedores/$id',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppClientesNovaRoute = AppClientesNovaRouteImport.update({
+  id: '/clientes_/nova',
+  path: '/clientes/nova',
   getParentRoute: () => AppRoute,
 } as any)
 const AppClientesIdRoute = AppClientesIdRouteImport.update({
@@ -163,17 +212,25 @@ export interface FileRoutesByFullPath {
   '/configuracoes': typeof AppConfiguracoesRoute
   '/contas-a-pagar': typeof AppContasAPagarRoute
   '/despesas': typeof AppDespesasRoute
+  '/fechamento': typeof AppFechamentoRoute
   '/fornecedores': typeof AppFornecedoresRoute
+  '/marcas': typeof AppMarcasRoute
   '/marketing': typeof AppMarketingRoute
   '/oficina': typeof AppOficinaRoute
+  '/parametros-financeiros': typeof AppParametrosFinanceirosRoute
   '/pendencias': typeof AppPendenciasRoute
   '/precos': typeof AppPrecosRoute
   '/relatorios': typeof AppRelatoriosRoute
+  '/tipos-atividade': typeof AppTiposAtividadeRoute
   '/vendas': typeof AppVendasRouteWithChildren
   '/bikes/$id': typeof AppBikesIdRoute
   '/clientes/$id': typeof AppClientesIdRoute
+  '/clientes/nova': typeof AppClientesNovaRoute
   '/fornecedores/$id': typeof AppFornecedoresIdRoute
+  '/oficina/nova': typeof AppOficinaNovaRoute
+  '/oficina/ordens': typeof AppOficinaOrdensRoute
   '/vendas/estoque': typeof AppVendasEstoqueRoute
+  '/vendas/loja-virtual': typeof AppVendasLojaVirtualRoute
   '/vendas/nova': typeof AppVendasNovaRoute
   '/vendas/produtos': typeof AppVendasProdutosRoute
   '/vendas/$id': typeof AppVendasIdRoute
@@ -187,17 +244,25 @@ export interface FileRoutesByTo {
   '/configuracoes': typeof AppConfiguracoesRoute
   '/contas-a-pagar': typeof AppContasAPagarRoute
   '/despesas': typeof AppDespesasRoute
+  '/fechamento': typeof AppFechamentoRoute
   '/fornecedores': typeof AppFornecedoresRoute
+  '/marcas': typeof AppMarcasRoute
   '/marketing': typeof AppMarketingRoute
   '/oficina': typeof AppOficinaRoute
+  '/parametros-financeiros': typeof AppParametrosFinanceirosRoute
   '/pendencias': typeof AppPendenciasRoute
   '/precos': typeof AppPrecosRoute
   '/relatorios': typeof AppRelatoriosRoute
+  '/tipos-atividade': typeof AppTiposAtividadeRoute
   '/': typeof AppIndexRoute
   '/bikes/$id': typeof AppBikesIdRoute
   '/clientes/$id': typeof AppClientesIdRoute
+  '/clientes/nova': typeof AppClientesNovaRoute
   '/fornecedores/$id': typeof AppFornecedoresIdRoute
+  '/oficina/nova': typeof AppOficinaNovaRoute
+  '/oficina/ordens': typeof AppOficinaOrdensRoute
   '/vendas/estoque': typeof AppVendasEstoqueRoute
+  '/vendas/loja-virtual': typeof AppVendasLojaVirtualRoute
   '/vendas/nova': typeof AppVendasNovaRoute
   '/vendas/produtos': typeof AppVendasProdutosRoute
   '/vendas/$id': typeof AppVendasIdRoute
@@ -213,18 +278,26 @@ export interface FileRoutesById {
   '/_app/configuracoes': typeof AppConfiguracoesRoute
   '/_app/contas-a-pagar': typeof AppContasAPagarRoute
   '/_app/despesas': typeof AppDespesasRoute
+  '/_app/fechamento': typeof AppFechamentoRoute
   '/_app/fornecedores': typeof AppFornecedoresRoute
+  '/_app/marcas': typeof AppMarcasRoute
   '/_app/marketing': typeof AppMarketingRoute
   '/_app/oficina': typeof AppOficinaRoute
+  '/_app/parametros-financeiros': typeof AppParametrosFinanceirosRoute
   '/_app/pendencias': typeof AppPendenciasRoute
   '/_app/precos': typeof AppPrecosRoute
   '/_app/relatorios': typeof AppRelatoriosRoute
+  '/_app/tipos-atividade': typeof AppTiposAtividadeRoute
   '/_app/vendas': typeof AppVendasRouteWithChildren
   '/_app/': typeof AppIndexRoute
   '/_app/bikes_/$id': typeof AppBikesIdRoute
   '/_app/clientes_/$id': typeof AppClientesIdRoute
+  '/_app/clientes_/nova': typeof AppClientesNovaRoute
   '/_app/fornecedores_/$id': typeof AppFornecedoresIdRoute
+  '/_app/oficina_/nova': typeof AppOficinaNovaRoute
+  '/_app/oficina_/ordens': typeof AppOficinaOrdensRoute
   '/_app/vendas/estoque': typeof AppVendasEstoqueRoute
+  '/_app/vendas/loja-virtual': typeof AppVendasLojaVirtualRoute
   '/_app/vendas/nova': typeof AppVendasNovaRoute
   '/_app/vendas/produtos': typeof AppVendasProdutosRoute
   '/_app/vendas_/$id': typeof AppVendasIdRoute
@@ -241,17 +314,25 @@ export interface FileRouteTypes {
     | '/configuracoes'
     | '/contas-a-pagar'
     | '/despesas'
+    | '/fechamento'
     | '/fornecedores'
+    | '/marcas'
     | '/marketing'
     | '/oficina'
+    | '/parametros-financeiros'
     | '/pendencias'
     | '/precos'
     | '/relatorios'
+    | '/tipos-atividade'
     | '/vendas'
     | '/bikes/$id'
     | '/clientes/$id'
+    | '/clientes/nova'
     | '/fornecedores/$id'
+    | '/oficina/nova'
+    | '/oficina/ordens'
     | '/vendas/estoque'
+    | '/vendas/loja-virtual'
     | '/vendas/nova'
     | '/vendas/produtos'
     | '/vendas/$id'
@@ -265,17 +346,25 @@ export interface FileRouteTypes {
     | '/configuracoes'
     | '/contas-a-pagar'
     | '/despesas'
+    | '/fechamento'
     | '/fornecedores'
+    | '/marcas'
     | '/marketing'
     | '/oficina'
+    | '/parametros-financeiros'
     | '/pendencias'
     | '/precos'
     | '/relatorios'
+    | '/tipos-atividade'
     | '/'
     | '/bikes/$id'
     | '/clientes/$id'
+    | '/clientes/nova'
     | '/fornecedores/$id'
+    | '/oficina/nova'
+    | '/oficina/ordens'
     | '/vendas/estoque'
+    | '/vendas/loja-virtual'
     | '/vendas/nova'
     | '/vendas/produtos'
     | '/vendas/$id'
@@ -290,18 +379,26 @@ export interface FileRouteTypes {
     | '/_app/configuracoes'
     | '/_app/contas-a-pagar'
     | '/_app/despesas'
+    | '/_app/fechamento'
     | '/_app/fornecedores'
+    | '/_app/marcas'
     | '/_app/marketing'
     | '/_app/oficina'
+    | '/_app/parametros-financeiros'
     | '/_app/pendencias'
     | '/_app/precos'
     | '/_app/relatorios'
+    | '/_app/tipos-atividade'
     | '/_app/vendas'
     | '/_app/'
     | '/_app/bikes_/$id'
     | '/_app/clientes_/$id'
+    | '/_app/clientes_/nova'
     | '/_app/fornecedores_/$id'
+    | '/_app/oficina_/nova'
+    | '/_app/oficina_/ordens'
     | '/_app/vendas/estoque'
+    | '/_app/vendas/loja-virtual'
     | '/_app/vendas/nova'
     | '/_app/vendas/produtos'
     | '/_app/vendas_/$id'
@@ -343,6 +440,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppVendasRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/tipos-atividade': {
+      id: '/_app/tipos-atividade'
+      path: '/tipos-atividade'
+      fullPath: '/tipos-atividade'
+      preLoaderRoute: typeof AppTiposAtividadeRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/relatorios': {
       id: '/_app/relatorios'
       path: '/relatorios'
@@ -364,6 +468,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppPendenciasRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/parametros-financeiros': {
+      id: '/_app/parametros-financeiros'
+      path: '/parametros-financeiros'
+      fullPath: '/parametros-financeiros'
+      preLoaderRoute: typeof AppParametrosFinanceirosRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/oficina': {
       id: '/_app/oficina'
       path: '/oficina'
@@ -378,11 +489,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppMarketingRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/marcas': {
+      id: '/_app/marcas'
+      path: '/marcas'
+      fullPath: '/marcas'
+      preLoaderRoute: typeof AppMarcasRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/fornecedores': {
       id: '/_app/fornecedores'
       path: '/fornecedores'
       fullPath: '/fornecedores'
       preLoaderRoute: typeof AppFornecedoresRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/fechamento': {
+      id: '/_app/fechamento'
+      path: '/fechamento'
+      fullPath: '/fechamento'
+      preLoaderRoute: typeof AppFechamentoRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/despesas': {
@@ -455,6 +580,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppVendasNovaRouteImport
       parentRoute: typeof AppVendasRoute
     }
+    '/_app/vendas/loja-virtual': {
+      id: '/_app/vendas/loja-virtual'
+      path: '/loja-virtual'
+      fullPath: '/vendas/loja-virtual'
+      preLoaderRoute: typeof AppVendasLojaVirtualRouteImport
+      parentRoute: typeof AppVendasRoute
+    }
     '/_app/vendas/estoque': {
       id: '/_app/vendas/estoque'
       path: '/estoque'
@@ -462,11 +594,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppVendasEstoqueRouteImport
       parentRoute: typeof AppVendasRoute
     }
+    '/_app/oficina_/ordens': {
+      id: '/_app/oficina_/ordens'
+      path: '/oficina/ordens'
+      fullPath: '/oficina/ordens'
+      preLoaderRoute: typeof AppOficinaOrdensRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/oficina_/nova': {
+      id: '/_app/oficina_/nova'
+      path: '/oficina/nova'
+      fullPath: '/oficina/nova'
+      preLoaderRoute: typeof AppOficinaNovaRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/fornecedores_/$id': {
       id: '/_app/fornecedores_/$id'
       path: '/fornecedores/$id'
       fullPath: '/fornecedores/$id'
       preLoaderRoute: typeof AppFornecedoresIdRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/clientes_/nova': {
+      id: '/_app/clientes_/nova'
+      path: '/clientes/nova'
+      fullPath: '/clientes/nova'
+      preLoaderRoute: typeof AppClientesNovaRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/clientes_/$id': {
@@ -488,6 +641,7 @@ declare module '@tanstack/react-router' {
 
 interface AppVendasRouteChildren {
   AppVendasEstoqueRoute: typeof AppVendasEstoqueRoute
+  AppVendasLojaVirtualRoute: typeof AppVendasLojaVirtualRoute
   AppVendasNovaRoute: typeof AppVendasNovaRoute
   AppVendasProdutosRoute: typeof AppVendasProdutosRoute
   AppVendasIndexRoute: typeof AppVendasIndexRoute
@@ -495,6 +649,7 @@ interface AppVendasRouteChildren {
 
 const AppVendasRouteChildren: AppVendasRouteChildren = {
   AppVendasEstoqueRoute: AppVendasEstoqueRoute,
+  AppVendasLojaVirtualRoute: AppVendasLojaVirtualRoute,
   AppVendasNovaRoute: AppVendasNovaRoute,
   AppVendasProdutosRoute: AppVendasProdutosRoute,
   AppVendasIndexRoute: AppVendasIndexRoute,
@@ -511,17 +666,24 @@ interface AppRouteChildren {
   AppConfiguracoesRoute: typeof AppConfiguracoesRoute
   AppContasAPagarRoute: typeof AppContasAPagarRoute
   AppDespesasRoute: typeof AppDespesasRoute
+  AppFechamentoRoute: typeof AppFechamentoRoute
   AppFornecedoresRoute: typeof AppFornecedoresRoute
+  AppMarcasRoute: typeof AppMarcasRoute
   AppMarketingRoute: typeof AppMarketingRoute
   AppOficinaRoute: typeof AppOficinaRoute
+  AppParametrosFinanceirosRoute: typeof AppParametrosFinanceirosRoute
   AppPendenciasRoute: typeof AppPendenciasRoute
   AppPrecosRoute: typeof AppPrecosRoute
   AppRelatoriosRoute: typeof AppRelatoriosRoute
+  AppTiposAtividadeRoute: typeof AppTiposAtividadeRoute
   AppVendasRoute: typeof AppVendasRouteWithChildren
   AppIndexRoute: typeof AppIndexRoute
   AppBikesIdRoute: typeof AppBikesIdRoute
   AppClientesIdRoute: typeof AppClientesIdRoute
+  AppClientesNovaRoute: typeof AppClientesNovaRoute
   AppFornecedoresIdRoute: typeof AppFornecedoresIdRoute
+  AppOficinaNovaRoute: typeof AppOficinaNovaRoute
+  AppOficinaOrdensRoute: typeof AppOficinaOrdensRoute
   AppVendasIdRoute: typeof AppVendasIdRoute
 }
 
@@ -532,17 +694,24 @@ const AppRouteChildren: AppRouteChildren = {
   AppConfiguracoesRoute: AppConfiguracoesRoute,
   AppContasAPagarRoute: AppContasAPagarRoute,
   AppDespesasRoute: AppDespesasRoute,
+  AppFechamentoRoute: AppFechamentoRoute,
   AppFornecedoresRoute: AppFornecedoresRoute,
+  AppMarcasRoute: AppMarcasRoute,
   AppMarketingRoute: AppMarketingRoute,
   AppOficinaRoute: AppOficinaRoute,
+  AppParametrosFinanceirosRoute: AppParametrosFinanceirosRoute,
   AppPendenciasRoute: AppPendenciasRoute,
   AppPrecosRoute: AppPrecosRoute,
   AppRelatoriosRoute: AppRelatoriosRoute,
+  AppTiposAtividadeRoute: AppTiposAtividadeRoute,
   AppVendasRoute: AppVendasRouteWithChildren,
   AppIndexRoute: AppIndexRoute,
   AppBikesIdRoute: AppBikesIdRoute,
   AppClientesIdRoute: AppClientesIdRoute,
+  AppClientesNovaRoute: AppClientesNovaRoute,
   AppFornecedoresIdRoute: AppFornecedoresIdRoute,
+  AppOficinaNovaRoute: AppOficinaNovaRoute,
+  AppOficinaOrdensRoute: AppOficinaOrdensRoute,
   AppVendasIdRoute: AppVendasIdRoute,
 }
 
