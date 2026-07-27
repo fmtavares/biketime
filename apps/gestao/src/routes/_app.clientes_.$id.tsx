@@ -41,6 +41,8 @@ function ClienteDetail() {
   const [editOpen, setEditOpen] = useState(false);
   const [bikeOpen, setBikeOpen] = useState(false);
   const [osOpen, setOsOpen] = useState(false);
+  /** OS selecionada para edição; null = nova OS. */
+  const [osEdit, setOsEdit] = useState<any>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const { isAdmin } = useAuth();
@@ -67,18 +69,30 @@ function ClienteDetail() {
     },
   });
 
-  const { data: oss } = useQuery({
+  const { data: oss, refetch: refetchOss } = useQuery({
     queryKey: ["cliente-oss", id],
     queryFn: async () => {
       const { data } = await supabase
         .from("ordens_servico")
-        .select("id, numero, status, data_entrada, data_prevista, problema_relatado, bikes(marca, modelo)")
+        .select("*, bikes(marca, modelo)")
         .eq("cliente_id", id)
         .order("data_entrada", { ascending: false })
         .limit(5);
       return data ?? [];
     },
   });
+
+  /** Abre o formulário de nova OS (sem registro carregado). */
+  function abrirNovaOs() {
+    setOsEdit(null);
+    setOsOpen(true);
+  }
+
+  /** Abre os detalhes originais de uma OS do histórico. */
+  function abrirOs(o: any) {
+    setOsEdit(o);
+    setOsOpen(true);
+  }
 
   if (!cliente) return <div className="p-8 text-muted-foreground">Carregando…</div>;
 
@@ -102,7 +116,7 @@ function ClienteDetail() {
             </div>
           </div>
           <div className="flex gap-2 w-full sm:w-auto [&>button]:flex-1 sm:[&>button]:flex-none">
-            <Button onClick={() => setOsOpen(true)} disabled={!(bikes && bikes.length > 0)} title={bikes && bikes.length > 0 ? "Abrir nova OS para este cliente" : "Cadastre uma bike antes de abrir a OS"}>
+            <Button onClick={abrirNovaOs} disabled={!(bikes && bikes.length > 0)} title={bikes && bikes.length > 0 ? "Abrir nova OS para este cliente" : "Cadastre uma bike antes de abrir a OS"}>
               <Wrench className="size-4" /> Nova OS
             </Button>
             <Button variant="outline" onClick={() => setEditOpen(true)}>
@@ -141,17 +155,19 @@ function ClienteDetail() {
           <h2 className="font-display font-bold text-lg mb-3">Últimas Ordens de Serviço</h2>
           <div className="grid gap-2">
             {oss!.map((o: any) => {
-              const aberta = !["finalizada", "entregue"].includes(o.status);
+              const aberta = !["finalizada", "entregue", "pago"].includes(o.status);
               const atrasada = aberta && o.data_prevista && new Date(o.data_prevista) < new Date();
               const labelStatus: Record<string, string> = {
                 fila: "Fila", avaliacao: "Avaliação", aguardando_aprovacao: "Aguardando aprovação",
                 em_execucao: "Em execução", com_problemas: "Com problemas",
-                finalizada: "Finalizada", entregue: "Entregue",
+                finalizada: "Finalizada", entregue: "Entregue", pago: "Pago",
               };
               return (
-                <div
+                <button
+                  type="button"
                   key={o.id}
-                  className={`rounded-xl border p-4 flex items-center gap-4 flex-wrap ${
+                  onClick={() => abrirOs(o)}
+                  className={`rounded-xl border p-4 flex items-center gap-4 flex-wrap w-full text-left transition-colors hover:bg-accent/5 ${
                     aberta ? "bg-accent/10 border-accent/40 ring-1 ring-accent/30" : "bg-card"
                   }`}
                 >
@@ -175,7 +191,7 @@ function ClienteDetail() {
                   }`}>
                     {aberta && "● "}{labelStatus[o.status] ?? o.status}
                   </span>
-                </div>
+                </button>
               );
             })}
           </div>
@@ -242,8 +258,17 @@ function ClienteDetail() {
       />
       <OSFormDialog
         open={osOpen}
-        onOpenChange={setOsOpen}
+        onOpenChange={(v) => {
+          setOsOpen(v);
+          if (!v) setOsEdit(null);
+        }}
+        os={osEdit}
         defaultClienteId={id}
+        onSaved={() => refetchOss()}
+        onDeleted={() => {
+          setOsEdit(null);
+          refetchOss();
+        }}
       />
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <AlertDialogContent>

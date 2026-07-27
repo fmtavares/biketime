@@ -6,7 +6,7 @@ import { PageHeader } from "@/components/AppLayout";
 import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ShieldCheck, User, Trash2, Plus, Pencil, UserPlus, Wrench } from "lucide-react";
+import { ShieldCheck, User, Trash2, Pencil, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -36,7 +36,11 @@ function Configuracoes() {
       (roles.data ?? []).forEach((r) => {
         rolesByUser[r.user_id] = [...(rolesByUser[r.user_id] ?? []), r.role];
       });
-      return (profs.data ?? []).map((p) => ({ ...p, roles: rolesByUser[p.id] ?? [] }));
+      const papeisEquipe = new Set(["admin", "vendedor", "tecnico"]);
+      // Só equipe do Gestão — nunca listar clientes do portal
+      return (profs.data ?? [])
+        .map((p) => ({ ...p, roles: rolesByUser[p.id] ?? [] }))
+        .filter((p) => p.roles.some((r) => papeisEquipe.has(r)));
     },
     enabled: isAdmin,
   });
@@ -63,7 +67,7 @@ function Configuracoes() {
     <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
       <PageHeader
         title="Usuários"
-        description="Gerencie usuários, permissões e funcionários da equipe"
+        description="Gerencie usuários e permissões da equipe (clientes do portal não aparecem aqui)"
       />
 
       <UsersManager
@@ -74,8 +78,6 @@ function Configuracoes() {
         onChanged={refetch}
       />
 
-      <FuncionariosManager isAdmin={isAdmin} />
-
       <div className="mt-6 rounded-xl border bg-secondary/40 p-5 text-sm text-muted-foreground">
         <p className="font-medium text-foreground mb-2">Como funcionam os papéis</p>
         <ul className="list-disc pl-5 space-y-1">
@@ -85,76 +87,6 @@ function Configuracoes() {
           <li>Novos usuários começam como Vendas automaticamente.</li>
         </ul>
       </div>
-    </div>
-  );
-}
-
-function FuncionariosManager({ isAdmin }: { isAdmin: boolean }) {
-  const [novo, setNovo] = useState("");
-  const [busy, setBusy] = useState(false);
-
-  const { data: funcs, refetch } = useQuery({
-    queryKey: ["funcionarios"],
-    queryFn: async () => {
-      const { data } = await (supabase.from as any)("funcionarios").select("*").order("nome");
-      return data ?? [];
-    },
-  });
-
-  const adicionar = async () => {
-    const nome = novo.trim();
-    if (!nome) return;
-    setBusy(true);
-    const { error } = await (supabase.from as any)("funcionarios").insert({ nome });
-    setBusy(false);
-    if (error) return toast.error(error.message);
-    toast.success("Funcionário adicionado");
-    setNovo("");
-    refetch();
-  };
-
-  const remover = async (id: string) => {
-    if (!confirm("Remover este funcionário?")) return;
-    const { error } = await (supabase.from as any)("funcionarios").delete().eq("id", id);
-    if (error) return toast.error(error.message);
-    toast.success("Funcionário removido");
-    refetch();
-  };
-
-  return (
-    <div className="mt-6 rounded-xl border bg-card overflow-hidden">
-      <div className="px-5 py-4 border-b flex items-center gap-2">
-        <Wrench className="size-4" />
-        <h2 className="font-display font-bold">Funcionários da oficina</h2>
-      </div>
-      {isAdmin && (
-        <div className="px-5 py-3 border-b flex flex-col sm:flex-row gap-2">
-          <Input
-            placeholder="Nome do funcionário"
-            value={novo}
-            onChange={(e) => setNovo(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && adicionar()}
-          />
-          <Button onClick={adicionar} disabled={busy}>
-            <Plus className="size-4" /> Adicionar
-          </Button>
-        </div>
-      )}
-      <ul className="divide-y">
-        {funcs?.map((f: any) => (
-          <li key={f.id} className="flex items-center justify-between px-5 py-2.5 text-sm">
-            <span>{f.nome}</span>
-            {isAdmin && (
-              <Button size="sm" variant="ghost" onClick={() => remover(f.id)}>
-                <Trash2 className="size-4" />
-              </Button>
-            )}
-          </li>
-        ))}
-        {(funcs?.length ?? 0) === 0 && (
-          <li className="px-5 py-6 text-center text-sm text-muted-foreground">Nenhum funcionário cadastrado.</li>
-        )}
-      </ul>
     </div>
   );
 }

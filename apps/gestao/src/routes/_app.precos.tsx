@@ -1,8 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { PageHeader } from "@/components/AppLayout";
+import { PageHeader, SearchBar } from "@/components/AppLayout";
 import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -44,6 +44,7 @@ function PrecosPage() {
   const [edit, setEdit] = useState<Servico | null>(null);
   const [form, setForm] = useState({ nome: "", descricao: "", valor: "" });
   const [busy, setBusy] = useState(false);
+  const [busca, setBusca] = useState("");
 
   const { data, refetch, isLoading } = useQuery({
     queryKey: ["servicos-precos"],
@@ -56,6 +57,19 @@ function PrecosPage() {
       return (data ?? []) as Servico[];
     },
   });
+
+  /** Filtra serviços por código, nome ou descrição. */
+  const filtrados = useMemo(() => {
+    const q = busca.trim().toLowerCase();
+    const lista = data ?? [];
+    if (!q) return lista;
+    return lista.filter((s) => {
+      const codigo = (s.codigo ?? "").toLowerCase();
+      const nome = (s.nome ?? "").toLowerCase();
+      const descricao = (s.descricao ?? "").toLowerCase();
+      return codigo.includes(q) || nome.includes(q) || descricao.includes(q);
+    });
+  }, [data, busca]);
 
   const openNew = () => {
     setEdit(null);
@@ -124,15 +138,23 @@ function PrecosPage() {
         }
       />
 
+      <div className="mb-4">
+        <SearchBar
+          value={busca}
+          onChange={setBusca}
+          placeholder="Buscar por código, serviço ou descrição…"
+        />
+      </div>
+
       <div className="rounded-xl border bg-card overflow-hidden">
-        <Table>
+        <Table className="table-fixed w-full">
           <TableHeader>
             <TableRow>
-              <TableHead className="w-[110px]">Código</TableHead>
-              <TableHead>Serviço</TableHead>
+              <TableHead className="w-[100px]">Código</TableHead>
+              <TableHead className="w-[22%]">Serviço</TableHead>
               <TableHead>Descrição</TableHead>
-              <TableHead className="text-right w-[140px]">Valor</TableHead>
-              {isAdmin && <TableHead className="w-[110px]" />}
+              <TableHead className="w-[120px] text-right">Valor</TableHead>
+              {isAdmin && <TableHead className="w-[100px]" />}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -143,23 +165,25 @@ function PrecosPage() {
                 </TableCell>
               </TableRow>
             )}
-            {!isLoading && (data ?? []).length === 0 && (
+            {!isLoading && filtrados.length === 0 && (
               <TableRow>
                 <TableCell colSpan={isAdmin ? 5 : 4} className="text-center text-muted-foreground py-8">
-                  Nenhum serviço cadastrado.
+                  {busca.trim()
+                    ? "Nenhum serviço encontrado para essa busca."
+                    : "Nenhum serviço cadastrado."}
                 </TableCell>
               </TableRow>
             )}
-            {(data ?? []).map((s) => (
+            {filtrados.map((s) => (
               <TableRow key={s.id}>
                 <TableCell className="font-mono text-xs">
                   {s.codigo}
                 </TableCell>
-                <TableCell className="font-medium">{s.nome}</TableCell>
-                <TableCell className="text-muted-foreground text-sm">
+                <TableCell className="font-medium break-words">{s.nome}</TableCell>
+                <TableCell className="text-muted-foreground text-sm break-words">
                   {s.descricao || "—"}
                 </TableCell>
-                <TableCell className="text-right font-semibold">
+                <TableCell className="text-right font-semibold whitespace-nowrap">
                   {fmtMoney(Number(s.valor))}
                 </TableCell>
                 {isAdmin && (

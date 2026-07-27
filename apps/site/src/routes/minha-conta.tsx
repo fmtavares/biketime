@@ -2,6 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import {
   Bike,
+  ChevronRight,
   ClipboardList,
   Loader2,
   Pencil,
@@ -13,6 +14,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { cn, formatPhoneBr } from "@/lib/utils";
 
 const STATUS_OS: Record<string, string> = {
@@ -80,7 +88,11 @@ type BikeCliente = {
   cor: string | null;
   tamanho: string | null;
   tipo: string | null;
+  grupo: string | null;
+  rodas: string | null;
   numero_serie: string | null;
+  data_compra: string | null;
+  onde_comprou: string | null;
   bike_atual: boolean | null;
   status: string | null;
 };
@@ -89,9 +101,19 @@ type OsCliente = {
   id: string;
   numero: string;
   status: string;
+  data_entrada: string | null;
   data_prevista: string | null;
+  data_aprovacao: string | null;
+  data_conclusao: string | null;
+  data_entrega: string | null;
+  data_pagamento: string | null;
   proxima_revisao: string | null;
   problema_relatado: string | null;
+  servicos_executados: string | null;
+  pecas_utilizadas: string | null;
+  observacao_conclusao: string | null;
+  aprovado: boolean | null;
+  forma_pagamento: string | null;
   valor_mao_obra: number | null;
   valor_pecas: number | null;
   valor_aprovado: number | null;
@@ -104,6 +126,24 @@ const ESTADOS = [
   "AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG",
   "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO",
 ];
+
+/**
+ * Formata data ISO/YYYY-MM-DD para exibição em pt-BR.
+ */
+function fmtData(v: string | null | undefined) {
+  if (!v) return null;
+  const d = v.includes("T") ? new Date(v) : new Date(v + "T12:00:00");
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toLocaleDateString("pt-BR");
+}
+
+/**
+ * Formata valor em reais.
+ */
+function fmtMoeda(v: number | null | undefined) {
+  if (v == null || Number.isNaN(Number(v))) return null;
+  return Number(v).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
 
 /**
  * Monta o formulário editável a partir do cadastro carregado.
@@ -141,6 +181,8 @@ function MinhaContaPage() {
   const [bikes, setBikes] = useState<BikeCliente[]>([]);
   const [ordens, setOrdens] = useState<OsCliente[]>([]);
   const [loadingListas, setLoadingListas] = useState(false);
+  const [osDetalhe, setOsDetalhe] = useState<OsCliente | null>(null);
+  const [bikeDetalhe, setBikeDetalhe] = useState<BikeCliente | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -184,14 +226,14 @@ function MinhaContaPage() {
         (supabase as any)
           .from("bikes")
           .select(
-            "id, marca, modelo, ano, cor, tamanho, tipo, numero_serie, bike_atual, status",
+            "id, marca, modelo, ano, cor, tamanho, tipo, grupo, rodas, numero_serie, data_compra, onde_comprou, bike_atual, status",
           )
           .eq("cliente_id", c.id)
           .order("created_at", { ascending: false }),
         (supabase as any)
           .from("ordens_servico")
           .select(
-            "id, numero, status, data_prevista, proxima_revisao, problema_relatado, valor_mao_obra, valor_pecas, valor_aprovado, created_at, bike_id, bikes(marca, modelo)",
+            "id, numero, status, data_entrada, data_prevista, data_aprovacao, data_conclusao, data_entrega, data_pagamento, proxima_revisao, problema_relatado, servicos_executados, pecas_utilizadas, observacao_conclusao, aprovado, forma_pagamento, valor_mao_obra, valor_pecas, valor_aprovado, created_at, bike_id, bikes(marca, modelo)",
           )
           .eq("cliente_id", c.id)
           .order("created_at", { ascending: false }),
@@ -573,7 +615,7 @@ function MinhaContaPage() {
             <div className="portal-panel-miolo rounded-2xl border p-6 md:p-8">
               <h2 className="font-display text-lg font-semibold text-primary">Minhas Bikes</h2>
               <p className="mt-1 text-sm text-muted-foreground">
-                Bicicletas cadastradas na Bike Time
+                Bicicletas cadastradas — toque para ver o cadastro
               </p>
               {loadingListas ? (
                 <div className="flex justify-center py-16">
@@ -586,37 +628,46 @@ function MinhaContaPage() {
               ) : (
                 <ul className="mt-8 space-y-3">
                   {bikes.map((b) => (
-                    <li
-                      key={b.id}
-                      className="portal-item rounded-xl border px-5 py-4 transition-colors"
-                    >
-                      <div className="flex flex-wrap items-start justify-between gap-3">
-                        <div>
-                          <p className="font-display text-lg font-semibold">
-                            {[b.marca, b.modelo].filter(Boolean).join(" ") || "Bike"}
-                          </p>
-                          <p className="mt-1 text-sm text-muted-foreground">
-                            {[
-                              b.ano ? String(b.ano) : null,
-                              b.cor,
-                              b.tamanho ? `Tam. ${b.tamanho}` : null,
-                              b.tipo,
-                            ]
-                              .filter(Boolean)
-                              .join(" · ") || "—"}
-                          </p>
-                          {b.numero_serie && (
-                            <p className="mt-1 text-xs text-muted-foreground">
-                              Série: {b.numero_serie}
-                            </p>
-                          )}
+                    <li key={b.id}>
+                      <button
+                        type="button"
+                        onClick={() => setBikeDetalhe(b)}
+                        className="portal-item flex w-full items-start gap-3 rounded-xl border px-5 py-4 text-left transition-colors"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-start justify-between gap-3">
+                            <div>
+                              <p className="font-display text-lg font-semibold">
+                                {[b.marca, b.modelo].filter(Boolean).join(" ") || "Bike"}
+                              </p>
+                              <p className="mt-1 text-sm text-muted-foreground">
+                                {[
+                                  b.ano ? String(b.ano) : null,
+                                  b.cor,
+                                  b.tamanho ? `Tam. ${b.tamanho}` : null,
+                                  b.tipo,
+                                ]
+                                  .filter(Boolean)
+                                  .join(" · ") || "—"}
+                              </p>
+                              {b.numero_serie && (
+                                <p className="mt-1 text-xs text-muted-foreground">
+                                  Série: {b.numero_serie}
+                                </p>
+                              )}
+                            </div>
+                            {b.bike_atual && (
+                              <span className="rounded-full bg-primary/20 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-primary">
+                                Atual
+                              </span>
+                            )}
+                          </div>
                         </div>
-                        {b.bike_atual && (
-                          <span className="rounded-full bg-primary/20 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-primary">
-                            Atual
-                          </span>
-                        )}
-                      </div>
+                        <ChevronRight
+                          className="mt-1 size-5 shrink-0 text-muted-foreground"
+                          aria-hidden
+                        />
+                      </button>
                     </li>
                   ))}
                 </ul>
@@ -628,7 +679,7 @@ function MinhaContaPage() {
             <div className="portal-panel-miolo rounded-2xl border p-6 md:p-8">
               <h2 className="font-display text-lg font-semibold text-primary">Minhas OS</h2>
               <p className="mt-1 text-sm text-muted-foreground">
-                Histórico de ordens de serviço
+                Histórico de ordens de serviço — toque para ver os detalhes
               </p>
               {loadingListas ? (
                 <div className="flex justify-center py-16">
@@ -649,53 +700,66 @@ function MinhaContaPage() {
                         ? Number(o.valor_aprovado)
                         : Number(o.valor_mao_obra ?? 0) + Number(o.valor_pecas ?? 0);
                     return (
-                      <li
-                        key={o.id}
-                        className="portal-item rounded-xl border px-5 py-4 transition-colors"
-                      >
-                        <div className="flex flex-wrap items-start justify-between gap-3">
-                          <div>
-                            <p className="font-mono text-sm font-semibold text-primary">
-                              {o.numero}
-                            </p>
-                            <p className="mt-1 font-display text-base font-semibold">
-                              {bikeNome || "Bike"}
-                            </p>
-                            {o.problema_relatado && (
-                              <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">
-                                {o.problema_relatado}
-                              </p>
-                            )}
-                            <p className="mt-2 text-xs text-muted-foreground">
-                              {[
-                                o.created_at
-                                  ? `Entrada ${new Date(o.created_at).toLocaleDateString("pt-BR")}`
-                                  : null,
-                                o.data_prevista
-                                  ? `Prevista ${new Date(o.data_prevista + "T12:00:00").toLocaleDateString("pt-BR")}`
-                                  : null,
-                                o.proxima_revisao
-                                  ? `Próx. revisão ${new Date(o.proxima_revisao + "T12:00:00").toLocaleDateString("pt-BR")}`
-                                  : null,
-                              ]
-                                .filter(Boolean)
-                                .join(" · ")}
-                            </p>
+                      <li key={o.id}>
+                        <button
+                          type="button"
+                          onClick={() => setOsDetalhe(o)}
+                          className="portal-item flex w-full items-start gap-3 rounded-xl border px-5 py-4 text-left transition-colors"
+                        >
+                          <div className="min-w-0 flex-1">
+                            <div className="flex flex-wrap items-start justify-between gap-3">
+                              <div>
+                                <p className="font-mono text-sm font-semibold text-primary">
+                                  {o.numero}
+                                </p>
+                                <p className="mt-1 font-display text-base font-semibold">
+                                  {bikeNome || "Bike"}
+                                </p>
+                                {o.problema_relatado && (
+                                  <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">
+                                    {o.problema_relatado}
+                                  </p>
+                                )}
+                                <p className="mt-2 text-xs text-muted-foreground">
+                                  {[
+                                    fmtData(o.data_entrada ?? o.created_at)
+                                      ? `Entrada ${fmtData(o.data_entrada ?? o.created_at)}`
+                                      : null,
+                                    o.data_prevista
+                                      ? `Prevista ${fmtData(o.data_prevista)}`
+                                      : null,
+                                    o.proxima_revisao
+                                      ? `Próx. revisão ${fmtData(o.proxima_revisao)}`
+                                      : null,
+                                  ]
+                                    .filter(Boolean)
+                                    .join(" · ")}
+                                </p>
+                              </div>
+                              <div className="text-right">
+                                <span
+                                  className={cn(
+                                    "inline-block rounded-full px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider",
+                                    o.status === "aguardando_aprovacao"
+                                      ? "bg-primary/20 text-primary"
+                                      : "bg-secondary text-foreground",
+                                  )}
+                                >
+                                  {o.status === "aguardando_aprovacao"
+                                    ? "Aguardando sua aprovação"
+                                    : (STATUS_OS[o.status] ?? o.status.replace(/_/g, " "))}
+                                </span>
+                                {total > 0 && (
+                                  <p className="mt-2 text-sm font-medium">{fmtMoeda(total)}</p>
+                                )}
+                              </div>
+                            </div>
                           </div>
-                          <div className="text-right">
-                            <span className="inline-block rounded-full bg-secondary px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-foreground">
-                              {STATUS_OS[o.status] ?? o.status.replace(/_/g, " ")}
-                            </span>
-                            {total > 0 && (
-                              <p className="mt-2 text-sm font-medium">
-                                {total.toLocaleString("pt-BR", {
-                                  style: "currency",
-                                  currency: "BRL",
-                                })}
-                              </p>
-                            )}
-                          </div>
-                        </div>
+                          <ChevronRight
+                            className="mt-1 size-5 shrink-0 text-muted-foreground"
+                            aria-hidden
+                          />
+                        </button>
                       </li>
                     );
                   })}
@@ -705,7 +769,421 @@ function MinhaContaPage() {
           )}
         </div>
       </section>
+
+      <BikeDetalheDialog
+        bike={bikeDetalhe}
+        ordens={ordens}
+        onClose={() => setBikeDetalhe(null)}
+        onAbrirOs={(o) => setOsDetalhe(o)}
+      />
+      <OsDetalheDialog
+        os={osDetalhe}
+        onClose={() => setOsDetalhe(null)}
+        onAtualizada={(atualizada) => {
+          setOrdens((lista) =>
+            lista.map((o) => (o.id === atualizada.id ? { ...o, ...atualizada } : o)),
+          );
+          setOsDetalhe((atual) =>
+            atual && atual.id === atualizada.id ? { ...atual, ...atualizada } : atual,
+          );
+        }}
+      />
     </div>
+  );
+}
+
+/**
+ * Modal somente leitura com o cadastro da bike e histórico de OS vinculadas.
+ */
+function BikeDetalheDialog({
+  bike,
+  ordens,
+  onClose,
+  onAbrirOs,
+}: {
+  bike: BikeCliente | null;
+  ordens: OsCliente[];
+  onClose: () => void;
+  onAbrirOs: (o: OsCliente) => void;
+}) {
+  if (!bike) return null;
+
+  const titulo = [bike.marca, bike.modelo].filter(Boolean).join(" ") || "Bike";
+  const statusLabel =
+    bike.status === "atual"
+      ? "Atual"
+      : bike.status === "antiga"
+        ? "Antiga"
+        : bike.status === "vendida"
+          ? "Vendida"
+          : bike.status?.replace(/_/g, " ") || null;
+
+  const campos = [
+    { label: "Marca", value: bike.marca },
+    { label: "Modelo", value: bike.modelo },
+    { label: "Tipo", value: bike.tipo },
+    { label: "Grupo", value: bike.grupo },
+    { label: "Ano", value: bike.ano != null ? String(bike.ano) : null },
+    { label: "Cor", value: bike.cor },
+    { label: "Tamanho", value: bike.tamanho },
+    { label: "Rodas", value: bike.rodas },
+    { label: "Número de série", value: bike.numero_serie },
+    { label: "Data da compra", value: fmtData(bike.data_compra) },
+    { label: "Onde comprou", value: bike.onde_comprou },
+    { label: "Status", value: statusLabel },
+  ].filter((c) => c.value);
+
+  const historicoOs = ordens.filter((o) => o.bike_id === bike.id);
+
+  return (
+    <Dialog open={!!bike} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-h-[85vh] max-w-lg overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="font-display">{titulo}</DialogTitle>
+          <DialogDescription>Cadastro da sua bicicleta na Bike Time</DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-5 text-sm">
+          <div className="flex flex-wrap gap-2">
+            {bike.bike_atual && (
+              <span className="rounded-full bg-primary/15 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-primary">
+                Bike atual
+              </span>
+            )}
+            {statusLabel && !bike.bike_atual && (
+              <span className="rounded-full bg-secondary px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider">
+                {statusLabel}
+              </span>
+            )}
+          </div>
+
+          {campos.length > 0 ? (
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              {campos.map((c) => (
+                <div key={c.label}>
+                  <p className="text-xs uppercase tracking-wider text-muted-foreground">
+                    {c.label}
+                  </p>
+                  <p className="mt-0.5 font-medium break-words">{c.value}</p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-muted-foreground">Sem detalhes cadastrados nesta bike.</p>
+          )}
+
+          <div className="border-t border-border pt-4">
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Histórico de serviços
+            </p>
+            {historicoOs.length === 0 ? (
+              <p className="mt-3 text-muted-foreground">
+                Nenhuma ordem de serviço vinculada a esta bike.
+              </p>
+            ) : (
+              <ul className="mt-3 space-y-2">
+                {historicoOs.map((o) => {
+                  const total =
+                    o.valor_aprovado != null
+                      ? Number(o.valor_aprovado)
+                      : Number(o.valor_mao_obra ?? 0) + Number(o.valor_pecas ?? 0);
+                  return (
+                    <li key={o.id}>
+                      <button
+                        type="button"
+                        onClick={() => onAbrirOs(o)}
+                        className="flex w-full items-start gap-2 rounded-xl border border-border bg-secondary/30 px-3 py-3 text-left transition-colors hover:bg-secondary/50"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <span className="font-mono text-sm font-semibold text-primary">
+                              {o.numero}
+                            </span>
+                            <span
+                              className={cn(
+                                "rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider",
+                                o.status === "aguardando_aprovacao"
+                                  ? "bg-primary/20 text-primary"
+                                  : "bg-secondary",
+                              )}
+                            >
+                              {o.status === "aguardando_aprovacao"
+                                ? "Aguardando sua aprovação"
+                                : (STATUS_OS[o.status] ?? o.status.replace(/_/g, " "))}
+                            </span>
+                          </div>
+                          {o.problema_relatado && (
+                            <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
+                              {o.problema_relatado}
+                            </p>
+                          )}
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            {[
+                              fmtData(o.data_entrada ?? o.created_at)
+                                ? `Entrada ${fmtData(o.data_entrada ?? o.created_at)}`
+                                : null,
+                              total > 0 ? fmtMoeda(total) : null,
+                            ]
+                              .filter(Boolean)
+                              .join(" · ")}
+                          </p>
+                        </div>
+                        <ChevronRight
+                          className="mt-0.5 size-4 shrink-0 text-muted-foreground"
+                          aria-hidden
+                        />
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/**
+ * Modal somente leitura com os detalhes da OS para o cliente.
+ * Permite aprovar/recusar orçamento quando status = aguardando_aprovacao.
+ */
+function OsDetalheDialog({
+  os,
+  onClose,
+  onAtualizada,
+}: {
+  os: OsCliente | null;
+  onClose: () => void;
+  onAtualizada: (os: OsCliente) => void;
+}) {
+  const [busyAcao, setBusyAcao] = useState(false);
+
+  const bikeNome = os?.bikes
+    ? [os.bikes.marca, os.bikes.modelo].filter(Boolean).join(" ")
+    : "—";
+  const total = os
+    ? os.valor_aprovado != null
+      ? Number(os.valor_aprovado)
+      : Number(os.valor_mao_obra ?? 0) + Number(os.valor_pecas ?? 0)
+    : 0;
+
+  const datas = os
+    ? [
+        { label: "Entrada", value: fmtData(os.data_entrada ?? os.created_at) },
+        { label: "Prevista", value: fmtData(os.data_prevista) },
+        { label: "Aprovação", value: fmtData(os.data_aprovacao) },
+        { label: "Conclusão", value: fmtData(os.data_conclusao) },
+        { label: "Entrega", value: fmtData(os.data_entrega) },
+        { label: "Pagamento", value: fmtData(os.data_pagamento) },
+        { label: "Próxima revisão", value: fmtData(os.proxima_revisao) },
+      ].filter((d) => d.value)
+    : [];
+
+  const aguardando = os?.status === "aguardando_aprovacao";
+
+  /**
+   * Chama a RPC de aprovação/recusa do orçamento e atualiza a UI.
+   */
+  async function decidirOrcamento(aprovar: boolean) {
+    if (!os) return;
+    const msg = aprovar
+      ? `Aprovar o orçamento de ${fmtMoeda(total) ?? "esta OS"} e autorizar a execução?`
+      : "Recusar este orçamento? A oficina vai revisar e pode enviar uma nova proposta.";
+    if (!window.confirm(msg)) return;
+
+    setBusyAcao(true);
+    try {
+      const { data, error } = await (supabase as any).rpc("aprovar_orcamento_os", {
+        p_os_id: os.id,
+        p_aprovar: aprovar,
+      });
+      if (error) {
+        toast.error(error.message || "Não foi possível registrar a decisão");
+        return;
+      }
+      const atualizada: OsCliente = {
+        ...os,
+        ...(data as Partial<OsCliente>),
+        bikes: os.bikes,
+      };
+      onAtualizada(atualizada);
+      toast.success(
+        aprovar
+          ? "Orçamento aprovado. A oficina vai iniciar a execução."
+          : "Orçamento recusado. A oficina vai revisar.",
+      );
+    } finally {
+      setBusyAcao(false);
+    }
+  }
+
+  return (
+    <Dialog open={!!os} onOpenChange={(open) => !open && onClose()}>
+      {os && (
+      <DialogContent className="max-h-[85vh] max-w-lg overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="font-display">
+            OS <span className="font-mono text-primary">{os.numero}</span>
+          </DialogTitle>
+          <DialogDescription>
+            {bikeNome} · {STATUS_OS[os.status] ?? os.status.replace(/_/g, " ")}
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-5 text-sm">
+          <div className="flex flex-wrap gap-2">
+            <span
+              className={cn(
+                "rounded-full px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider",
+                aguardando ? "bg-primary/20 text-primary" : "bg-secondary",
+              )}
+            >
+              {aguardando
+                ? "Aguardando sua aprovação"
+                : (STATUS_OS[os.status] ?? os.status.replace(/_/g, " "))}
+            </span>
+            {os.aprovado === true && (
+              <span className="rounded-full bg-primary/15 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-primary">
+                Aprovado
+              </span>
+            )}
+            {os.aprovado === false && (
+              <span className="rounded-full bg-destructive/15 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-destructive">
+                Não aprovado
+              </span>
+            )}
+          </div>
+
+          {datas.length > 0 && (
+            <div className="grid grid-cols-2 gap-3">
+              {datas.map((d) => (
+                <div key={d.label}>
+                  <p className="text-xs uppercase tracking-wider text-muted-foreground">
+                    {d.label}
+                  </p>
+                  <p className="mt-0.5 font-medium">{d.value}</p>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {os.problema_relatado && (
+            <div>
+              <p className="text-xs uppercase tracking-wider text-muted-foreground">
+                Problema relatado
+              </p>
+              <p className="mt-1 whitespace-pre-wrap text-foreground">
+                {os.problema_relatado}
+              </p>
+            </div>
+          )}
+
+          {os.servicos_executados && (
+            <div>
+              <p className="text-xs uppercase tracking-wider text-muted-foreground">
+                Serviços
+              </p>
+              <p className="mt-1 whitespace-pre-wrap text-foreground">
+                {os.servicos_executados}
+              </p>
+            </div>
+          )}
+
+          {os.pecas_utilizadas && (
+            <div>
+              <p className="text-xs uppercase tracking-wider text-muted-foreground">
+                Peças
+              </p>
+              <p className="mt-1 whitespace-pre-wrap text-foreground">
+                {os.pecas_utilizadas}
+              </p>
+            </div>
+          )}
+
+          {os.observacao_conclusao && (
+            <div>
+              <p className="text-xs uppercase tracking-wider text-muted-foreground">
+                Observação
+              </p>
+              <p className="mt-1 whitespace-pre-wrap text-foreground">
+                {os.observacao_conclusao}
+              </p>
+            </div>
+          )}
+
+          {(Number(os.valor_mao_obra) > 0 ||
+            Number(os.valor_pecas) > 0 ||
+            Number(os.valor_aprovado) > 0 ||
+            aguardando) && (
+            <div className="rounded-xl border border-border bg-secondary/40 p-4">
+              <p className="text-xs uppercase tracking-wider text-muted-foreground">
+                {aguardando ? "Orçamento" : "Valores"}
+              </p>
+              <dl className="mt-2 space-y-1.5">
+                {Number(os.valor_mao_obra) > 0 && (
+                  <div className="flex justify-between gap-4">
+                    <dt className="text-muted-foreground">Mão de obra</dt>
+                    <dd className="font-medium">{fmtMoeda(os.valor_mao_obra)}</dd>
+                  </div>
+                )}
+                {Number(os.valor_pecas) > 0 && (
+                  <div className="flex justify-between gap-4">
+                    <dt className="text-muted-foreground">Peças</dt>
+                    <dd className="font-medium">{fmtMoeda(os.valor_pecas)}</dd>
+                  </div>
+                )}
+                {total > 0 && (
+                  <div className="flex justify-between gap-4 border-t border-border pt-1.5">
+                    <dt className="font-semibold">
+                      {os.valor_aprovado != null && !aguardando
+                        ? "Total aprovado"
+                        : "Total"}
+                    </dt>
+                    <dd className="font-semibold text-primary">{fmtMoeda(total)}</dd>
+                  </div>
+                )}
+              </dl>
+              {os.forma_pagamento && (
+                <p className="mt-3 text-xs text-muted-foreground">
+                  Pagamento: {os.forma_pagamento}
+                </p>
+              )}
+            </div>
+          )}
+
+          {aguardando && (
+            <div className="space-y-3 border-t border-border pt-4">
+              <p className="text-sm text-muted-foreground">
+                Revise o orçamento e autorize a execução ou peça uma revisão à oficina.
+              </p>
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <Button
+                  className="flex-1 rounded-full bg-primary text-primary-foreground hover:bg-emerald-600 hover:text-white"
+                  disabled={busyAcao}
+                  onClick={() => decidirOrcamento(true)}
+                >
+                  {busyAcao ? (
+                    <Loader2 className="mr-2 size-4 animate-spin" />
+                  ) : null}
+                  Aprovar orçamento
+                </Button>
+                <Button
+                  variant="outline"
+                  className="flex-1 rounded-full border-border text-muted-foreground hover:border-red-500/50 hover:bg-red-500/15 hover:text-red-400"
+                  disabled={busyAcao}
+                  onClick={() => decidirOrcamento(false)}
+                >
+                  Recusar
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+      </DialogContent>
+      )}
+    </Dialog>
   );
 }
 
