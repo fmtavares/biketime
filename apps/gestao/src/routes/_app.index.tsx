@@ -115,28 +115,54 @@ function Dashboard() {
       <div className="mt-4 rounded-xl border bg-card p-5">
         <div className="flex items-center gap-2 mb-3">
           <Cake className="size-4" />
-          <h3 className="font-display font-bold">Aniversariantes do mês</h3>
-          <span className="text-xs text-muted-foreground ml-auto capitalize">
-            {new Date().toLocaleDateString("pt-BR", { month: "long" })}
-          </span>
+          <h3 className="font-display font-bold">Aniversariantes</h3>
         </div>
         <div className="space-y-2 text-sm">
           {(() => {
+            /** Janela: 7 dias atrás até 14 dias à frente (inclui hoje). */
             const hoje = new Date();
-            const mes = hoje.getMonth();
-            const diaHoje = hoje.getDate();
+            hoje.setHours(0, 0, 0, 0);
+            const inicio = new Date(hoje);
+            inicio.setDate(inicio.getDate() - 7);
+            const fim = new Date(hoje);
+            fim.setDate(fim.getDate() + 14);
+
+            /**
+             * Achada a ocorrência do aniversário (mês/dia) dentro da janela,
+             * considerando virada de ano.
+             */
+            function ocorrenciaNaJanela(mes0: number, dia: number): Date | null {
+              const anos = [inicio.getFullYear() - 1, inicio.getFullYear(), inicio.getFullYear() + 1];
+              for (const ano of anos) {
+                const d = new Date(ano, mes0, dia);
+                d.setHours(0, 0, 0, 0);
+                if (d >= inicio && d <= fim) return d;
+              }
+              return null;
+            }
+
             const lista = (data?.aniv.data ?? [])
               .map((c: any) => {
                 const [, m, d] = String(c.data_nascimento).split("-").map(Number);
-                return { ...c, _mes: m - 1, _dia: d };
+                const ocorrencia = ocorrenciaNaJanela(m - 1, d);
+                return { ...c, _mes: m - 1, _dia: d, _ocorrencia: ocorrencia };
               })
-              .filter((c: any) => c._mes === mes)
-              .sort((a: any, b: any) => a._dia - b._dia);
+              .filter((c: any) => c._ocorrencia != null)
+              .sort(
+                (a: any, b: any) =>
+                  a._ocorrencia.getTime() - b._ocorrencia.getTime(),
+              );
+
             if (lista.length === 0) {
-              return <p className="text-muted-foreground">Nenhum aniversariante este mês.</p>;
+              return (
+                <p className="text-muted-foreground">
+                  Nenhum aniversariante neste período.
+                </p>
+              );
             }
+
             return lista.map((c: any) => {
-              const isHoje = c._dia === diaHoje;
+              const isHoje = c._ocorrencia.getTime() === hoje.getTime();
               return (
                 <Link
                   key={c.id}
