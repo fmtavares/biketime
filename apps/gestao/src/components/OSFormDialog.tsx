@@ -291,6 +291,8 @@ export function OSFormDialog({
   }
 
   const isNovaDireto = !os && modo === "direto";
+  /** Nova OS com diagnóstico: fica na fila de entrada (sem escolher status na abertura). */
+  const isNovaDiagnostico = !os && modo === "diagnostico";
 
   const save = async () => {
     if (!form.cliente_id || !form.bike_id) return toast.error("Cliente e bike são obrigatórios");
@@ -310,7 +312,7 @@ export function OSFormDialog({
     }
     setBusy(true);
 
-    let status = form.status;
+    let status = isNovaDiagnostico ? "fila" : form.status;
     let mecanico = form.mecanico || "";
     let responsavelAvaliacao = form.responsavel_avaliacao || "";
     let dataAvaliacao: string | null = form.data_avaliacao || null;
@@ -532,7 +534,8 @@ export function OSFormDialog({
                   onChange={(e) => set("data_prevista", e.target.value)}
                 />
               </Field>
-              {!isNovaDireto && (
+              {/* Status só na edição; na abertura com diagnóstico a OS fica na fila de entrada. */}
+              {os && (
                 <Field label="Status">
                   <Select value={form.status} onValueChange={(v) => set("status", v)}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
