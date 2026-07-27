@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
+import { Plus, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
@@ -11,7 +12,14 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { ClienteCombobox } from "@/components/ClienteCombobox";
+import { ServicoCombobox } from "@/components/ServicoCombobox";
+import { CurrencyInput } from "@/components/CurrencyInput";
+import { filtrarUsuariosEquipe } from "@/lib/usuarios-sistema";
+import { useAuth } from "@/lib/auth-context";
+import { fmtBRL } from "@/lib/finance";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 const STATUS = [
   ["fila", "Fila"],
@@ -26,15 +34,58 @@ const STATUS = [
 
 export const FORMAS_PAGAMENTO = ["Dinheiro", "Pix", "Cartão"];
 
+type ModoAtendimento = "diagnostico" | "direto";
+
+type ItemServicoDireto = {
+  key: string;
+  catalogoId?: string;
+  nome: string;
+  valor: number;
+};
+
+/**
+ * Busca nome do usuário logado (profile) para preencher campos de equipe.
+ */
+async function nomeUsuarioLogado(): Promise<string> {
+  const { data: auth } = await supabase.auth.getUser();
+  let nome = auth.user?.email ?? "";
+  if (auth.user?.id) {
+    const { data: prof } = await supabase
+      .from("profiles")
+      .select("full_name, email")
+      .eq("id", auth.user.id)
+      .maybeSingle();
+    nome = prof?.full_name ?? prof?.email ?? nome;
+  }
+  return nome;
+}
+
 export function OSFormDialog({
-  open, onOpenChange, os, defaultClienteId, onSaved,
-}: { open: boolean; onOpenChange: (v: boolean) => void; os?: any; defaultClienteId?: string; onSaved?: () => void }) {
+  open, onOpenChange, os, defaultClienteId, onSaved, onDeleted,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  os?: any;
+  defaultClienteId?: string;
+  onSaved?: () => void;
+  /** Chamado após excluir a OS em edição. */
+  onDeleted?: () => void;
+}) {
+  const { isAdmin } = useAuth();
   const [clientes, setClientes] = useState<any[]>([]);
   const [bikes, setBikes] = useState<any[]>([]);
   const [usuarios, setUsuarios] = useState<any[]>([]);
-  const [funcionarios, setFuncionarios] = useState<any[]>([]);
+  const [servicosCatalogo, setServicosCatalogo] = useState<
+    { id: string; nome: string; valor: number }[]
+  >([]);
   const [busy, setBusy] = useState(false);
   const [form, setForm] = useState<any>(initial());
+  /** Só na criação: diagnóstico (fluxo completo) ou serviço direto (vai p/ execução). */
+  const [modo, setModo] = useState<ModoAtendimento>("diagnostico");
+  /** Serviço selecionado na lista (ainda não adicionado até clicar em +). */
+  const [servicoCatalogoId, setServicoCatalogoId] = useState("");
+  /** Itens de serviço no modo direto (vários, total somado). */
+  const [itensServico, setItensServico] = useState<ItemServicoDireto[]>([]);
 
   function initial() {
     return {
@@ -54,9 +105,24 @@ export function OSFormDialog({
 
   useEffect(() => {
     if (open) {
-      supabase.from("clientes").select("id, nome").order("nome").then(({ data }) => setClientes(data ?? []));
-      supabase.from("profiles").select("id, full_name, email").neq("email", "contato@biketime.com.br").order("full_name").then(({ data }) => setUsuarios(data ?? []));
-      (supabase.from as any)("funcionarios").select("id, nome").order("nome").then(({ data }: any) => setFuncionarios(data ?? []));
+      supabase
+        .from("clientes")
+        .select("id, nome, whatsapp, email")
+        .order("nome")
+        .then(({ data }) => setClientes(data ?? []));
+      supabase
+        .from("profiles")
+        .select("id, full_name, email")
+        .order("full_name")
+        .then(({ data }) => setUsuarios(filtrarUsuariosEquipe(data ?? [])));
+      supabase
+        .from("servicos_precos")
+        .select("id, nome, valor")
+        .order("nome")
+        .then(({ data }) => setServicosCatalogo((data as any[]) ?? []));
+      setModo("diagnostico");
+      setServicoCatalogoId("");
+      setItensServico([]);
       if (os) {
         setForm({
           ...os,
@@ -82,63 +148,205 @@ export function OSFormDialog({
 
   const set = (k: string, v: any) => setForm((f: any) => ({ ...f, [k]: v }));
 
+  /**
+   * Alterna modo de atendimento na criação da OS.
+   */
+  function escolherModo(m: ModoAtendimento) {
+    setModo(m);
+    if (m === "diagnostico") {
+      setForm((f: any) => ({ ...f, status: "fila" }));
+      setItensServico([]);
+      setServicoCatalogoId("");
+    } else {
+      setForm((f: any) => ({ ...f, status: "em_execucao" }));
+    }
+  }
+
+  const totalServicos = useMemo(
+    () => itensServico.reduce((acc, i) => acc + (Number(i.valor) || 0), 0),
+    [itensServico],
+  );
+
+  /**
+   * Inclui o serviço selecionado na OS (clique em +) e limpa a seleção para o próximo.
+   */
+  function adicionarServicoSelecionado() {
+    if (!servicoCatalogoId) {
+      return toast.error("Selecione um serviço na lista");
+    }
+    const s = servicosCatalogo.find((x) => x.id === servicoCatalogoId);
+    if (!s) return;
+    setItensServico((prev) => [
+      ...prev,
+      {
+        key: `${s.id}-${Date.now()}-${prev.length}`,
+        catalogoId: s.id,
+        nome: s.nome,
+        valor: Number(s.valor) || 0,
+      },
+    ]);
+    setServicoCatalogoId("");
+  }
+
+  /**
+   * Remove um item da lista de serviços.
+   */
+  function removerServico(key: string) {
+    setItensServico((prev) => prev.filter((i) => i.key !== key));
+  }
+
+  /**
+   * Atualiza o valor de um item já na lista.
+   */
+  function atualizarValorItem(key: string, valorStr: string) {
+    const valor =
+      valorStr === "" || valorStr == null
+        ? 0
+        : Number(String(valorStr).replace(",", "."));
+    setItensServico((prev) =>
+      prev.map((i) =>
+        i.key === key
+          ? { ...i, valor: Number.isNaN(valor) ? 0 : valor }
+          : i,
+      ),
+    );
+  }
+
+  const isNovaDireto = !os && modo === "direto";
+
   const save = async () => {
     if (!form.cliente_id || !form.bike_id) return toast.error("Cliente e bike são obrigatórios");
-    if (form.status === "em_execucao" && !form.aprovado_por) {
+    if (!form.data_prevista) return toast.error("Data prevista de entrega é obrigatória");
+
+    if (isNovaDireto) {
+      if (itensServico.length === 0) {
+        return toast.error("Adicione pelo menos um serviço");
+      }
+    }
+
+    if (form.status === "em_execucao" && !isNovaDireto && !form.aprovado_por) {
       return toast.error("Para iniciar a execução, informe quem aprovou (cliente ou mecânico)");
     }
     if (form.status === "pago" && (!form.pago_por || !form.forma_pagamento)) {
       return toast.error("Para marcar como Pago, informe quem recebeu e a forma de pagamento");
     }
     setBusy(true);
-    const statusFinalizado = ["finalizada", "entregue", "pago"].includes(form.status);
+
+    let status = form.status;
+    let mecanico = form.mecanico || "";
+    let responsavelAvaliacao = form.responsavel_avaliacao || "";
+    let dataAvaliacao: string | null = form.data_avaliacao || null;
+    let aprovado = form.aprovado;
+    let aprovadoPor = form.aprovado_por || "";
+    let dataAprovacao: string | null = form.data_aprovacao || null;
+    let valorAprovado = form.valor_aprovado ? Number(form.valor_aprovado) : null;
+    let problemaRelatado = form.problema_relatado || "";
+    let servicosExecutados = form.servicos_executados || "";
+    let valorMaoObra = form.valor_mao_obra
+      ? Number(String(form.valor_mao_obra).replace(",", "."))
+      : 0;
+
+    if (isNovaDireto) {
+      const agora = new Date().toISOString();
+      const nome = await nomeUsuarioLogado();
+      const valorServico = totalServicos;
+      servicosExecutados = itensServico
+        .map((i) => `${i.nome} — ${fmtBRL(i.valor)}`)
+        .join("\n");
+      valorMaoObra = valorServico;
+      status = "em_execucao";
+      mecanico = nome;
+      responsavelAvaliacao = nome;
+      dataAvaliacao = agora;
+      aprovado = true;
+      aprovadoPor = nome;
+      dataAprovacao = agora;
+      valorAprovado = valorServico;
+    }
+
+    const statusFinalizado = ["finalizada", "entregue", "pago"].includes(status);
     let responsavelExecucao = form.responsavel_execucao || "";
     let dataConclusao: string | null = form.data_conclusao || null;
     if (statusFinalizado && !dataConclusao) dataConclusao = new Date().toISOString();
     if (statusFinalizado && !responsavelExecucao) {
-      const { data: auth } = await supabase.auth.getUser();
-      let nome = auth.user?.email ?? "";
-      if (auth.user?.id) {
-        const { data: prof } = await supabase.from("profiles").select("full_name, email").eq("id", auth.user.id).maybeSingle();
-        nome = prof?.full_name ?? prof?.email ?? nome;
-      }
-      responsavelExecucao = nome;
+      responsavelExecucao = await nomeUsuarioLogado();
     }
-    const statusEntregue = ["entregue", "pago"].includes(form.status);
+    const statusEntregue = ["entregue", "pago"].includes(status);
     const dataEntrega = statusEntregue
       ? (form.data_entrega || new Date().toISOString())
       : null;
-    const statusAprovado = ["em_execucao", "com_problemas", "finalizada", "entregue", "pago"].includes(form.status);
-    const dataAprovacao = statusAprovado
-      ? (form.data_aprovacao || new Date().toISOString())
-      : (form.data_aprovacao || null);
+    const statusAprovado = ["em_execucao", "com_problemas", "finalizada", "entregue", "pago"].includes(status);
+    if (statusAprovado && !dataAprovacao) {
+      dataAprovacao = new Date().toISOString();
+    }
+    if (statusAprovado && aprovado == null) {
+      aprovado = true;
+    }
+
     const payload: any = {
       ...form,
+      status,
+      mecanico: mecanico || null,
+      responsavel_avaliacao: responsavelAvaliacao || null,
+      data_avaliacao: dataAvaliacao,
+      aprovado,
+      aprovado_por: aprovadoPor || null,
+      data_aprovacao: dataAprovacao,
+      problema_relatado: problemaRelatado || null,
+      servicos_executados: servicosExecutados || null,
       data_prevista: form.data_prevista || null,
       proxima_revisao: form.proxima_revisao || null,
-      data_pagamento: form.status === "pago" ? (form.data_pagamento || new Date().toISOString()) : (form.data_pagamento || null),
+      data_pagamento: status === "pago" ? (form.data_pagamento || new Date().toISOString()) : (form.data_pagamento || null),
       data_conclusao: dataConclusao,
       data_entrega: dataEntrega,
-      data_aprovacao: dataAprovacao,
       responsavel_execucao: responsavelExecucao || null,
-      valor_pecas: form.valor_pecas ? Number(form.valor_pecas) : 0,
-      valor_mao_obra: form.valor_mao_obra ? Number(form.valor_mao_obra) : 0,
-      valor_aprovado: form.valor_aprovado ? Number(form.valor_aprovado) : null,
+      valor_pecas: form.valor_pecas
+        ? Number(String(form.valor_pecas).replace(",", ".")) || 0
+        : 0,
+      valor_mao_obra: valorMaoObra,
+      valor_aprovado: valorAprovado,
     };
+    delete payload.id;
     delete payload.numero;
     delete payload.created_at;
     delete payload.updated_at;
     delete payload.clientes;
     delete payload.bikes;
+
     const { error } = os
       ? await supabase.from("ordens_servico").update(payload).eq("id", os.id)
       : await supabase.from("ordens_servico").insert(payload);
     setBusy(false);
     if (error) return toast.error(error.message);
-    toast.success(os ? "OS atualizada" : "OS criada");
+    toast.success(
+      os
+        ? "OS atualizada"
+        : isNovaDireto
+          ? "OS criada — já na execução"
+          : "OS criada",
+    );
     onSaved?.();
     onOpenChange(false);
   };
+
+  /**
+   * Exclui a OS em edição (somente admin).
+   */
+  async function excluir() {
+    if (!isAdmin || !os?.id) return;
+    const label = os.numero ? ` ${os.numero}` : "";
+    if (!confirm(`Excluir a OS${label}?\nEsta ação não pode ser desfeita.`)) {
+      return;
+    }
+    setBusy(true);
+    const { error } = await supabase.from("ordens_servico").delete().eq("id", os.id);
+    setBusy(false);
+    if (error) return toast.error(error.message);
+    toast.success("OS excluída");
+    onDeleted?.();
+    onSaved?.();
+    onOpenChange(false);
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -149,10 +357,44 @@ export function OSFormDialog({
           </DialogTitle>
         </DialogHeader>
 
+        {!os && (
+          <div className="space-y-2">
+            <Label className="text-xs">Tipo de atendimento</Label>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <button
+                type="button"
+                onClick={() => escolherModo("diagnostico")}
+                className={cn(
+                  "rounded-xl border px-4 py-3 text-left transition-colors",
+                  modo === "diagnostico"
+                    ? "border-primary bg-primary/10"
+                    : "border-border hover:border-primary/40",
+                )}
+              >
+                <div className="text-sm font-semibold">Com diagnóstico</div>
+              </button>
+              <button
+                type="button"
+                onClick={() => escolherModo("direto")}
+                className={cn(
+                  "rounded-xl border px-4 py-3 text-left transition-colors",
+                  modo === "direto"
+                    ? "border-primary bg-primary/10"
+                    : "border-border hover:border-primary/40",
+                )}
+              >
+                <div className="text-sm font-semibold">Serviço direto</div>
+              </button>
+            </div>
+          </div>
+        )}
+
         <Tabs defaultValue="entrada">
           <TabsList>
             <TabsTrigger value="entrada">Entrada</TabsTrigger>
-            <TabsTrigger value="avaliacao">Avaliação</TabsTrigger>
+            {!isNovaDireto && (
+              <TabsTrigger value="avaliacao">Avaliação</TabsTrigger>
+            )}
             <TabsTrigger value="execucao">Execução</TabsTrigger>
             <TabsTrigger value="finalizacao">Entrega</TabsTrigger>
           </TabsList>
@@ -160,10 +402,18 @@ export function OSFormDialog({
           <TabsContent value="entrada" className="space-y-4 mt-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Field label="Cliente *">
-                <Select value={form.cliente_id} onValueChange={(v) => set("cliente_id", v)}>
-                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                  <SelectContent>{clientes.map((c) => <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}</SelectContent>
-                </Select>
+                <ClienteCombobox
+                  clientes={clientes}
+                  value={form.cliente_id}
+                  onChange={(id) =>
+                    setForm((f: any) => ({
+                      ...f,
+                      cliente_id: id,
+                      bike_id: id === f.cliente_id ? f.bike_id : "",
+                    }))
+                  }
+                  placeholder="Buscar cliente…"
+                />
               </Field>
               <Field label="Bike *">
                 <Select value={form.bike_id} onValueChange={(v) => set("bike_id", v)} disabled={!form.cliente_id}>
@@ -171,75 +421,185 @@ export function OSFormDialog({
                   <SelectContent>{bikes.map((b) => <SelectItem key={b.id} value={b.id}>{b.marca} {b.modelo}</SelectItem>)}</SelectContent>
                 </Select>
               </Field>
-              <Field label="Responsável entrada">
-                {os && form.mecanico ? (
-                  <Input type="text" readOnly disabled value={form.mecanico} />
-                ) : (
-                  <Select value={form.mecanico || ""} onValueChange={(v) => set("mecanico", v)}>
-                    <SelectTrigger><SelectValue placeholder="Quem deu entrada na bike?" /></SelectTrigger>
-                    <SelectContent>{usuarios.map((u: any) => <SelectItem key={u.id} value={u.full_name ?? u.email}>{u.full_name ?? u.email}</SelectItem>)}</SelectContent>
-                  </Select>
-                )}
-              </Field>
-              <Field label="Data prevista de entrega"><Input type="date" value={form.data_prevista} onChange={(e) => set("data_prevista", e.target.value)} /></Field>
-              <Field label="Status">
-                <Select value={form.status} onValueChange={(v) => set("status", v)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>{STATUS.map(([v, l]) => <SelectItem key={v} value={v}>{l}</SelectItem>)}</SelectContent>
-                </Select>
-              </Field>
-            </div>
-            <Field label="Problema relatado"><Textarea value={form.problema_relatado} onChange={(e) => set("problema_relatado", e.target.value)} /></Field>
-            <Field label="Checklist visual de entrada"><Textarea value={form.checklist_entrada} onChange={(e) => set("checklist_entrada", e.target.value)} placeholder="Riscos, faltas, estado dos componentes…" /></Field>
-          </TabsContent>
-
-          <TabsContent value="avaliacao" className="space-y-4 mt-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Field label="Responsável Avaliação">
-                <Input type="text" readOnly disabled value={form.responsavel_avaliacao || "—"} />
-              </Field>
-              <Field label="Data Avaliação">
+              {!isNovaDireto && (
+                <Field label="Responsável entrada">
+                  {os && form.mecanico ? (
+                    <Input type="text" readOnly disabled value={form.mecanico} />
+                  ) : (
+                    <Select value={form.mecanico || ""} onValueChange={(v) => set("mecanico", v)}>
+                      <SelectTrigger><SelectValue placeholder="Quem deu entrada na bike?" /></SelectTrigger>
+                      <SelectContent>{usuarios.map((u: any) => <SelectItem key={u.id} value={u.full_name ?? u.email}>{u.full_name ?? u.email}</SelectItem>)}</SelectContent>
+                    </Select>
+                  )}
+                </Field>
+              )}
+              <Field label="Data prevista de entrega *">
                 <Input
-                  type="text"
-                  readOnly
-                  disabled
-                  value={form.data_avaliacao ? new Date(form.data_avaliacao).toLocaleString("pt-BR") : "—"}
+                  type="date"
+                  required
+                  value={form.data_prevista}
+                  onChange={(e) => set("data_prevista", e.target.value)}
                 />
               </Field>
+              {!isNovaDireto && (
+                <Field label="Status">
+                  <Select value={form.status} onValueChange={(v) => set("status", v)}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>{STATUS.map(([v, l]) => <SelectItem key={v} value={v}>{l}</SelectItem>)}</SelectContent>
+                  </Select>
+                </Field>
+              )}
             </div>
-            <p className="text-xs text-muted-foreground">Preenchido automaticamente quando a OS é movida para Avaliação.</p>
-            <Field label="Descrição Serviços"><Textarea value={form.servicos_executados} onChange={(e) => set("servicos_executados", e.target.value)} /></Field>
-            <Field label="Descrição Peças"><Textarea value={form.pecas_utilizadas} onChange={(e) => set("pecas_utilizadas", e.target.value)} /></Field>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Field label="Valor Serviço (R$)"><Input type="number" step="0.01" value={form.valor_mao_obra} onChange={(e) => set("valor_mao_obra", e.target.value)} /></Field>
-              <Field label="Valor Peças (R$)"><Input type="number" step="0.01" value={form.valor_pecas} onChange={(e) => set("valor_pecas", e.target.value)} /></Field>
-            </div>
-            <Field label="Observações Técnicas"><Textarea value={form.observacoes_tecnicas} onChange={(e) => set("observacoes_tecnicas", e.target.value)} /></Field>
+
+            {isNovaDireto ? (
+              <div className="space-y-4 rounded-xl border p-4">
+                <Field label="Lista Serviço">
+                  <div className="flex gap-2">
+                    <div className="min-w-0 flex-1">
+                      <ServicoCombobox
+                        servicos={servicosCatalogo}
+                        value={servicoCatalogoId}
+                        onChange={setServicoCatalogoId}
+                        placeholder="Buscar serviço…"
+                      />
+                    </div>
+                    <Button
+                      type="button"
+                      size="icon"
+                      className="size-9 shrink-0"
+                      title="Adicionar serviço"
+                      disabled={!servicoCatalogoId}
+                      onClick={adicionarServicoSelecionado}
+                    >
+                      <Plus className="size-4" />
+                    </Button>
+                  </div>
+                </Field>
+
+                {itensServico.length > 0 && (
+                  <div className="space-y-2">
+                    {itensServico.map((item) => (
+                      <div
+                        key={item.key}
+                        className="flex flex-wrap items-center gap-2 rounded-lg border bg-background px-3 py-2"
+                      >
+                        <span className="min-w-0 flex-1 truncate text-sm font-medium">
+                          {item.nome}
+                        </span>
+                        <CurrencyInput
+                          className="h-8 w-32"
+                          value={item.valor}
+                          onChange={(v) => atualizarValorItem(item.key, v)}
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="size-8 shrink-0"
+                          onClick={() => removerServico(item.key)}
+                          title="Remover"
+                        >
+                          <Trash2 className="size-3.5" />
+                        </Button>
+                      </div>
+                    ))}
+                    <div className="flex items-center justify-between border-t pt-2 text-sm">
+                      <span className="text-muted-foreground">Total serviço</span>
+                      <span className="font-display text-base font-bold">
+                        {fmtBRL(totalServicos)}
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                <Field label="Observação">
+                  <Textarea
+                    value={form.problema_relatado}
+                    onChange={(e) => set("problema_relatado", e.target.value)}
+                    placeholder="Opcional — após incluir os serviços"
+                  />
+                </Field>
+              </div>
+            ) : (
+              <>
+                <Field label="Problema relatado">
+                  <Textarea
+                    value={form.problema_relatado}
+                    onChange={(e) => set("problema_relatado", e.target.value)}
+                  />
+                </Field>
+                <Field label="Checklist visual de entrada">
+                  <Textarea
+                    value={form.checklist_entrada}
+                    onChange={(e) => set("checklist_entrada", e.target.value)}
+                    placeholder="Riscos, faltas, estado dos componentes…"
+                  />
+                </Field>
+              </>
+            )}
           </TabsContent>
+
+          {!isNovaDireto && (
+            <TabsContent value="avaliacao" className="space-y-4 mt-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Field label="Responsável Avaliação">
+                  <Input type="text" readOnly disabled value={form.responsavel_avaliacao || "—"} />
+                </Field>
+                <Field label="Data Avaliação">
+                  <Input
+                    type="text"
+                    readOnly
+                    disabled
+                    value={form.data_avaliacao ? new Date(form.data_avaliacao).toLocaleString("pt-BR") : "—"}
+                  />
+                </Field>
+              </div>
+              <p className="text-xs text-muted-foreground">Preenchido automaticamente quando a OS é movida para Avaliação.</p>
+              <Field label="Descrição Serviços"><Textarea value={form.servicos_executados} onChange={(e) => set("servicos_executados", e.target.value)} /></Field>
+              <Field label="Descrição Peças"><Textarea value={form.pecas_utilizadas} onChange={(e) => set("pecas_utilizadas", e.target.value)} /></Field>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Field label="Valor Serviço">
+                  <CurrencyInput
+                    value={form.valor_mao_obra}
+                    onChange={(v) => set("valor_mao_obra", v)}
+                  />
+                </Field>
+                <Field label="Valor Peças">
+                  <CurrencyInput
+                    value={form.valor_pecas}
+                    onChange={(v) => set("valor_pecas", v)}
+                  />
+                </Field>
+              </div>
+              <Field label="Observações Técnicas"><Textarea value={form.observacoes_tecnicas} onChange={(e) => set("observacoes_tecnicas", e.target.value)} /></Field>
+            </TabsContent>
+          )}
 
           <TabsContent value="execucao" className="space-y-4 mt-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Field label="Responsável aprovação *">
-                {os && form.aprovado_por ? (
-                  <Input type="text" readOnly disabled value={form.aprovado_por} />
-                ) : (
-                  <Select value={form.aprovado_por || ""} onValueChange={(v) => set("aprovado_por", v)}>
-                    <SelectTrigger><SelectValue placeholder="Quem aprovou a execução?" /></SelectTrigger>
-                    <SelectContent>
-                      {usuarios.map((u: any) => { const n = u.full_name ?? u.email; return <SelectItem key={u.id} value={n}>{n}</SelectItem>; })}
-                    </SelectContent>
-                  </Select>
-                )}
-              </Field>
-              <Field label="Data aprovação">
-                <Input
-                  type="text"
-                  readOnly
-                  disabled
-                  value={form.data_aprovacao ? new Date(form.data_aprovacao).toLocaleString("pt-BR") : "—"}
-                />
-              </Field>
-            </div>
+            {!isNovaDireto && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Field label="Responsável aprovação *">
+                  {os && form.aprovado_por ? (
+                    <Input type="text" readOnly disabled value={form.aprovado_por} />
+                  ) : (
+                    <Select value={form.aprovado_por || ""} onValueChange={(v) => set("aprovado_por", v)}>
+                      <SelectTrigger><SelectValue placeholder="Quem aprovou a execução?" /></SelectTrigger>
+                      <SelectContent>
+                        {usuarios.map((u: any) => { const n = u.full_name ?? u.email; return <SelectItem key={u.id} value={n}>{n}</SelectItem>; })}
+                      </SelectContent>
+                    </Select>
+                  )}
+                </Field>
+                <Field label="Data aprovação">
+                  <Input
+                    type="text"
+                    readOnly
+                    disabled
+                    value={form.data_aprovacao ? new Date(form.data_aprovacao).toLocaleString("pt-BR") : "—"}
+                  />
+                </Field>
+              </div>
+            )}
             <Field label="Quem puxou?">
               <Select value={form.quem_puxou || ""} onValueChange={(v) => set("quem_puxou", v)}>
                 <SelectTrigger><SelectValue placeholder="Selecione o usuário" /></SelectTrigger>
@@ -315,9 +675,27 @@ export function OSFormDialog({
           </TabsContent>
         </Tabs>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-          <Button onClick={save} disabled={busy}>{busy ? "Salvando…" : "Salvar"}</Button>
+        <DialogFooter className="gap-2 sm:justify-between">
+          {os?.id && isAdmin ? (
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={excluir}
+              disabled={busy}
+            >
+              Excluir OS
+            </Button>
+          ) : (
+            <span />
+          )}
+          <div className="flex flex-col-reverse gap-2 sm:flex-row">
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={save} disabled={busy}>
+              {busy ? "Salvando…" : "Salvar"}
+            </Button>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>
