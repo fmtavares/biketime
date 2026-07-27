@@ -36,7 +36,7 @@ export const FORMAS_PAGAMENTO = ["Dinheiro", "Pix", "Cartão"];
 
 type ModoAtendimento = "diagnostico" | "direto";
 
-type ItemServicoDireto = {
+type ItemLinhaValor = {
   key: string;
   catalogoId?: string;
   nome: string;
@@ -84,8 +84,12 @@ export function OSFormDialog({
   const [modo, setModo] = useState<ModoAtendimento>("diagnostico");
   /** Serviço selecionado na lista (ainda não adicionado até clicar em +). */
   const [servicoCatalogoId, setServicoCatalogoId] = useState("");
-  /** Itens de serviço no modo direto (vários, total somado). */
-  const [itensServico, setItensServico] = useState<ItemServicoDireto[]>([]);
+  /** Itens de serviço (vários, total somado). */
+  const [itensServico, setItensServico] = useState<ItemLinhaValor[]>([]);
+  /** Peças manuais (nome + valor) na avaliação. */
+  const [itensPecas, setItensPecas] = useState<ItemLinhaValor[]>([]);
+  const [nomePeca, setNomePeca] = useState("");
+  const [valorPeca, setValorPeca] = useState("");
 
   function initial() {
     return {
@@ -123,6 +127,9 @@ export function OSFormDialog({
       setModo("diagnostico");
       setServicoCatalogoId("");
       setItensServico([]);
+      setItensPecas([]);
+      setNomePeca("");
+      setValorPeca("");
       if (os) {
         setForm({
           ...os,
@@ -153,10 +160,13 @@ export function OSFormDialog({
    */
   function escolherModo(m: ModoAtendimento) {
     setModo(m);
+    setItensServico([]);
+    setServicoCatalogoId("");
+    setItensPecas([]);
+    setNomePeca("");
+    setValorPeca("");
     if (m === "diagnostico") {
       setForm((f: any) => ({ ...f, status: "fila" }));
-      setItensServico([]);
-      setServicoCatalogoId("");
     } else {
       setForm((f: any) => ({ ...f, status: "em_execucao" }));
     }
@@ -166,6 +176,31 @@ export function OSFormDialog({
     () => itensServico.reduce((acc, i) => acc + (Number(i.valor) || 0), 0),
     [itensServico],
   );
+
+  const totalPecas = useMemo(
+    () => itensPecas.reduce((acc, i) => acc + (Number(i.valor) || 0), 0),
+    [itensPecas],
+  );
+
+  /** Soma serviços + peças (listas novas ou valores já gravados na OS). */
+  const totalGeral = useMemo(() => {
+    const servicos =
+      itensServico.length > 0
+        ? totalServicos
+        : Number(String(form.valor_mao_obra ?? "").replace(",", ".")) || 0;
+    const pecas =
+      itensPecas.length > 0
+        ? totalPecas
+        : Number(String(form.valor_pecas ?? "").replace(",", ".")) || 0;
+    return servicos + pecas;
+  }, [
+    itensServico.length,
+    itensPecas.length,
+    totalServicos,
+    totalPecas,
+    form.valor_mao_obra,
+    form.valor_pecas,
+  ]);
 
   /**
    * Inclui o serviço selecionado na OS (clique em +) e limpa a seleção para o próximo.
@@ -196,7 +231,7 @@ export function OSFormDialog({
   }
 
   /**
-   * Atualiza o valor de um item já na lista.
+   * Atualiza o valor de um item já na lista de serviços.
    */
   function atualizarValorItem(key: string, valorStr: string) {
     const valor =
@@ -204,6 +239,49 @@ export function OSFormDialog({
         ? 0
         : Number(String(valorStr).replace(",", "."));
     setItensServico((prev) =>
+      prev.map((i) =>
+        i.key === key
+          ? { ...i, valor: Number.isNaN(valor) ? 0 : valor }
+          : i,
+      ),
+    );
+  }
+
+  /**
+   * Inclui peça digitada (nome + valor) na lista.
+   */
+  function adicionarPeca() {
+    const nome = nomePeca.trim();
+    const valor =
+      valorPeca === "" || valorPeca == null
+        ? NaN
+        : Number(String(valorPeca).replace(",", "."));
+    if (!nome) return toast.error("Informe o nome da peça");
+    if (Number.isNaN(valor) || valor < 0) return toast.error("Informe o valor da peça");
+    setItensPecas((prev) => [
+      ...prev,
+      { key: `peca-${Date.now()}-${prev.length}`, nome, valor },
+    ]);
+    setNomePeca("");
+    setValorPeca("");
+  }
+
+  /**
+   * Remove peça da lista.
+   */
+  function removerPeca(key: string) {
+    setItensPecas((prev) => prev.filter((i) => i.key !== key));
+  }
+
+  /**
+   * Atualiza valor de uma peça na lista.
+   */
+  function atualizarValorPeca(key: string, valorStr: string) {
+    const valor =
+      valorStr === "" || valorStr == null
+        ? 0
+        : Number(String(valorStr).replace(",", "."));
+    setItensPecas((prev) =>
       prev.map((i) =>
         i.key === key
           ? { ...i, valor: Number.isNaN(valor) ? 0 : valor }
@@ -246,14 +324,28 @@ export function OSFormDialog({
       ? Number(String(form.valor_mao_obra).replace(",", "."))
       : 0;
 
-    if (isNovaDireto) {
-      const agora = new Date().toISOString();
-      const nome = await nomeUsuarioLogado();
-      const valorServico = totalServicos;
+    /** Lista de preços (direto ou diagnóstico): grava descrição + total. */
+    if (itensServico.length > 0) {
       servicosExecutados = itensServico
         .map((i) => `${i.nome} — ${fmtBRL(i.valor)}`)
         .join("\n");
-      valorMaoObra = valorServico;
+      valorMaoObra = totalServicos;
+    }
+
+    let pecasUtilizadas = form.pecas_utilizadas || "";
+    let valorPecas = form.valor_pecas
+      ? Number(String(form.valor_pecas).replace(",", ".")) || 0
+      : 0;
+    if (itensPecas.length > 0) {
+      pecasUtilizadas = itensPecas
+        .map((i) => `${i.nome} — ${fmtBRL(i.valor)}`)
+        .join("\n");
+      valorPecas = totalPecas;
+    }
+
+    if (isNovaDireto) {
+      const agora = new Date().toISOString();
+      const nome = await nomeUsuarioLogado();
       status = "em_execucao";
       mecanico = nome;
       responsavelAvaliacao = nome;
@@ -261,7 +353,7 @@ export function OSFormDialog({
       aprovado = true;
       aprovadoPor = nome;
       dataAprovacao = agora;
-      valorAprovado = valorServico;
+      valorAprovado = valorMaoObra;
     }
 
     const statusFinalizado = ["finalizada", "entregue", "pago"].includes(status);
@@ -294,15 +386,14 @@ export function OSFormDialog({
       data_aprovacao: dataAprovacao,
       problema_relatado: problemaRelatado || null,
       servicos_executados: servicosExecutados || null,
+      pecas_utilizadas: pecasUtilizadas || null,
       data_prevista: form.data_prevista || null,
       proxima_revisao: form.proxima_revisao || null,
       data_pagamento: status === "pago" ? (form.data_pagamento || new Date().toISOString()) : (form.data_pagamento || null),
       data_conclusao: dataConclusao,
       data_entrega: dataEntrega,
       responsavel_execucao: responsavelExecucao || null,
-      valor_pecas: form.valor_pecas
-        ? Number(String(form.valor_pecas).replace(",", ".")) || 0
-        : 0,
+      valor_pecas: valorPecas,
       valor_mao_obra: valorMaoObra,
       valor_aprovado: valorAprovado,
     };
@@ -453,70 +544,30 @@ export function OSFormDialog({
 
             {isNovaDireto ? (
               <div className="space-y-4 rounded-xl border p-4">
-                <Field label="Lista Serviço">
-                  <div className="flex gap-2">
-                    <div className="min-w-0 flex-1">
-                      <ServicoCombobox
-                        servicos={servicosCatalogo}
-                        value={servicoCatalogoId}
-                        onChange={setServicoCatalogoId}
-                        placeholder="Buscar serviço…"
-                      />
-                    </div>
-                    <Button
-                      type="button"
-                      size="icon"
-                      className="size-9 shrink-0"
-                      title="Adicionar serviço"
-                      disabled={!servicoCatalogoId}
-                      onClick={adicionarServicoSelecionado}
-                    >
-                      <Plus className="size-4" />
-                    </Button>
-                  </div>
-                </Field>
-
-                {itensServico.length > 0 && (
-                  <div className="space-y-2">
-                    {itensServico.map((item) => (
-                      <div
-                        key={item.key}
-                        className="flex flex-wrap items-center gap-2 rounded-lg border bg-background px-3 py-2"
-                      >
-                        <span className="min-w-0 flex-1 truncate text-sm font-medium">
-                          {item.nome}
-                        </span>
-                        <CurrencyInput
-                          className="h-8 w-32"
-                          value={item.valor}
-                          onChange={(v) => atualizarValorItem(item.key, v)}
-                        />
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="size-8 shrink-0"
-                          onClick={() => removerServico(item.key)}
-                          title="Remover"
-                        >
-                          <Trash2 className="size-3.5" />
-                        </Button>
-                      </div>
-                    ))}
-                    <div className="flex items-center justify-between border-t pt-2 text-sm">
-                      <span className="text-muted-foreground">Total serviço</span>
-                      <span className="font-display text-base font-bold">
-                        {fmtBRL(totalServicos)}
-                      </span>
-                    </div>
-                  </div>
-                )}
+                <ListaServicosEditor
+                  servicosCatalogo={servicosCatalogo}
+                  servicoCatalogoId={servicoCatalogoId}
+                  onServicoCatalogoIdChange={setServicoCatalogoId}
+                  onAdicionar={adicionarServicoSelecionado}
+                  itens={itensServico}
+                  total={totalServicos}
+                  onAtualizarValor={atualizarValorItem}
+                  onRemover={removerServico}
+                />
+                <div className="flex items-center justify-between border-t pt-3">
+                  <span className="text-sm font-medium text-muted-foreground">
+                    Total
+                  </span>
+                  <span className="font-display text-lg font-bold">
+                    {fmtBRL(totalGeral)}
+                  </span>
+                </div>
 
                 <Field label="Observação">
                   <Textarea
                     value={form.problema_relatado}
                     onChange={(e) => set("problema_relatado", e.target.value)}
-                    placeholder="Opcional — após incluir os serviços"
+                    placeholder="Opcional"
                   />
                 </Field>
               </div>
@@ -555,23 +606,65 @@ export function OSFormDialog({
                 </Field>
               </div>
               <p className="text-xs text-muted-foreground">Preenchido automaticamente quando a OS é movida para Avaliação.</p>
-              <Field label="Descrição Serviços"><Textarea value={form.servicos_executados} onChange={(e) => set("servicos_executados", e.target.value)} /></Field>
-              <Field label="Descrição Peças"><Textarea value={form.pecas_utilizadas} onChange={(e) => set("pecas_utilizadas", e.target.value)} /></Field>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Field label="Valor Serviço">
-                  <CurrencyInput
-                    value={form.valor_mao_obra}
-                    onChange={(v) => set("valor_mao_obra", v)}
-                  />
-                </Field>
-                <Field label="Valor Peças">
-                  <CurrencyInput
-                    value={form.valor_pecas}
-                    onChange={(v) => set("valor_pecas", v)}
-                  />
-                </Field>
+
+              <div className="space-y-4 rounded-xl border p-4">
+                <ListaServicosEditor
+                  servicosCatalogo={servicosCatalogo}
+                  servicoCatalogoId={servicoCatalogoId}
+                  onServicoCatalogoIdChange={setServicoCatalogoId}
+                  onAdicionar={adicionarServicoSelecionado}
+                  itens={itensServico}
+                  total={totalServicos}
+                  onAtualizarValor={atualizarValorItem}
+                  onRemover={removerServico}
+                />
+                {os && form.servicos_executados && itensServico.length === 0 && (
+                  <p className="text-xs text-muted-foreground whitespace-pre-wrap">
+                    Atual: {form.servicos_executados}
+                    {form.valor_mao_obra != null && form.valor_mao_obra !== ""
+                      ? ` · ${fmtBRL(Number(form.valor_mao_obra) || 0)}`
+                      : ""}
+                  </p>
+                )}
               </div>
-              <Field label="Observações Técnicas"><Textarea value={form.observacoes_tecnicas} onChange={(e) => set("observacoes_tecnicas", e.target.value)} /></Field>
+
+              <div className="space-y-4 rounded-xl border p-4">
+                <ListaPecasEditor
+                  nome={nomePeca}
+                  valor={valorPeca}
+                  onNomeChange={setNomePeca}
+                  onValorChange={setValorPeca}
+                  onAdicionar={adicionarPeca}
+                  itens={itensPecas}
+                  total={totalPecas}
+                  onAtualizarValor={atualizarValorPeca}
+                  onRemover={removerPeca}
+                />
+                {os && form.pecas_utilizadas && itensPecas.length === 0 && (
+                  <p className="text-xs text-muted-foreground whitespace-pre-wrap">
+                    Atual: {form.pecas_utilizadas}
+                    {form.valor_pecas != null && form.valor_pecas !== ""
+                      ? ` · ${fmtBRL(Number(form.valor_pecas) || 0)}`
+                      : ""}
+                  </p>
+                )}
+              </div>
+
+              <div className="flex items-center justify-between rounded-xl border bg-secondary/30 px-4 py-3">
+                <span className="text-sm font-medium text-muted-foreground">
+                  Total (serviços + peças)
+                </span>
+                <span className="font-display text-xl font-bold">
+                  {fmtBRL(totalGeral)}
+                </span>
+              </div>
+
+              <Field label="Observações Técnicas">
+                <Textarea
+                  value={form.observacoes_tecnicas}
+                  onChange={(e) => set("observacoes_tecnicas", e.target.value)}
+                />
+              </Field>
             </TabsContent>
           )}
 
@@ -704,4 +797,189 @@ export function OSFormDialog({
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return <div className="space-y-1.5"><Label className="text-xs">{label}</Label>{children}</div>;
+}
+
+/**
+ * Lista de serviços do catálogo de preços: buscar, +, itens e total.
+ */
+function ListaServicosEditor({
+  servicosCatalogo,
+  servicoCatalogoId,
+  onServicoCatalogoIdChange,
+  onAdicionar,
+  itens,
+  total,
+  onAtualizarValor,
+  onRemover,
+}: {
+  servicosCatalogo: { id: string; nome: string; valor: number }[];
+  servicoCatalogoId: string;
+  onServicoCatalogoIdChange: (id: string) => void;
+  onAdicionar: () => void;
+  itens: ItemLinhaValor[];
+  total: number;
+  onAtualizarValor: (key: string, v: string) => void;
+  onRemover: (key: string) => void;
+}) {
+  return (
+    <div className="space-y-3">
+      <Field label="Lista Serviço">
+        <div className="flex gap-2">
+          <div className="min-w-0 flex-1">
+            <ServicoCombobox
+              servicos={servicosCatalogo}
+              value={servicoCatalogoId}
+              onChange={onServicoCatalogoIdChange}
+              placeholder="Buscar serviço…"
+            />
+          </div>
+          <Button
+            type="button"
+            size="icon"
+            className="size-9 shrink-0"
+            title="Adicionar serviço"
+            disabled={!servicoCatalogoId}
+            onClick={onAdicionar}
+          >
+            <Plus className="size-4" />
+          </Button>
+        </div>
+      </Field>
+
+      {itens.length > 0 && (
+        <div className="space-y-2">
+          {itens.map((item) => (
+            <div
+              key={item.key}
+              className="flex flex-wrap items-center gap-2 rounded-lg border bg-background px-3 py-2"
+            >
+              <span className="min-w-0 flex-1 truncate text-sm font-medium">
+                {item.nome}
+              </span>
+              <CurrencyInput
+                className="h-8 w-32"
+                value={item.valor}
+                onChange={(v) => onAtualizarValor(item.key, v)}
+              />
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="size-8 shrink-0"
+                onClick={() => onRemover(item.key)}
+                title="Remover"
+              >
+                <Trash2 className="size-3.5" />
+              </Button>
+            </div>
+          ))}
+          <div className="flex items-center justify-between border-t pt-2 text-sm">
+            <span className="text-muted-foreground">Total serviço</span>
+            <span className="font-display text-base font-bold">
+              {fmtBRL(total)}
+            </span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Lista de peças manuais: nome + valor + +, itens e total.
+ */
+function ListaPecasEditor({
+  nome,
+  valor,
+  onNomeChange,
+  onValorChange,
+  onAdicionar,
+  itens,
+  total,
+  onAtualizarValor,
+  onRemover,
+}: {
+  nome: string;
+  valor: string;
+  onNomeChange: (v: string) => void;
+  onValorChange: (v: string) => void;
+  onAdicionar: () => void;
+  itens: ItemLinhaValor[];
+  total: number;
+  onAtualizarValor: (key: string, v: string) => void;
+  onRemover: (key: string) => void;
+}) {
+  return (
+    <div className="space-y-3">
+      <Field label="Peças">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+          <div className="min-w-0 flex-1">
+            <Input
+              value={nome}
+              onChange={(e) => onNomeChange(e.target.value)}
+              placeholder="Nome da peça"
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  onAdicionar();
+                }
+              }}
+            />
+          </div>
+          <div className="w-full sm:w-36">
+            <CurrencyInput
+              value={valor}
+              onChange={onValorChange}
+              placeholder="Valor"
+            />
+          </div>
+          <Button
+            type="button"
+            size="icon"
+            className="size-9 shrink-0"
+            title="Adicionar peça"
+            onClick={onAdicionar}
+          >
+            <Plus className="size-4" />
+          </Button>
+        </div>
+      </Field>
+
+      {itens.length > 0 && (
+        <div className="space-y-2">
+          {itens.map((item) => (
+            <div
+              key={item.key}
+              className="flex flex-wrap items-center gap-2 rounded-lg border bg-background px-3 py-2"
+            >
+              <span className="min-w-0 flex-1 truncate text-sm font-medium">
+                {item.nome}
+              </span>
+              <CurrencyInput
+                className="h-8 w-32"
+                value={item.valor}
+                onChange={(v) => onAtualizarValor(item.key, v)}
+              />
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="size-8 shrink-0"
+                onClick={() => onRemover(item.key)}
+                title="Remover"
+              >
+                <Trash2 className="size-3.5" />
+              </Button>
+            </div>
+          ))}
+          <div className="flex items-center justify-between border-t pt-2 text-sm">
+            <span className="text-muted-foreground">Total peças</span>
+            <span className="font-display text-base font-bold">
+              {fmtBRL(total)}
+            </span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
