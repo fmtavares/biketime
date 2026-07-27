@@ -11,7 +11,9 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SobreRouteImport } from './routes/sobre'
 import { Route as ServicosRouteImport } from './routes/servicos'
+import { Route as MinhaContaRouteImport } from './routes/minha-conta'
 import { Route as LojaRouteImport } from './routes/loja'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as EventosRouteImport } from './routes/eventos'
 import { Route as EquipeRouteImport } from './routes/equipe'
 import { Route as DeliveryRouteImport } from './routes/delivery'
@@ -31,9 +33,19 @@ const ServicosRoute = ServicosRouteImport.update({
   path: '/servicos',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MinhaContaRoute = MinhaContaRouteImport.update({
+  id: '/minha-conta',
+  path: '/minha-conta',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LojaRoute = LojaRouteImport.update({
   id: '/loja',
   path: '/loja',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
 const EventosRoute = EventosRouteImport.update({
@@ -84,7 +96,9 @@ export interface FileRoutesByFullPath {
   '/delivery': typeof DeliveryRoute
   '/equipe': typeof EquipeRoute
   '/eventos': typeof EventosRoute
+  '/login': typeof LoginRoute
   '/loja': typeof LojaRoute
+  '/minha-conta': typeof MinhaContaRoute
   '/servicos': typeof ServicosRoute
   '/sobre': typeof SobreRoute
   '/loja/$id': typeof LojaIdRoute
@@ -97,7 +111,9 @@ export interface FileRoutesByTo {
   '/delivery': typeof DeliveryRoute
   '/equipe': typeof EquipeRoute
   '/eventos': typeof EventosRoute
+  '/login': typeof LoginRoute
   '/loja': typeof LojaRoute
+  '/minha-conta': typeof MinhaContaRoute
   '/servicos': typeof ServicosRoute
   '/sobre': typeof SobreRoute
   '/loja/$id': typeof LojaIdRoute
@@ -111,7 +127,9 @@ export interface FileRoutesById {
   '/delivery': typeof DeliveryRoute
   '/equipe': typeof EquipeRoute
   '/eventos': typeof EventosRoute
+  '/login': typeof LoginRoute
   '/loja': typeof LojaRoute
+  '/minha-conta': typeof MinhaContaRoute
   '/servicos': typeof ServicosRoute
   '/sobre': typeof SobreRoute
   '/loja_/$id': typeof LojaIdRoute
@@ -126,7 +144,9 @@ export interface FileRouteTypes {
     | '/delivery'
     | '/equipe'
     | '/eventos'
+    | '/login'
     | '/loja'
+    | '/minha-conta'
     | '/servicos'
     | '/sobre'
     | '/loja/$id'
@@ -139,7 +159,9 @@ export interface FileRouteTypes {
     | '/delivery'
     | '/equipe'
     | '/eventos'
+    | '/login'
     | '/loja'
+    | '/minha-conta'
     | '/servicos'
     | '/sobre'
     | '/loja/$id'
@@ -152,7 +174,9 @@ export interface FileRouteTypes {
     | '/delivery'
     | '/equipe'
     | '/eventos'
+    | '/login'
     | '/loja'
+    | '/minha-conta'
     | '/servicos'
     | '/sobre'
     | '/loja_/$id'
@@ -166,7 +190,9 @@ export interface RootRouteChildren {
   DeliveryRoute: typeof DeliveryRoute
   EquipeRoute: typeof EquipeRoute
   EventosRoute: typeof EventosRoute
+  LoginRoute: typeof LoginRoute
   LojaRoute: typeof LojaRoute
+  MinhaContaRoute: typeof MinhaContaRoute
   ServicosRoute: typeof ServicosRoute
   SobreRoute: typeof SobreRoute
   LojaIdRoute: typeof LojaIdRoute
@@ -189,11 +215,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ServicosRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/minha-conta': {
+      id: '/minha-conta'
+      path: '/minha-conta'
+      fullPath: '/minha-conta'
+      preLoaderRoute: typeof MinhaContaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/loja': {
       id: '/loja'
       path: '/loja'
       fullPath: '/loja'
       preLoaderRoute: typeof LojaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/eventos': {
@@ -262,7 +302,9 @@ const rootRouteChildren: RootRouteChildren = {
   DeliveryRoute: DeliveryRoute,
   EquipeRoute: EquipeRoute,
   EventosRoute: EventosRoute,
+  LoginRoute: LoginRoute,
   LojaRoute: LojaRoute,
+  MinhaContaRoute: MinhaContaRoute,
   ServicosRoute: ServicosRoute,
   SobreRoute: SobreRoute,
   LojaIdRoute: LojaIdRoute,

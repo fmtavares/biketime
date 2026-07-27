@@ -131,6 +131,40 @@
 
   .ring-yellow-glow { box-shadow: 0 0 0 1px oklch(0.87 0.18 95 / 0.2), var(--shadow-glow); }
 
+  /* Área logada: cards inativos mais suaves; ativo e miolo na mesma tonalidade */
+  .portal-shell {
+    --portal-border: color-mix(in oklch, var(--primary) 45%, transparent);
+    --portal-border-suave: color-mix(in oklch, var(--primary) 22%, transparent);
+    --portal-bg: color-mix(in oklch, var(--surface) 60%, transparent);
+    background: transparent;
+  }
+  .portal-panel {
+    background: var(--portal-bg);
+    border-width: 2px;
+    border-color: var(--portal-border-suave);
+  }
+  .portal-panel-miolo,
+  .portal-panel-active {
+    background: var(--portal-bg);
+    border-width: 2px;
+    border-color: var(--portal-border);
+  }
+  .portal-panel-active {
+    background: color-mix(in oklch, var(--primary) 10%, transparent);
+  }
+  .portal-item {
+    background: color-mix(in oklch, var(--surface) 60%, transparent);
+    border-color: var(--border);
+  }
+  .portal-item:hover {
+    border-color: color-mix(in oklch, var(--primary) 35%, transparent);
+    background: color-mix(in oklch, var(--surface) 80%, transparent);
+  }
+  .portal-field {
+    background: var(--background);
+    border-color: var(--border);
+  }
+
   @keyframes fade-up {
     from { opacity: 0; transform: translateY(20px); }
     to { opacity: 1; transform: translateY(0); }

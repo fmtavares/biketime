@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from "
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 
-type Role = "admin" | "vendedor" | "tecnico";
+type Role = "admin" | "vendedor" | "tecnico" | "cliente" | "user";
 
 interface AuthState {
   user: User | null;
@@ -10,6 +10,8 @@ interface AuthState {
   loading: boolean;
   roles: Role[];
   isAdmin: boolean;
+  /** Equipe da loja (não inclui portal do cliente). */
+  isStaff: boolean;
   signOut: () => Promise<void>;
 }
 
@@ -58,9 +60,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     window.location.href = "/login";
   };
 
+  const isStaff = roles.some((r) => r === "admin" || r === "vendedor" || r === "tecnico");
+
   return (
     <AuthContext.Provider
-      value={{ user, session, loading, roles, isAdmin: roles.includes("admin"), signOut }}
+      value={{
+        user,
+        session,
+        loading,
+        roles,
+        isAdmin: roles.includes("admin"),
+        isStaff,
+        signOut,
+      }}
     >
       {children}
     </AuthContext.Provider>

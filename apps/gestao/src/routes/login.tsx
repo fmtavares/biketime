@@ -43,8 +43,21 @@ function LoginPage() {
         toast.success("Conta criada! Verifique seu email para confirmar.");
         setMode("login");
       } else {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        const { data: authData, error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
         if (error) throw error;
+        const uid = authData.user?.id;
+        if (uid) {
+          const { data: staff } = await supabase.rpc("is_staff", { _user_id: uid });
+          if (staff !== true) {
+            await supabase.auth.signOut();
+            throw new Error(
+              "Este login é do portal do cliente. Use o site biketime.com.br para entrar.",
+            );
+          }
+        }
         navigate({ to: "/" });
       }
     } catch (err: any) {

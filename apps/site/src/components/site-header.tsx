@@ -1,13 +1,8 @@
-import { Link } from "@tanstack/react-router";
-import { Menu, User, X } from "lucide-react";
-import { useState } from "react";
+import { Link, useNavigate } from "@tanstack/react-router";
+import { CircleUser, LogOut, Menu, User, X } from "lucide-react";
+import { useEffect, useState } from "react";
 import logo from "@/assets/logo.png";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { supabase } from "@/integrations/supabase/client";
 
 const links = [
   { to: "/", label: "Home" },
@@ -19,14 +14,49 @@ const links = [
   { to: "/contato", label: "Contato" },
 ] as const;
 
+/**
+ * Cabeçalho do site: navegação, Login / Minha conta e Sair (quando logado).
+ */
 export function SiteHeader() {
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
+  const [logado, setLogado] = useState(false);
+
+  useEffect(() => {
+    /** Atualiza o estado visual conforme a sessão Auth. */
+    function aplicarSessao(temUsuario: boolean) {
+      setLogado(temUsuario);
+    }
+
+    supabase.auth.getSession().then(({ data }) => {
+      aplicarSessao(Boolean(data.session?.user));
+    });
+
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+      aplicarSessao(Boolean(session?.user));
+    });
+
+    return () => sub.subscription.unsubscribe();
+  }, []);
+
+  /** Encerra a sessão e envia o usuário para a tela de login. */
+  async function sair() {
+    setOpen(false);
+    await supabase.auth.signOut();
+    navigate({ to: "/login" });
+  }
 
   return (
     <header className="sticky top-0 z-50 border-b border-border/60 bg-background/70 backdrop-blur-xl">
       <div className="container-px mx-auto flex h-16 max-w-7xl items-center justify-between">
         <Link to="/" className="group flex items-center" aria-label="BikeTime">
-          <img src={logo} alt="BikeTime" width={44} height={44} className="h-11 w-11 transition-transform group-hover:scale-105" />
+          <img
+            src={logo}
+            alt="BikeTime"
+            width={44}
+            height={44}
+            className="h-11 w-11 transition-transform group-hover:scale-105"
+          />
         </Link>
 
         <nav className="hidden items-center gap-8 md:flex">
@@ -43,34 +73,57 @@ export function SiteHeader() {
           ))}
         </nav>
 
-        <div className="hidden items-center gap-3 md:flex">
-          <TooltipProvider delayDuration={150}>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span tabIndex={0}>
-                  <button
-                    type="button"
-                    disabled
-                    aria-disabled="true"
-                    className="inline-flex cursor-not-allowed items-center gap-2 rounded-full border border-border px-4 py-2 text-sm font-semibold text-foreground opacity-60"
-                  >
-                    <User size={16} /> Login
-                  </button>
-                </span>
-              </TooltipTrigger>
-              <TooltipContent>Em breve</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+        <div className="hidden items-center gap-2 md:flex">
+          {logado ? (
+            <>
+              {/* Ícone só — verde suave indica sessão ativa e leva à Minha conta */}
+              <Link
+                to="/minha-conta"
+                aria-label="Minha conta"
+                title="Minha conta"
+                className="inline-flex size-9 items-center justify-center rounded-full text-[#8fbc8f] transition-colors hover:bg-[#8fbc8f]/10 hover:text-[#a8d0a8]"
+              >
+                <CircleUser size={22} strokeWidth={1.75} />
+              </Link>
+              <button
+                type="button"
+                onClick={sair}
+                className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+                aria-label="Sair da conta"
+              >
+                <LogOut size={15} /> Sair
+              </button>
+            </>
+          ) : (
+            <Link
+              to="/login"
+              className="inline-flex items-center gap-2 rounded-full border border-border px-4 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-secondary"
+            >
+              <User size={16} /> Login
+            </Link>
+          )}
         </div>
 
-        <button
-          type="button"
-          onClick={() => setOpen((o) => !o)}
-          className="rounded-md p-2 text-foreground md:hidden"
-          aria-label="Menu"
-        >
-          {open ? <X size={22} /> : <Menu size={22} />}
-        </button>
+        <div className="flex items-center gap-1 md:hidden">
+          {logado && (
+            <Link
+              to="/minha-conta"
+              aria-label="Minha conta"
+              title="Minha conta"
+              className="inline-flex size-9 items-center justify-center rounded-full text-[#8fbc8f] transition-colors hover:bg-[#8fbc8f]/10"
+            >
+              <CircleUser size={22} strokeWidth={1.75} />
+            </Link>
+          )}
+          <button
+            type="button"
+            onClick={() => setOpen((o) => !o)}
+            className="rounded-md p-2 text-foreground"
+            aria-label="Menu"
+          >
+            {open ? <X size={22} /> : <Menu size={22} />}
+          </button>
+        </div>
       </div>
 
       {open && (
@@ -86,14 +139,24 @@ export function SiteHeader() {
                 {l.label}
               </Link>
             ))}
-            <button
-              type="button"
-              disabled
-              aria-disabled="true"
-              className="mt-4 inline-flex cursor-not-allowed items-center justify-center gap-2 rounded-full border border-border py-3 text-sm font-semibold text-foreground opacity-60"
-            >
-              <User size={16} /> Login (em breve)
-            </button>
+            {!logado && (
+              <Link
+                to="/login"
+                onClick={() => setOpen(false)}
+                className="mt-4 inline-flex items-center justify-center gap-2 rounded-full border border-border py-3 text-sm font-semibold text-foreground"
+              >
+                <User size={16} /> Login
+              </Link>
+            )}
+            {logado && (
+              <button
+                type="button"
+                onClick={sair}
+                className="mt-4 inline-flex items-center justify-center gap-2 py-2 text-sm font-medium text-muted-foreground"
+              >
+                <LogOut size={15} /> Sair
+              </button>
+            )}
           </nav>
         </div>
       )}

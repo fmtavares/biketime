@@ -360,6 +360,7 @@ export type Database = {
           tamanho_bike: string | null
           telefone_secundario: string | null
           updated_at: string
+          user_id: string | null
           vendedor_responsavel: string | null
           vip: boolean
           whatsapp: string | null
@@ -394,6 +395,7 @@ export type Database = {
           tamanho_bike?: string | null
           telefone_secundario?: string | null
           updated_at?: string
+          user_id?: string | null
           vendedor_responsavel?: string | null
           vip?: boolean
           whatsapp?: string | null
@@ -428,6 +430,7 @@ export type Database = {
           tamanho_bike?: string | null
           telefone_secundario?: string | null
           updated_at?: string
+          user_id?: string | null
           vendedor_responsavel?: string | null
           vip?: boolean
           whatsapp?: string | null
@@ -1456,9 +1459,15 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_staff: {
+        Args: {
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      app_role: "admin" | "vendedor" | "tecnico"
+      app_role: "admin" | "user" | "vendedor" | "tecnico" | "cliente"
       bike_estoque_status:
         | "em_estoque"
         | "reservada"

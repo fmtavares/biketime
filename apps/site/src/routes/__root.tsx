@@ -12,6 +12,7 @@ import appCss from "../styles.css?url";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 import { SprintChat } from "@/components/sprint-chat";
+import { Toaster } from "@/components/ui/sonner";
 
 function NotFoundComponent() {
   return (
@@ -131,6 +132,7 @@ function RootComponent() {
         </main>
         <SiteFooter />
         <SprintChat />
+        <Toaster richColors position="top-right" />
       </div>
     </QueryClientProvider>
   );

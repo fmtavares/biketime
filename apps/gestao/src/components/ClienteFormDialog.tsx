@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Dialog,
@@ -22,6 +23,7 @@ import {
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { formatCpf, formatPhoneBr } from "@/lib/utils";
+import { definirAcessoCliente } from "@/lib/cliente-acesso.functions";
 
 const ORIGENS = ["Instagram", "Indicação", "Loja", "Site", "Evento"];
 const NIVEIS = ["Iniciante", "Intermediário", "Avançado"];
@@ -83,18 +85,59 @@ export function ClienteFormDialog({
   const [buscandoCep, setBuscandoCep] = useState(false);
   const [marcas, setMarcas] = useState<any[]>([]);
   const [usuarios, setUsuarios] = useState<any[]>([]);
+  /** Senha do portal (só Auth; nunca grava em `clientes`). */
+  const [senhaAcesso, setSenhaAcesso] = useState("");
+  const [busyAcesso, setBusyAcesso] = useState(false);
+  const [temAcesso, setTemAcesso] = useState(false);
+  const definirAcesso = useServerFn(definirAcessoCliente);
 
   useEffect(() => {
-    if (cliente) {
-      setForm({
-        ...cliente,
-        modalidades: cliente.modalidades ?? [],
-        whatsapp: formatPhoneBr(cliente.whatsapp ?? ""),
-        telefone_secundario: formatPhoneBr(cliente.telefone_secundario ?? ""),
-        cpf: formatCpf(cliente.cpf ?? ""),
-      });
+    if (open) {
+      setSenhaAcesso("");
+      if (cliente) {
+        setForm({
+          ...cliente,
+          modalidades: cliente.modalidades ?? [],
+          whatsapp: formatPhoneBr(cliente.whatsapp ?? ""),
+          telefone_secundario: formatPhoneBr(cliente.telefone_secundario ?? ""),
+          cpf: formatCpf(cliente.cpf ?? ""),
+        });
+        setTemAcesso(Boolean(cliente.user_id));
+      } else {
+        setForm({
+          nome: "",
+          whatsapp: "",
+          telefone_secundario: "",
+          email: "",
+          cpf: "",
+          cep: "",
+          endereco: "",
+          numero: "",
+          apto: "",
+          bairro: "",
+          cidade: "",
+          estado: "",
+          data_nascimento: "",
+          instagram: "",
+          vendedor_responsavel: "",
+          vip: false,
+          observacoes: "",
+          origem_lead: "",
+          modalidades: [] as string[],
+          nivel: "",
+          frequencia: "",
+          objetivo: "",
+          participa_provas: false,
+          equipe: "",
+          tamanho_bike: "",
+          altura: "",
+          marca_preferida: "",
+          sonho_consumo: "",
+        });
+        setTemAcesso(false);
+      }
     }
-  }, [cliente]);
+  }, [open, cliente]);
 
   useEffect(() => {
     if (open) {
@@ -111,6 +154,57 @@ export function ClienteFormDialog({
         ? form.modalidades.filter((x: string) => x !== m)
         : [...form.modalidades, m],
     );
+
+  /**
+   * Cria ou redefine a senha do portal do cliente (Auth).
+   */
+  async function salvarAcesso(clienteId: string) {
+    if (!form.email?.trim()) {
+      toast.error("Informe o e-mail do cliente para criar o acesso");
+      return false;
+    }
+    if (!senhaAcesso || senhaAcesso.length < 6) {
+      toast.error("Senha do portal deve ter pelo menos 6 caracteres");
+      return false;
+    }
+    setBusyAcesso(true);
+    try {
+      const res = await definirAcesso({
+        data: {
+          clienteId,
+          email: form.email.trim(),
+          password: senhaAcesso,
+          nome: form.nome,
+        },
+      });
+      if (!res?.ok) {
+        toast.error(res?.error || "Erro ao definir acesso");
+        setTemAcesso(false);
+        return false;
+      }
+      setTemAcesso(true);
+      setSenhaAcesso("");
+      if (res.emailEquipe) {
+        toast.success(
+          "Acesso vinculado. Este e-mail é da equipe: a mesma senha vale no site e na gestão.",
+        );
+      } else {
+        toast.success(res.criado ? "Acesso do portal criado" : "Senha do portal atualizada");
+      }
+      onSaved?.();
+      return true;
+    } catch (e: any) {
+      const msg =
+        typeof e === "string"
+          ? e
+          : e?.message || (await e?.text?.()) || "Erro ao definir acesso";
+      toast.error(String(msg));
+      setTemAcesso(false);
+      return false;
+    } finally {
+      setBusyAcesso(false);
+    }
+  }
 
   const buscarCep = async (raw: string) => {
     const cep = (raw || "").replace(/\D/g, "");
@@ -143,15 +237,38 @@ export function ClienteFormDialog({
       return;
     }
     setBusy(true);
+    const {
+      id: _id,
+      created_at: _c,
+      updated_at: _u,
+      user_id: _uid,
+      ...rest
+    } = form;
     const payload = {
-      ...form,
+      ...rest,
       data_nascimento: form.data_nascimento || null,
     };
-    const { error } = cliente
-      ? await supabase.from("clientes").update(payload).eq("id", cliente.id)
-      : await supabase.from("clientes").insert(payload);
-    setBusy(false);
-    if (error) return toast.error(error.message);
+    let clienteId = cliente?.id as string | undefined;
+    if (cliente) {
+      const { error } = await supabase.from("clientes").update(payload).eq("id", cliente.id);
+      setBusy(false);
+      if (error) return toast.error(error.message);
+    } else {
+      const { data: criado, error } = await supabase
+        .from("clientes")
+        .insert(payload)
+        .select("id")
+        .single();
+      setBusy(false);
+      if (error) return toast.error(error.message);
+      clienteId = criado.id;
+    }
+
+    if (senhaAcesso.trim()) {
+      const ok = await salvarAcesso(clienteId!);
+      if (!ok) return;
+    }
+
     toast.success(cliente ? "Cliente atualizado" : "Cliente criado");
     onSaved?.();
     onOpenChange(false);
@@ -168,6 +285,7 @@ export function ClienteFormDialog({
           <TabsList>
             <TabsTrigger value="basico">Informações</TabsTrigger>
             <TabsTrigger value="ciclista">Perfil do ciclista</TabsTrigger>
+            <TabsTrigger value="acesso">Acesso ao site</TabsTrigger>
           </TabsList>
 
           <TabsContent value="basico" className="space-y-4 mt-4">
@@ -346,11 +464,63 @@ export function ClienteFormDialog({
               </Field>
             </div>
           </TabsContent>
+
+          <TabsContent value="acesso" className="space-y-4 mt-4">
+            <p className="text-sm text-muted-foreground">
+              Define e-mail e senha para o cliente entrar no site (área logada). A senha fica só no Auth, não no cadastro.
+            </p>
+            <div className="rounded-lg border px-3 py-2 text-sm">
+              Status:{" "}
+              <span className="font-medium">
+                {temAcesso ? "Acesso ativo" : "Sem acesso ao portal"}
+              </span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Field label="E-mail de login *">
+                <Input
+                  type="email"
+                  value={form.email}
+                  onChange={(e) => set("email", e.target.value)}
+                  placeholder="cliente@email.com"
+                />
+              </Field>
+              <Field label={temAcesso ? "Nova senha" : "Senha inicial"}>
+                <Input
+                  type="password"
+                  value={senhaAcesso}
+                  onChange={(e) => setSenhaAcesso(e.target.value)}
+                  placeholder="Mínimo 6 caracteres"
+                  autoComplete="new-password"
+                />
+              </Field>
+            </div>
+            {cliente?.id && (
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={busyAcesso}
+                onClick={() => salvarAcesso(cliente.id)}
+              >
+                {busyAcesso
+                  ? "Salvando acesso…"
+                  : temAcesso
+                    ? "Redefinir senha"
+                    : "Criar acesso agora"}
+              </Button>
+            )}
+            {!cliente?.id && (
+              <p className="text-xs text-muted-foreground">
+                Em cliente novo: preencha a senha e clique em Salvar — o acesso é criado junto com o cadastro.
+              </p>
+            )}
+          </TabsContent>
         </Tabs>
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-          <Button onClick={save} disabled={busy}>{busy ? "Salvando…" : "Salvar"}</Button>
+          <Button onClick={save} disabled={busy || busyAcesso}>
+            {busy ? "Salvando…" : "Salvar"}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
