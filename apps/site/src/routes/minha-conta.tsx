@@ -14,6 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
@@ -959,6 +960,7 @@ function OsDetalheDialog({
   onAtualizada: (os: OsCliente) => void;
 }) {
   const [busyAcao, setBusyAcao] = useState(false);
+  const [motivoRecusa, setMotivoRecusa] = useState("");
 
   const bikeNome = os?.bikes
     ? [os.bikes.marca, os.bikes.modelo].filter(Boolean).join(" ")
@@ -988,9 +990,14 @@ function OsDetalheDialog({
    */
   async function decidirOrcamento(aprovar: boolean) {
     if (!os) return;
+    const motivo = motivoRecusa.trim();
+    if (!aprovar && !motivo) {
+      toast.error("Informe o motivo da recusa");
+      return;
+    }
     const msg = aprovar
       ? `Aprovar o orçamento de ${fmtMoeda(total) ?? "esta OS"} e autorizar a execução?`
-      : "Recusar este orçamento? A oficina vai revisar e pode enviar uma nova proposta.";
+      : "Recusar este orçamento? A oficina vai revisar com base no seu motivo.";
     if (!window.confirm(msg)) return;
 
     setBusyAcao(true);
@@ -998,6 +1005,8 @@ function OsDetalheDialog({
       const { data, error } = await (supabase as any).rpc("aprovar_orcamento_os", {
         p_os_id: os.id,
         p_aprovar: aprovar,
+        /** Comentário opcional na aprovação; obrigatório na recusa. */
+        p_motivo: motivo || null,
       });
       if (error) {
         toast.error(error.message || "Não foi possível registrar a decisão");
@@ -1009,6 +1018,7 @@ function OsDetalheDialog({
         bikes: os.bikes,
       };
       onAtualizada(atualizada);
+      setMotivoRecusa("");
       toast.success(
         aprovar
           ? "Orçamento aprovado. A oficina vai iniciar a execução."
@@ -1158,6 +1168,20 @@ function OsDetalheDialog({
               <p className="text-sm text-muted-foreground">
                 Revise o orçamento e autorize a execução ou peça uma revisão à oficina.
               </p>
+              <div className="space-y-1.5">
+                <Label htmlFor="motivo-recusa" className="text-xs text-muted-foreground">
+                  Comentário para a oficina (obrigatório se recusar)
+                </Label>
+                <Textarea
+                  id="motivo-recusa"
+                  value={motivoRecusa}
+                  onChange={(e) => setMotivoRecusa(e.target.value)}
+                  placeholder="Ex.: valor acima do esperado, quero outra opção de peça…"
+                  rows={3}
+                  className="resize-none"
+                  disabled={busyAcao}
+                />
+              </div>
               <div className="flex flex-col gap-2 sm:flex-row">
                 <Button
                   className="flex-1 rounded-full bg-primary text-primary-foreground hover:bg-emerald-600 hover:text-white"

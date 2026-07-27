@@ -607,7 +607,9 @@ export type Database = {
           id: string
           mecanico: string | null
           numero: string
+          observacao_aprovacao_origem: string | null
           observacao_conclusao: string | null
+          observacoes_aprovacao: string | null
           observacoes_execucao: string | null
           observacoes_tecnicas: string | null
           pago_por: string | null
@@ -646,7 +648,9 @@ export type Database = {
           id?: string
           mecanico?: string | null
           numero?: string
+          observacao_aprovacao_origem?: string | null
           observacao_conclusao?: string | null
+          observacoes_aprovacao?: string | null
           observacoes_execucao?: string | null
           observacoes_tecnicas?: string | null
           pago_por?: string | null
@@ -685,7 +689,9 @@ export type Database = {
           id?: string
           mecanico?: string | null
           numero?: string
+          observacao_aprovacao_origem?: string | null
           observacao_conclusao?: string | null
+          observacoes_aprovacao?: string | null
           observacoes_execucao?: string | null
           observacoes_tecnicas?: string | null
           pago_por?: string | null

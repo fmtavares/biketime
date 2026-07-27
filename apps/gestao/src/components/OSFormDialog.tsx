@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, Flag } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
@@ -18,6 +18,10 @@ import { CurrencyInput } from "@/components/CurrencyInput";
 import { filtrarUsuariosEquipe } from "@/lib/usuarios-sistema";
 import { useAuth } from "@/lib/auth-context";
 import { fmtBRL } from "@/lib/finance";
+import {
+  appendObsAprovacao,
+  parseHistoricoObsAprovacao,
+} from "@/lib/observacoes-aprovacao";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -42,6 +46,64 @@ type ItemLinhaValor = {
   nome: string;
   valor: number;
 };
+
+/**
+ * Converte string monetária BR (ex.: "R$ 1.500,00") em número.
+ */
+function parseValorBRL(raw: string): number {
+  const t = raw.replace(/\u00a0/g, " ").replace(/R\$\s*/i, "").trim();
+  if (!t) return 0;
+  if (t.includes(",")) {
+    return Number(t.replace(/\./g, "").replace(",", ".")) || 0;
+  }
+  return Number(t) || 0;
+}
+
+/**
+ * Converte texto gravado (linhas "Nome — R$ X,XX") em itens editáveis.
+ */
+function parseLinhasValor(
+  texto: string | null | undefined,
+  keyPrefix: string,
+): ItemLinhaValor[] {
+  if (!texto?.trim()) return [];
+  return texto
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter(Boolean)
+    .map((line, idx) => {
+      const m = line.match(/^(.+?)\s*[—–\-]\s*(.+)$/);
+      if (m) {
+        return {
+          key: `${keyPrefix}-parsed-${idx}`,
+          nome: m[1].trim(),
+          valor: parseValorBRL(m[2]),
+        };
+      }
+      return {
+        key: `${keyPrefix}-parsed-${idx}`,
+        nome: line,
+        valor: 0,
+      };
+    });
+}
+
+/**
+ * Associa itens ao catálogo de serviços pelo nome (quando houver match).
+ */
+function enriquecerServicosComCatalogo(
+  itens: ItemLinhaValor[],
+  catalogo: { id: string; nome: string; valor: number }[],
+): ItemLinhaValor[] {
+  if (catalogo.length === 0) return itens;
+  return itens.map((i) => {
+    if (i.catalogoId) return i;
+    const match = catalogo.find(
+      (c) => c.nome.trim().toLowerCase() === i.nome.trim().toLowerCase(),
+    );
+    return match ? { ...i, catalogoId: match.id } : i;
+  });
+}
 
 /**
  * Busca nome do usuário logado (profile) para preencher campos de equipe.
@@ -90,6 +152,8 @@ export function OSFormDialog({
   const [itensPecas, setItensPecas] = useState<ItemLinhaValor[]>([]);
   const [nomePeca, setNomePeca] = useState("");
   const [valorPeca, setValorPeca] = useState("");
+  /** Nova nota da equipe anexada ao histórico de aprovação no save. */
+  const [novaObsEquipe, setNovaObsEquipe] = useState("");
 
   function initial() {
     return {
@@ -98,6 +162,7 @@ export function OSFormDialog({
       data_prevista: "", servicos_executados: "", pecas_utilizadas: "",
       valor_pecas: "", valor_mao_obra: "", observacoes_tecnicas: "",
       aprovado: null, aprovado_por: "", valor_aprovado: "", observacao_conclusao: "",
+      observacoes_aprovacao: "", observacao_aprovacao_origem: "",
       responsavel_avaliacao: "", data_avaliacao: null,
       data_aprovacao: null, observacoes_execucao: "",
       quem_puxou: "", responsavel_execucao: "",
@@ -126,10 +191,9 @@ export function OSFormDialog({
         .then(({ data }) => setServicosCatalogo((data as any[]) ?? []));
       setModo("diagnostico");
       setServicoCatalogoId("");
-      setItensServico([]);
-      setItensPecas([]);
       setNomePeca("");
       setValorPeca("");
+      setNovaObsEquipe("");
       if (os) {
         setForm({
           ...os,
@@ -139,11 +203,24 @@ export function OSFormDialog({
           valor_mao_obra: os.valor_mao_obra ?? "",
           valor_aprovado: os.valor_aprovado ?? "",
         });
+        /** Hidrata listas editáveis a partir do texto já gravado na OS. */
+        setItensServico(parseLinhasValor(os.servicos_executados, "svc"));
+        setItensPecas(parseLinhasValor(os.pecas_utilizadas, "peca"));
       } else {
         setForm({ ...initial(), cliente_id: defaultClienteId ?? "" });
+        setItensServico([]);
+        setItensPecas([]);
       }
     }
   }, [open, os, defaultClienteId]);
+
+  /**
+   * Quando o catálogo carrega, associa serviços hidratados aos IDs do catálogo.
+   */
+  useEffect(() => {
+    if (!open || !os || servicosCatalogo.length === 0) return;
+    setItensServico((prev) => enriquecerServicosComCatalogo(prev, servicosCatalogo));
+  }, [open, os?.id, servicosCatalogo]);
 
   useEffect(() => {
     if (form.cliente_id) {
@@ -248,6 +325,15 @@ export function OSFormDialog({
   }
 
   /**
+   * Atualiza o nome de um serviço já na lista.
+   */
+  function atualizarNomeServico(key: string, nome: string) {
+    setItensServico((prev) =>
+      prev.map((i) => (i.key === key ? { ...i, nome } : i)),
+    );
+  }
+
+  /**
    * Inclui peça digitada (nome + valor) na lista.
    */
   function adicionarPeca() {
@@ -290,6 +376,15 @@ export function OSFormDialog({
     );
   }
 
+  /**
+   * Atualiza o nome de uma peça já na lista.
+   */
+  function atualizarNomePeca(key: string, nome: string) {
+    setItensPecas((prev) =>
+      prev.map((i) => (i.key === key ? { ...i, nome } : i)),
+    );
+  }
+
   const isNovaDireto = !os && modo === "direto";
   /** Nova OS com diagnóstico: fica na fila de entrada (sem escolher status na abertura). */
   const isNovaDiagnostico = !os && modo === "diagnostico";
@@ -326,8 +421,11 @@ export function OSFormDialog({
       ? Number(String(form.valor_mao_obra).replace(",", "."))
       : 0;
 
-    /** Lista de preços (direto ou diagnóstico): grava descrição + total. */
-    if (itensServico.length > 0) {
+    /**
+     * Na edição (ou com lista preenchida), persiste a lista atual —
+     * inclusive vazia, para permitir remover todos os itens.
+     */
+    if (os || itensServico.length > 0) {
       servicosExecutados = itensServico
         .map((i) => `${i.nome} — ${fmtBRL(i.valor)}`)
         .join("\n");
@@ -338,7 +436,7 @@ export function OSFormDialog({
     let valorPecas = form.valor_pecas
       ? Number(String(form.valor_pecas).replace(",", ".")) || 0
       : 0;
-    if (itensPecas.length > 0) {
+    if (os || itensPecas.length > 0) {
       pecasUtilizadas = itensPecas
         .map((i) => `${i.nome} — ${fmtBRL(i.valor)}`)
         .join("\n");
@@ -377,6 +475,21 @@ export function OSFormDialog({
       aprovado = true;
     }
 
+    let observacoesAprovacao = String(form.observacoes_aprovacao ?? "").trim();
+    let observacaoAprovacaoOrigem =
+      observacoesAprovacao
+        ? form.observacao_aprovacao_origem || "equipe"
+        : "";
+    const notaEquipe = novaObsEquipe.trim();
+    if (notaEquipe) {
+      observacoesAprovacao = appendObsAprovacao(
+        observacoesAprovacao,
+        "Equipe",
+        notaEquipe,
+      );
+      observacaoAprovacaoOrigem = "equipe";
+    }
+
     const payload: any = {
       ...form,
       status,
@@ -398,6 +511,10 @@ export function OSFormDialog({
       valor_pecas: valorPecas,
       valor_mao_obra: valorMaoObra,
       valor_aprovado: valorAprovado,
+      observacoes_aprovacao: observacoesAprovacao || null,
+      observacao_aprovacao_origem: observacoesAprovacao
+        ? observacaoAprovacaoOrigem || "equipe"
+        : null,
     };
     delete payload.id;
     delete payload.numero;
@@ -483,14 +600,41 @@ export function OSFormDialog({
         )}
 
         <Tabs defaultValue="entrada">
-          <TabsList>
-            <TabsTrigger value="entrada">Entrada</TabsTrigger>
+          <div className="flex w-full flex-wrap items-center gap-2">
+            <TabsList>
+              <TabsTrigger value="entrada">Entrada</TabsTrigger>
+              {!isNovaDireto && (
+                <TabsTrigger value="avaliacao">Avaliação</TabsTrigger>
+              )}
+              {!isNovaDireto && (
+                <TabsTrigger value="aprovacao">Aprovação</TabsTrigger>
+              )}
+              <TabsTrigger value="execucao">Execução</TabsTrigger>
+              <TabsTrigger value="finalizacao">Entrega</TabsTrigger>
+            </TabsList>
+
+            {/* Flag de aprovação alinhada à direita, na mesma linha das abas do fluxo. */}
             {!isNovaDireto && (
-              <TabsTrigger value="avaliacao">Avaliação</TabsTrigger>
+              <div className="ml-auto shrink-0">
+                {form.aprovado === true ? (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/15 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
+                    <Flag className="size-3" />
+                    Aprovado
+                  </span>
+                ) : form.aprovado === false ? (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-destructive/15 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-destructive">
+                    <Flag className="size-3" />
+                    Não aprovado
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-secondary px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    <Flag className="size-3" />
+                    Pendente
+                  </span>
+                )}
+              </div>
             )}
-            <TabsTrigger value="execucao">Execução</TabsTrigger>
-            <TabsTrigger value="finalizacao">Entrega</TabsTrigger>
-          </TabsList>
+          </div>
 
           <TabsContent value="entrada" className="space-y-4 mt-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -554,6 +698,7 @@ export function OSFormDialog({
                   onAdicionar={adicionarServicoSelecionado}
                   itens={itensServico}
                   total={totalServicos}
+                  onAtualizarNome={atualizarNomeServico}
                   onAtualizarValor={atualizarValorItem}
                   onRemover={removerServico}
                 />
@@ -618,17 +763,10 @@ export function OSFormDialog({
                   onAdicionar={adicionarServicoSelecionado}
                   itens={itensServico}
                   total={totalServicos}
+                  onAtualizarNome={atualizarNomeServico}
                   onAtualizarValor={atualizarValorItem}
                   onRemover={removerServico}
                 />
-                {os && form.servicos_executados && itensServico.length === 0 && (
-                  <p className="text-xs text-muted-foreground whitespace-pre-wrap">
-                    Atual: {form.servicos_executados}
-                    {form.valor_mao_obra != null && form.valor_mao_obra !== ""
-                      ? ` · ${fmtBRL(Number(form.valor_mao_obra) || 0)}`
-                      : ""}
-                  </p>
-                )}
               </div>
 
               <div className="space-y-4 rounded-xl border p-4">
@@ -640,17 +778,10 @@ export function OSFormDialog({
                   onAdicionar={adicionarPeca}
                   itens={itensPecas}
                   total={totalPecas}
+                  onAtualizarNome={atualizarNomePeca}
                   onAtualizarValor={atualizarValorPeca}
                   onRemover={removerPeca}
                 />
-                {os && form.pecas_utilizadas && itensPecas.length === 0 && (
-                  <p className="text-xs text-muted-foreground whitespace-pre-wrap">
-                    Atual: {form.pecas_utilizadas}
-                    {form.valor_pecas != null && form.valor_pecas !== ""
-                      ? ` · ${fmtBRL(Number(form.valor_pecas) || 0)}`
-                      : ""}
-                  </p>
-                )}
               </div>
 
               <div className="flex items-center justify-between rounded-xl border bg-secondary/30 px-4 py-3">
@@ -671,8 +802,8 @@ export function OSFormDialog({
             </TabsContent>
           )}
 
-          <TabsContent value="execucao" className="space-y-4 mt-4">
-            {!isNovaDireto && (
+          {!isNovaDireto && (
+            <TabsContent value="aprovacao" className="space-y-4 mt-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Field label="Responsável aprovação *">
                   {os && form.aprovado_por ? (
@@ -681,7 +812,10 @@ export function OSFormDialog({
                     <Select value={form.aprovado_por || ""} onValueChange={(v) => set("aprovado_por", v)}>
                       <SelectTrigger><SelectValue placeholder="Quem aprovou a execução?" /></SelectTrigger>
                       <SelectContent>
-                        {usuarios.map((u: any) => { const n = u.full_name ?? u.email; return <SelectItem key={u.id} value={n}>{n}</SelectItem>; })}
+                        {usuarios.map((u: any) => {
+                          const n = u.full_name ?? u.email;
+                          return <SelectItem key={u.id} value={n}>{n}</SelectItem>;
+                        })}
                       </SelectContent>
                     </Select>
                   )}
@@ -695,7 +829,64 @@ export function OSFormDialog({
                   />
                 </Field>
               </div>
-            )}
+
+              <Field label="Histórico da Aprovação">
+                {(() => {
+                  const historico = parseHistoricoObsAprovacao(
+                    form.observacoes_aprovacao,
+                  );
+                  if (historico.length === 0) {
+                    return (
+                      <p className="rounded-lg border border-dashed px-3 py-4 text-xs text-muted-foreground">
+                        Nenhum comentário ainda. Quando o cliente comentar no
+                        portal, as entradas aparecem aqui com data.
+                      </p>
+                    );
+                  }
+                  return (
+                    <div className="space-y-2">
+                      {historico.map((entrada, idx) => (
+                        <div
+                          key={`${entrada.autor}-${entrada.data}-${idx}`}
+                          className={cn(
+                            "rounded-lg border px-3 py-2.5 text-sm",
+                            entrada.autor === "Cliente"
+                              ? "border-amber-500/35 bg-amber-500/5"
+                              : "bg-background",
+                          )}
+                        >
+                          <p
+                            className={cn(
+                              "text-[11px] font-semibold uppercase tracking-wider",
+                              entrada.autor === "Cliente"
+                                ? "text-amber-700 dark:text-amber-400"
+                                : "text-muted-foreground",
+                            )}
+                          >
+                            Comentário {entrada.autor}
+                            {entrada.data ? ` · ${entrada.data}` : ""}
+                          </p>
+                          <p className="mt-1 whitespace-pre-wrap text-foreground">
+                            {entrada.texto}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
+              </Field>
+
+              <Field label="Nova observação da equipe">
+                <Textarea
+                  value={novaObsEquipe}
+                  onChange={(e) => setNovaObsEquipe(e.target.value)}
+                  placeholder="Será anexada ao histórico com data ao salvar…"
+                />
+              </Field>
+            </TabsContent>
+          )}
+
+          <TabsContent value="execucao" className="space-y-4 mt-4">
             <Field label="Quem puxou?">
               <Select value={form.quem_puxou || ""} onValueChange={(v) => set("quem_puxou", v)}>
                 <SelectTrigger><SelectValue placeholder="Selecione o usuário" /></SelectTrigger>
@@ -804,6 +995,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 
 /**
  * Lista de serviços do catálogo de preços: buscar, +, itens e total.
+ * Permite CRUD dos itens já incluídos (nome, valor, remover).
  */
 function ListaServicosEditor({
   servicosCatalogo,
@@ -812,6 +1004,7 @@ function ListaServicosEditor({
   onAdicionar,
   itens,
   total,
+  onAtualizarNome,
   onAtualizarValor,
   onRemover,
 }: {
@@ -821,6 +1014,7 @@ function ListaServicosEditor({
   onAdicionar: () => void;
   itens: ItemLinhaValor[];
   total: number;
+  onAtualizarNome: (key: string, nome: string) => void;
   onAtualizarValor: (key: string, v: string) => void;
   onRemover: (key: string) => void;
 }) {
@@ -856,9 +1050,12 @@ function ListaServicosEditor({
               key={item.key}
               className="flex flex-wrap items-center gap-2 rounded-lg border bg-background px-3 py-2"
             >
-              <span className="min-w-0 flex-1 truncate text-sm font-medium">
-                {item.nome}
-              </span>
+              <Input
+                className="h-8 min-w-0 flex-1"
+                value={item.nome}
+                onChange={(e) => onAtualizarNome(item.key, e.target.value)}
+                title="Nome do serviço"
+              />
               <CurrencyInput
                 className="h-8 w-32"
                 value={item.valor}
@@ -890,6 +1087,7 @@ function ListaServicosEditor({
 
 /**
  * Lista de peças manuais: nome + valor + +, itens e total.
+ * Permite CRUD dos itens já incluídos (nome, valor, remover).
  */
 function ListaPecasEditor({
   nome,
@@ -899,6 +1097,7 @@ function ListaPecasEditor({
   onAdicionar,
   itens,
   total,
+  onAtualizarNome,
   onAtualizarValor,
   onRemover,
 }: {
@@ -909,6 +1108,7 @@ function ListaPecasEditor({
   onAdicionar: () => void;
   itens: ItemLinhaValor[];
   total: number;
+  onAtualizarNome: (key: string, nome: string) => void;
   onAtualizarValor: (key: string, v: string) => void;
   onRemover: (key: string) => void;
 }) {
@@ -955,9 +1155,12 @@ function ListaPecasEditor({
               key={item.key}
               className="flex flex-wrap items-center gap-2 rounded-lg border bg-background px-3 py-2"
             >
-              <span className="min-w-0 flex-1 truncate text-sm font-medium">
-                {item.nome}
-              </span>
+              <Input
+                className="h-8 min-w-0 flex-1"
+                value={item.nome}
+                onChange={(e) => onAtualizarNome(item.key, e.target.value)}
+                title="Nome da peça"
+              />
               <CurrencyInput
                 className="h-8 w-32"
                 value={item.valor}
