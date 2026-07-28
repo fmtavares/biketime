@@ -560,17 +560,18 @@ export function OSFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
+      <DialogContent className="flex max-h-[90vh] w-[calc(100%-1.5rem)] max-w-3xl flex-col gap-4 overflow-hidden p-4 sm:w-full sm:p-6">
+        <DialogHeader className="shrink-0 pr-8">
           <DialogTitle>
             {os ? `Editar ${os.numero}` : "Nova Ordem de Serviço"}
           </DialogTitle>
         </DialogHeader>
 
+        <div className="min-h-0 min-w-0 flex-1 space-y-4 overflow-y-auto overflow-x-hidden">
         {!os && (
-          <div className="space-y-2">
+          <div className="min-w-0 space-y-2">
             <Label className="text-xs">Tipo de atendimento</Label>
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2">
               <button
                 type="button"
                 onClick={() => escolherModo("diagnostico")}
@@ -599,23 +600,35 @@ export function OSFormDialog({
           </div>
         )}
 
-        <Tabs defaultValue="entrada">
-          <div className="flex w-full flex-wrap items-center gap-2">
-            <TabsList>
-              <TabsTrigger value="entrada">Entrada</TabsTrigger>
-              {!isNovaDireto && (
-                <TabsTrigger value="avaliacao">Avaliação</TabsTrigger>
-              )}
-              {!isNovaDireto && (
-                <TabsTrigger value="aprovacao">Aprovação</TabsTrigger>
-              )}
-              <TabsTrigger value="execucao">Execução</TabsTrigger>
-              <TabsTrigger value="finalizacao">Entrega</TabsTrigger>
-            </TabsList>
+        <Tabs defaultValue="entrada" className="min-w-0">
+          <div className="flex w-full min-w-0 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+            <div className="min-w-0 w-full overflow-x-auto pb-0.5 sm:w-auto sm:flex-1">
+              <TabsList className="inline-flex h-auto w-max max-w-none flex-nowrap">
+                <TabsTrigger value="entrada" className="px-2.5 text-xs sm:px-3 sm:text-sm">
+                  Entrada
+                </TabsTrigger>
+                {!isNovaDireto && (
+                  <TabsTrigger value="avaliacao" className="px-2.5 text-xs sm:px-3 sm:text-sm">
+                    Avaliação
+                  </TabsTrigger>
+                )}
+                {!isNovaDireto && (
+                  <TabsTrigger value="aprovacao" className="px-2.5 text-xs sm:px-3 sm:text-sm">
+                    Aprovação
+                  </TabsTrigger>
+                )}
+                <TabsTrigger value="execucao" className="px-2.5 text-xs sm:px-3 sm:text-sm">
+                  Execução
+                </TabsTrigger>
+                <TabsTrigger value="finalizacao" className="px-2.5 text-xs sm:px-3 sm:text-sm">
+                  Entrega
+                </TabsTrigger>
+              </TabsList>
+            </div>
 
-            {/* Flag de aprovação alinhada à direita, na mesma linha das abas do fluxo. */}
+            {/* Flag de aprovação: no mobile abaixo das abas; no desktop à direita. */}
             {!isNovaDireto && (
-              <div className="ml-auto shrink-0">
+              <div className="shrink-0 self-end sm:ml-auto sm:self-center">
                 {form.aprovado === true ? (
                   <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/15 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
                     <Flag className="size-3" />
@@ -636,8 +649,8 @@ export function OSFormDialog({
             )}
           </div>
 
-          <TabsContent value="entrada" className="space-y-4 mt-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <TabsContent value="entrada" className="mt-4 min-w-0 space-y-4">
+            <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2">
               <Field label="Cliente *">
                 <ClienteCombobox
                   clientes={clientes}
@@ -690,7 +703,7 @@ export function OSFormDialog({
             </div>
 
             {isNovaDireto ? (
-              <div className="space-y-4 rounded-xl border p-4">
+              <div className="min-w-0 space-y-4 rounded-xl border p-3 sm:p-4">
                 <ListaServicosEditor
                   servicosCatalogo={servicosCatalogo}
                   servicoCatalogoId={servicoCatalogoId}
@@ -755,7 +768,7 @@ export function OSFormDialog({
               </div>
               <p className="text-xs text-muted-foreground">Preenchido automaticamente quando a OS é movida para Avaliação.</p>
 
-              <div className="space-y-4 rounded-xl border p-4">
+              <div className="min-w-0 space-y-4 rounded-xl border p-3 sm:p-4">
                 <ListaServicosEditor
                   servicosCatalogo={servicosCatalogo}
                   servicoCatalogoId={servicoCatalogoId}
@@ -769,7 +782,7 @@ export function OSFormDialog({
                 />
               </div>
 
-              <div className="space-y-4 rounded-xl border p-4">
+              <div className="min-w-0 space-y-4 rounded-xl border p-3 sm:p-4">
                 <ListaPecasEditor
                   nome={nomePeca}
                   valor={valorPeca}
@@ -961,8 +974,9 @@ export function OSFormDialog({
             </div>
           </TabsContent>
         </Tabs>
+        </div>
 
-        <DialogFooter className="gap-2 sm:justify-between">
+        <DialogFooter className="shrink-0 gap-2 sm:justify-between">
           {os?.id && isAdmin ? (
             <Button
               type="button"
@@ -973,13 +987,17 @@ export function OSFormDialog({
               Excluir OS
             </Button>
           ) : (
-            <span />
+            <span className="hidden sm:block" />
           )}
-          <div className="flex flex-col-reverse gap-2 sm:flex-row">
-            <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <div className="flex w-full flex-col-reverse gap-2 sm:w-auto sm:flex-row">
+            <Button
+              variant="outline"
+              className="w-full sm:w-auto"
+              onClick={() => onOpenChange(false)}
+            >
               Cancelar
             </Button>
-            <Button onClick={save} disabled={busy}>
+            <Button className="w-full sm:w-auto" onClick={save} disabled={busy}>
               {busy ? "Salvando…" : "Salvar"}
             </Button>
           </div>
@@ -990,7 +1008,12 @@ export function OSFormDialog({
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return <div className="space-y-1.5"><Label className="text-xs">{label}</Label>{children}</div>;
+  return (
+    <div className="min-w-0 space-y-1.5">
+      <Label className="text-xs">{label}</Label>
+      {children}
+    </div>
+  );
 }
 
 /**
@@ -1048,16 +1071,16 @@ function ListaServicosEditor({
           {itens.map((item) => (
             <div
               key={item.key}
-              className="flex flex-wrap items-center gap-2 rounded-lg border bg-background px-3 py-2"
+              className="flex min-w-0 flex-wrap items-center gap-2 rounded-lg border bg-background px-3 py-2"
             >
               <Input
-                className="h-8 min-w-0 flex-1"
+                className="h-8 min-w-0 flex-1 basis-[8rem]"
                 value={item.nome}
                 onChange={(e) => onAtualizarNome(item.key, e.target.value)}
                 title="Nome do serviço"
               />
               <CurrencyInput
-                className="h-8 w-32"
+                className="h-8 w-full min-w-0 max-w-[8rem] sm:w-32"
                 value={item.valor}
                 onChange={(v) => onAtualizarValor(item.key, v)}
               />
@@ -1153,16 +1176,16 @@ function ListaPecasEditor({
           {itens.map((item) => (
             <div
               key={item.key}
-              className="flex flex-wrap items-center gap-2 rounded-lg border bg-background px-3 py-2"
+              className="flex min-w-0 flex-wrap items-center gap-2 rounded-lg border bg-background px-3 py-2"
             >
               <Input
-                className="h-8 min-w-0 flex-1"
+                className="h-8 min-w-0 flex-1 basis-[8rem]"
                 value={item.nome}
                 onChange={(e) => onAtualizarNome(item.key, e.target.value)}
                 title="Nome da peça"
               />
               <CurrencyInput
-                className="h-8 w-32"
+                className="h-8 w-full min-w-0 max-w-[8rem] sm:w-32"
                 value={item.valor}
                 onChange={(v) => onAtualizarValor(item.key, v)}
               />

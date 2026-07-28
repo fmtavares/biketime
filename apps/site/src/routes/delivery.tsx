@@ -36,7 +36,7 @@ function DeliveryPage() {
         <div className="mt-12 grid gap-4 md:grid-cols-4">
           {[
             { icon: Truck, t: "Transporte seguro" },
-            { icon: Shield, t: "Bike segurada" },
+            { icon: Shield, t: "Transporte próprio" },
             { icon: Clock, t: "Agendamento flexível" },
             { icon: MapPin, t: "Atendimento na região" },
           ].map((b) => (

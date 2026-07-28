@@ -38,7 +38,7 @@ function ClientesPage() {
   });
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
+    <div className="w-full min-w-0 max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
       <PageHeader
         title="Clientes"
         description={`${data?.length ?? 0} cadastrados`}
@@ -49,20 +49,20 @@ function ClientesPage() {
         }
       />
 
-      <div className="mb-4 max-w-md">
+      <div className="mb-4 max-w-md min-w-0">
         <SearchBar value={q} onChange={setQ} placeholder="Buscar por nome, WhatsApp, email…" />
       </div>
 
-      {/* Mobile cards */}
-      <div className="grid gap-3 lg:hidden">
+      {/* Mobile cards — min-w-0 evita invadir a borda direita com texto longo */}
+      <div className="grid min-w-0 gap-3 lg:hidden">
         {filtered.map((c) => (
           <Link
             key={c.id}
             to="/clientes/$id"
             params={{ id: c.id }}
-            className="rounded-xl border bg-card p-4 hover:shadow-md transition-shadow"
+            className="block min-w-0 max-w-full overflow-hidden rounded-xl border bg-card p-4 hover:shadow-md transition-shadow"
           >
-            <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center justify-between gap-2 min-w-0">
               <div className="font-medium flex items-center gap-2 min-w-0">
                 {c.vip && <Crown className="size-3.5 text-accent fill-accent shrink-0" />}
                 <span className="truncate">{c.nome}</span>
@@ -71,19 +71,22 @@ function ClientesPage() {
                 {(c as any).bikes?.length ?? 0} bikes
               </span>
             </div>
-            <div className="mt-1 text-xs text-muted-foreground space-y-0.5">
+            <div className="mt-1 min-w-0 space-y-0.5 text-xs text-muted-foreground">
               {c.whatsapp && (
-                <div className="inline-flex items-center gap-1">
-                  <Phone className="size-3" /> {c.whatsapp}
+                <div className="flex min-w-0 items-center gap-1">
+                  <Phone className="size-3 shrink-0" />
+                  <span className="truncate">{c.whatsapp}</span>
                 </div>
               )}
               {(c.cidade || c.estado) && (
-                <div>
+                <div className="truncate">
                   {c.cidade}
                   {c.estado ? `, ${c.estado}` : ""}
                 </div>
               )}
-              {c.origem_lead && <div>Origem: {c.origem_lead}</div>}
+              {c.origem_lead && (
+                <div className="truncate">Origem: {c.origem_lead}</div>
+              )}
             </div>
           </Link>
         ))}
