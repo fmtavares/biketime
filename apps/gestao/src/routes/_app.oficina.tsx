@@ -260,9 +260,10 @@ function OficinaPage() {
             }}
           >
             {visibleColumns.map((col) => {
+              /** Em Pago, mostra só as últimas 15 OS (coluna tende a crescer sem fim). */
               const isPago = col.id === "pago";
               const items = isPago
-                ? (grouped[col.id]?.slice(0, 5) ?? [])
+                ? (grouped[col.id]?.slice(0, 15) ?? [])
                 : (grouped[col.id] ?? []);
               return (
                 <DroppableColumn key={col.id} id={col.id} label={col.label} count={items.length}>

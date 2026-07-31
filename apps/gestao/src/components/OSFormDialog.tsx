@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { Plus, Trash2, Flag } from "lucide-react";
+import { Plus, Trash2, Flag, Sparkles, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
@@ -142,6 +142,8 @@ export function OSFormDialog({
     { id: string; nome: string; valor: number }[]
   >([]);
   const [busy, setBusy] = useState(false);
+  /** Indica geração/reescrita do problema relatado via IA. */
+  const [gerandoProblemaIA, setGerandoProblemaIA] = useState(false);
   const [form, setForm] = useState<any>(initial());
   /** Só na criação: diagnóstico (fluxo completo) ou serviço direto (vai p/ execução). */
   const [modo, setModo] = useState<ModoAtendimento>("diagnostico");
@@ -416,6 +418,50 @@ export function OSFormDialog({
   const isNovaDireto = !os && modo === "direto";
   /** Nova OS com diagnóstico: fica na fila de entrada (sem escolher status na abertura). */
   const isNovaDiagnostico = !os && modo === "diagnostico";
+
+  /**
+   * Reescreve com IA o texto visível ao cliente (`problema_relatado`).
+   * No serviço direto o campo aparece como "Observação"; usa também a lista de serviços.
+   */
+  async function reescreverProblemaComIA() {
+    const texto = String(form.problema_relatado ?? "").trim();
+    const checklist = String(form.checklist_entrada ?? "").trim();
+    const servicos = itensServico
+      .map((i) => i.nome.trim())
+      .filter(Boolean)
+      .join(", ");
+    if (!texto && !checklist && !(isNovaDireto && servicos)) {
+      return toast.error(
+        isNovaDireto
+          ? "Digite a observação ou adicione serviços para a IA gerar o texto"
+          : "Digite o problema ou o checklist para a IA reescrever",
+      );
+    }
+    const bike = bikes.find((b) => b.id === form.bike_id);
+    const bikeNome = bike ? `${bike.marca} ${bike.modelo}`.trim() : "";
+    setGerandoProblemaIA(true);
+    const { data, error } = await supabase.functions.invoke("os-problema-rewrite", {
+      body: {
+        texto,
+        checklist: checklist || undefined,
+        bike: bikeNome || undefined,
+        servicos: isNovaDireto && servicos ? servicos : undefined,
+        contexto: isNovaDireto ? "observacao_servico_direto" : "problema_relatado",
+      },
+    });
+    setGerandoProblemaIA(false);
+    if (error || (data as { error?: string })?.error) {
+      return toast.error(
+        error?.message ||
+          (data as { error?: string })?.error ||
+          "Erro ao reescrever com IA",
+      );
+    }
+    set("problema_relatado", (data as { text?: string })?.text ?? "");
+    toast.success(
+      isNovaDireto ? "Observação reescrita com IA" : "Texto reescrito com IA",
+    );
+  }
 
   /**
    * Salva a OS: valida campos obrigatórios e garante responsável pela entrada
@@ -773,20 +819,37 @@ export function OSFormDialog({
                   </span>
                 </div>
 
-                <Field label="Observação">
+                <Field
+                  label="Observação"
+                  action={
+                    <BotaoProblemaIA
+                      loading={gerandoProblemaIA}
+                      onClick={reescreverProblemaComIA}
+                    />
+                  }
+                >
                   <Textarea
                     value={form.problema_relatado}
                     onChange={(e) => set("problema_relatado", e.target.value)}
-                    placeholder="Opcional"
+                    placeholder="Opcional — texto visível ao cliente no site"
                   />
                 </Field>
               </div>
             ) : (
               <>
-                <Field label="Problema relatado">
+                <Field
+                  label="Problema relatado"
+                  action={
+                    <BotaoProblemaIA
+                      loading={gerandoProblemaIA}
+                      onClick={reescreverProblemaComIA}
+                    />
+                  }
+                >
                   <Textarea
                     value={form.problema_relatado}
                     onChange={(e) => set("problema_relatado", e.target.value)}
+                    placeholder="Texto visível ao cliente no site"
                   />
                 </Field>
                 <Field label="Checklist visual de entrada">
@@ -1068,12 +1131,55 @@ export function OSFormDialog({
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+/**
+ * Campo de formulário com label opcional e ação à direita (ex.: botão de IA).
+ */
+function Field({
+  label,
+  children,
+  action,
+}: {
+  label: string;
+  children: React.ReactNode;
+  action?: React.ReactNode;
+}) {
   return (
     <div className="min-w-0 space-y-1.5">
-      <Label className="text-xs">{label}</Label>
+      <div className="flex items-center justify-between gap-2">
+        <Label className="text-xs">{label}</Label>
+        {action}
+      </div>
       {children}
     </div>
+  );
+}
+
+/**
+ * Botão que dispara a reescrita do problema relatado via edge function de IA.
+ */
+function BotaoProblemaIA({
+  loading,
+  onClick,
+}: {
+  loading: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <Button
+      type="button"
+      size="sm"
+      variant="outline"
+      className="h-7 shrink-0 px-2 text-xs"
+      onClick={onClick}
+      disabled={loading}
+    >
+      {loading ? (
+        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+      ) : (
+        <Sparkles className="h-3.5 w-3.5" />
+      )}
+      <span className="ml-1.5">{loading ? "Gerando…" : "Melhorar com IA"}</span>
+    </Button>
   );
 }
 
