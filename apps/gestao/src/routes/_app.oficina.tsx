@@ -10,6 +10,7 @@ import { Plus, AlertTriangle, Wrench, LogIn, Columns3 } from "lucide-react";
 import { OSFormDialog } from "@/components/OSFormDialog";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth-context";
+import { dataMaisMeses } from "@/lib/datas";
 import {
   COLUNAS,
   GRUPOS_FILTRO,
@@ -150,6 +151,10 @@ function OficinaPage() {
       extra.pago_por = recebedor.trim();
       extra.forma_pagamento = FORMAS_PAGAMENTO[fidx];
       extra.data_pagamento = new Date().toISOString();
+    }
+    // Em Pago, próxima revisão é obrigatória — padrão +3 meses se vazia
+    if (status === "pago" && os && !os.proxima_revisao) {
+      extra.proxima_revisao = dataMaisMeses(3);
     }
     const statusAprovado = ["em_execucao", "com_problemas", "finalizada", "entregue", "pago"].includes(status);
     if (statusAprovado) {

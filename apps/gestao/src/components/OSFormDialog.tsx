@@ -17,6 +17,7 @@ import { ServicoCombobox } from "@/components/ServicoCombobox";
 import { CurrencyInput } from "@/components/CurrencyInput";
 import { filtrarUsuariosEquipe } from "@/lib/usuarios-sistema";
 import { useAuth } from "@/lib/auth-context";
+import { dataMaisMeses } from "@/lib/datas";
 import { fmtBRL } from "@/lib/finance";
 import {
   appendObsAprovacao,
@@ -233,6 +234,18 @@ export function OSFormDialog({
   const set = (k: string, v: any) => setForm((f: any) => ({ ...f, [k]: v }));
 
   /**
+   * Atualiza o status; ao marcar como Pago, preenche próxima revisão com +3 meses se vazia.
+   */
+  function setStatus(v: string) {
+    setForm((f: any) => ({
+      ...f,
+      status: v,
+      proxima_revisao:
+        v === "pago" && !f.proxima_revisao ? dataMaisMeses(3) : f.proxima_revisao,
+    }));
+  }
+
+  /**
    * Alterna modo de atendimento na criação da OS.
    */
   function escolherModo(m: ModoAtendimento) {
@@ -405,6 +418,14 @@ export function OSFormDialog({
     if (form.status === "pago" && (!form.pago_por || !form.forma_pagamento)) {
       return toast.error("Para marcar como Pago, informe quem recebeu e a forma de pagamento");
     }
+    // Em Pago, próxima revisão é obrigatória (padrão +3 meses se ainda vazia)
+    let proximaRevisao = form.proxima_revisao || "";
+    if (form.status === "pago") {
+      if (!proximaRevisao) proximaRevisao = dataMaisMeses(3);
+      if (!proximaRevisao) {
+        return toast.error("Para marcar como Pago, informe a próxima revisão recomendada");
+      }
+    }
     setBusy(true);
 
     let status = isNovaDiagnostico ? "fila" : form.status;
@@ -503,7 +524,7 @@ export function OSFormDialog({
       servicos_executados: servicosExecutados || null,
       pecas_utilizadas: pecasUtilizadas || null,
       data_prevista: form.data_prevista || null,
-      proxima_revisao: form.proxima_revisao || null,
+      proxima_revisao: proximaRevisao || form.proxima_revisao || null,
       data_pagamento: status === "pago" ? (form.data_pagamento || new Date().toISOString()) : (form.data_pagamento || null),
       data_conclusao: dataConclusao,
       data_entrega: dataEntrega,
@@ -694,7 +715,7 @@ export function OSFormDialog({
               {/* Status só na edição; na abertura com diagnóstico a OS fica na fila de entrada. */}
               {os && (
                 <Field label="Status">
-                  <Select value={form.status} onValueChange={(v) => set("status", v)}>
+                  <Select value={form.status} onValueChange={setStatus}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>{STATUS.map(([v, l]) => <SelectItem key={v} value={v}>{l}</SelectItem>)}</SelectContent>
                   </Select>
@@ -948,7 +969,19 @@ export function OSFormDialog({
             </div>
             <Field label="Observação de conclusão"><Textarea value={form.observacao_conclusao} onChange={(e) => set("observacao_conclusao", e.target.value)} /></Field>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Field label="Próxima revisão recomendada"><Input type="date" value={form.proxima_revisao} onChange={(e) => set("proxima_revisao", e.target.value)} /></Field>
+              <Field label={`Próxima revisão recomendada${form.status === "pago" ? " *" : ""}`}>
+                <Input
+                  type="date"
+                  required={form.status === "pago"}
+                  value={form.proxima_revisao}
+                  onChange={(e) => set("proxima_revisao", e.target.value)}
+                />
+                {form.status === "pago" && (
+                  <p className="text-[11px] text-muted-foreground mt-1">
+                    Obrigatório em Pago. Padrão: daqui a 3 meses.
+                  </p>
+                )}
+              </Field>
             </div>
 
             <div className="rounded-lg border p-3 space-y-3 bg-secondary/20">
