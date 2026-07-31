@@ -1,21 +1,112 @@
 import { Link, useNavigate } from "@tanstack/react-router";
-import { CircleUser, LogOut, Menu, User, X } from "lucide-react";
+import { CircleUser, LogOut, Menu, Store, User, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import logo from "@/assets/logo.png";
 import { supabase } from "@/integrations/supabase/client";
 
-const links = [
+/** Links à esquerda do Showroom no menu. */
+const linksAntes = [
   { to: "/", label: "Home" },
   { to: "/sobre", label: "Sobre" },
   { to: "/servicos", label: "Serviços" },
   { to: "/delivery", label: "Delivery" },
+] as const;
+
+/** Links à direita do Showroom no menu. */
+const linksDepois = [
   { to: "/equipe", label: "Equipe" },
   { to: "/eventos", label: "Eventos" },
   { to: "/contato", label: "Contato" },
 ] as const;
 
+/** Lista completa na ordem do menu (mobile e desktop). */
+const links = [
+  ...linksAntes,
+  { to: "/loja", label: "Showroom", featured: true as const },
+  ...linksDepois,
+];
+
 /**
- * Cabeçalho do site: navegação, Login / Minha conta e Sair (quando logado).
+ * Renderiza um link comum do menu (sem destaque).
+ */
+function NavLink({
+  to,
+  label,
+  onNavigate,
+  mobile = false,
+}: {
+  to: string;
+  label: string;
+  onNavigate?: () => void;
+  mobile?: boolean;
+}) {
+  if (mobile) {
+    return (
+      <Link
+        to={to}
+        onClick={onNavigate}
+        className="border-b border-border/40 py-3 text-sm font-medium text-foreground"
+      >
+        {label}
+      </Link>
+    );
+  }
+
+  return (
+    <Link
+      to={to}
+      className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+      activeProps={{ className: "text-foreground" }}
+      activeOptions={{ exact: to === "/" }}
+    >
+      {label}
+    </Link>
+  );
+}
+
+/**
+ * Link destacado do Showroom (ícone + label) no centro do menu.
+ * Usa o amarelo primary da marca para chamar atenção sem sair da identidade.
+ */
+function ShowroomLink({
+  onNavigate,
+  mobile = false,
+}: {
+  onNavigate?: () => void;
+  mobile?: boolean;
+}) {
+  if (mobile) {
+    return (
+      <Link
+        to="/loja"
+        onClick={onNavigate}
+        className="my-1 flex items-center gap-2 rounded-full bg-primary px-3 py-2.5 text-sm font-semibold text-primary-foreground"
+      >
+        <Store size={16} strokeWidth={1.75} />
+        Showroom
+      </Link>
+    );
+  }
+
+  return (
+    <Link
+      to="/loja"
+      aria-label="Showroom"
+      title="Showroom"
+      className="inline-flex items-center gap-1.5 rounded-full bg-primary px-3 py-1.5 text-sm font-semibold text-primary-foreground shadow-[0_0_20px_-4px_oklch(0.87_0.18_95_/_0.55)] transition-[filter,transform] hover:brightness-110 active:scale-[0.98]"
+      activeProps={{
+        className:
+          "inline-flex items-center gap-1.5 rounded-full bg-primary px-3 py-1.5 text-sm font-semibold text-primary-foreground ring-2 ring-primary/50 shadow-[0_0_24px_-4px_oklch(0.87_0.18_95_/_0.7)]",
+      }}
+    >
+      <Store size={15} strokeWidth={1.75} />
+      Showroom
+    </Link>
+  );
+}
+
+/**
+ * Cabeçalho do site: navegação (com Showroom destacado), Login / Minha conta e Sair.
  */
 export function SiteHeader() {
   const navigate = useNavigate();
@@ -59,17 +150,13 @@ export function SiteHeader() {
           />
         </Link>
 
-        <nav className="hidden items-center gap-8 md:flex">
-          {links.map((l) => (
-            <Link
-              key={l.to}
-              to={l.to}
-              className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-              activeProps={{ className: "text-foreground" }}
-              activeOptions={{ exact: l.to === "/" }}
-            >
-              {l.label}
-            </Link>
+        <nav className="hidden items-center gap-5 lg:gap-7 md:flex">
+          {linksAntes.map((l) => (
+            <NavLink key={l.to} to={l.to} label={l.label} />
+          ))}
+          <ShowroomLink />
+          {linksDepois.map((l) => (
+            <NavLink key={l.to} to={l.to} label={l.label} />
           ))}
         </nav>
 
@@ -129,16 +216,19 @@ export function SiteHeader() {
       {open && (
         <div className="border-t border-border/60 bg-background md:hidden">
           <nav className="container-px mx-auto flex max-w-7xl flex-col py-4">
-            {links.map((l) => (
-              <Link
-                key={l.to}
-                to={l.to}
-                onClick={() => setOpen(false)}
-                className="border-b border-border/40 py-3 text-sm font-medium text-foreground"
-              >
-                {l.label}
-              </Link>
-            ))}
+            {links.map((l) =>
+              "featured" in l && l.featured ? (
+                <ShowroomLink key={l.to} mobile onNavigate={() => setOpen(false)} />
+              ) : (
+                <NavLink
+                  key={l.to}
+                  to={l.to}
+                  label={l.label}
+                  mobile
+                  onNavigate={() => setOpen(false)}
+                />
+              ),
+            )}
             {!logado && (
               <Link
                 to="/login"

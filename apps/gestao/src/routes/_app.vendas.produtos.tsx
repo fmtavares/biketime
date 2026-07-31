@@ -146,6 +146,11 @@ function ProdutosPage() {
                       {[p.marca, p.modelo, p.sku && `SKU ${p.sku}`].filter(Boolean).join(" · ")}
                     </div>
                     <div className="mt-2 font-semibold">{fmtBRL(Number(p.preco_venda) || 0)}</div>
+                    {Number(p.valor_mercado) > 0 && (
+                      <div className="text-xs text-muted-foreground">
+                        Mercado: {fmtBRL(Number(p.valor_mercado))}
+                      </div>
+                    )}
                   </div>
                   {isAdmin && (
                     <div className="flex flex-wrap gap-2">

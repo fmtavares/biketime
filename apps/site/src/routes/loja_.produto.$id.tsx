@@ -2,8 +2,8 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, MessageCircle, Package } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { PrecoShowroom } from "@/components/preco-showroom";
 import {
-  fmtPreco,
   fotoProduto,
   whatsappInteresseProduto,
   type LojaProduto,
@@ -103,8 +103,12 @@ function LojaProdutoDetalhePage() {
             {[produto.categoria, produto.marca, produto.modelo].filter(Boolean).join(" · ")}
           </p>
 
-          <div className="mt-8 font-display text-3xl font-bold text-primary">
-            {fmtPreco(produto.preco_venda)}
+          <div className="mt-8">
+            <PrecoShowroom
+              valorMercado={produto.valor_mercado}
+              valorPromocional={produto.preco_venda}
+              size="detalhe"
+            />
           </div>
 
           {produto.descricao && (
@@ -129,7 +133,7 @@ function LojaProdutoDetalhePage() {
             Tenho interesse no WhatsApp
           </a>
           <p className="mt-3 text-xs text-muted-foreground">
-            Sem pagamento online. Conversamos pelo WhatsApp sobre disponibilidade e retirada.
+            Sem pagamento online, vamos falar pelo WhatsApp sobre disponibilidade e entrega.
           </p>
         </div>
       </div>

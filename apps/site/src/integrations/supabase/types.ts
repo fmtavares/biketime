@@ -119,6 +119,7 @@ export type Database = {
           cor: string | null
           categoria: string | null
           condicao: string | null
+          valor_mercado: number | null
           valor_proposto: number | null
           foto_completa: string | null
           observacoes_tecnicas: string | null
@@ -137,6 +138,7 @@ export type Database = {
           preco_venda: number | null
           fotos: string[] | null
           observacoes: string | null
+          valor_mercado: number | null
         }
         Relationships: []
       }

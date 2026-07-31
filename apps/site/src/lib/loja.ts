@@ -13,6 +13,30 @@ export function fmtPreco(n: number | null | undefined) {
   });
 }
 
+export type PrecoPromocional = {
+  mercado: number;
+  promocional: number;
+  /** Percentual inteiro de desconto (ex.: 18). Null se não houver oferta. */
+  descontoPct: number | null;
+};
+
+/**
+ * Calcula desconto entre valor de mercado e preço promocional.
+ * Só retorna % se mercado > promocional > 0.
+ */
+export function calcDesconto(
+  valorMercado: number | null | undefined,
+  valorPromocional: number | null | undefined,
+): PrecoPromocional {
+  const mercado = Number(valorMercado) || 0;
+  const promocional = Number(valorPromocional) || 0;
+  const temDesconto = mercado > promocional && promocional > 0;
+  const descontoPct = temDesconto
+    ? Math.round(((mercado - promocional) / mercado) * 100)
+    : null;
+  return { mercado, promocional, descontoPct };
+}
+
 /** Monta URL de WhatsApp com interesse na bike do showroom. */
 export function whatsappInteresse(bike: Pick<LojaBike, "marca" | "modelo" | "valor_proposto">) {
   const nome = `${bike.marca} ${bike.modelo}`.trim();

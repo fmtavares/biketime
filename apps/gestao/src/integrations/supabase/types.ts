@@ -1234,6 +1234,7 @@ export type Database = {
           sku: string | null
           unidade: string | null
           updated_at: string
+          valor_mercado: number | null
           valor_minimo: number | null
           visivel_ecommerce: boolean
         }
@@ -1260,6 +1261,7 @@ export type Database = {
           sku?: string | null
           unidade?: string | null
           updated_at?: string
+          valor_mercado?: number | null
           valor_minimo?: number | null
           visivel_ecommerce?: boolean
         }
@@ -1286,6 +1288,7 @@ export type Database = {
           sku?: string | null
           unidade?: string | null
           updated_at?: string
+          valor_mercado?: number | null
           valor_minimo?: number | null
           visivel_ecommerce?: boolean
         }

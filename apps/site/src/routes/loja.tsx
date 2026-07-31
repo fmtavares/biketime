@@ -3,8 +3,8 @@ import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { Bike, Package } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { PrecoShowroom } from "@/components/preco-showroom";
 import {
-  fmtPreco,
   fotoProduto,
   etiquetaCondicao,
   type LojaBike,
@@ -382,8 +382,12 @@ function BikeCard({ bike }: { bike: LojaBike }) {
               .join(" · ")}
           </p>
         </div>
-        <div className="mt-4 font-display text-lg font-bold text-primary">
-          {fmtPreco(bike.valor_proposto)}
+        <div className="mt-4">
+          <PrecoShowroom
+            valorMercado={bike.valor_mercado}
+            valorPromocional={bike.valor_proposto}
+            size="card"
+          />
         </div>
       </div>
     </Link>
@@ -421,8 +425,11 @@ function ProdutoCard({ produto }: { produto: LojaProduto }) {
             {[produto.categoria, produto.marca, produto.modelo].filter(Boolean).join(" · ")}
           </p>
         </div>
-        <div className="mt-4 font-display text-lg font-bold text-primary">
-          {fmtPreco(produto.preco_venda)}
+        <div className="mt-4">
+          <PrecoShowroom
+            valorMercado={produto.valor_mercado}
+            valorPromocional={produto.preco_venda}
+          />
         </div>
       </div>
     </Link>

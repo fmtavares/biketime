@@ -56,7 +56,9 @@ type Produto = {
   descricao: string;
   preco_venda: number;
   custo: number;
-  /** Markup % (UI) — venda = custo × (1 + markup%/100). */
+  /** Valor de referência de mercado (não altera markup/venda). */
+  valor_mercado: number;
+  /** Markup % (UI) — valor proposto = custo × (1 + markup%/100). */
   markup_pct: number;
   sku: string;
   estoque_atual: number;
@@ -74,6 +76,7 @@ const empty: Produto = {
   descricao: "",
   preco_venda: 0,
   custo: 0,
+  valor_mercado: 0,
   markup_pct: 0,
   sku: "",
   estoque_atual: 0,
@@ -83,13 +86,13 @@ const empty: Produto = {
   observacoes: "",
 };
 
-/** Calcula markup % a partir de custo e preço de venda. */
+/** Calcula markup % a partir de custo e valor proposto. */
 function markupFrom(custo: number, venda: number): number {
   if (!custo || custo <= 0) return 0;
   return Math.round((((venda || 0) / custo) - 1) * 10000) / 100;
 }
 
-/** Calcula preço de venda: custo × (1 + markup%/100). */
+/** Calcula valor proposto: custo × (1 + markup%/100). */
 function vendaFrom(custo: number, markupPct: number): number {
   return Math.round((custo || 0) * (1 + (markupPct || 0) / 100) * 100) / 100;
 }
@@ -160,6 +163,7 @@ export function ProdutoFormDialog({
       const marcaId = produto.marca_id ?? "";
       const custo = Number(produto.custo) || 0;
       const preco_venda = Number(produto.preco_venda) || 0;
+      const valor_mercado = Number(produto.valor_mercado) || 0;
       // Duplicata: nunca carrega id (sempre cria novo no save)
       const { id: _ignoreId, ...rest } = produto;
       setForm({
@@ -175,6 +179,7 @@ export function ProdutoFormDialog({
         marca_id: marcaId,
         custo,
         preco_venda,
+        valor_mercado,
         markup_pct: markupFrom(custo, preco_venda),
       });
       setCatSelect(catId);
@@ -322,6 +327,9 @@ export function ProdutoFormDialog({
     }
   }
 
+  /**
+   * Persiste o produto (create/update), incluindo valor de mercado de referência.
+   */
   const save = async () => {
     if (!isAdmin) return toast.error("Somente administradores");
     if (!form.nome.trim()) return toast.error("Nome é obrigatório");
@@ -379,6 +387,7 @@ export function ProdutoFormDialog({
       descricao: form.descricao || null,
       preco_venda: Number(form.preco_venda) || 0,
       custo: Number(form.custo) || 0,
+      valor_mercado: Number(form.valor_mercado) || null,
       sku,
       estoque_atual: Number(form.estoque_atual) || 0,
       fotos: form.fotos ?? [],
@@ -552,11 +561,21 @@ export function ProdutoFormDialog({
                 }}
               />
               <p className="text-[11px] text-muted-foreground">
-                Venda = custo × (1 + markup%/100)
+                Valor proposto = custo × (1 + markup%/100)
               </p>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs">Preço de venda</Label>
+              <Label className="text-xs">Valor de mercado</Label>
+              <CurrencyInput
+                value={form.valor_mercado}
+                onChange={(v) => set("valor_mercado", v)}
+              />
+              <p className="text-[11px] text-muted-foreground">
+                Referência de mercado (não altera o valor proposto)
+              </p>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Valor proposto</Label>
               <CurrencyInput
                 value={form.preco_venda}
                 onChange={(v) => {
