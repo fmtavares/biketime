@@ -80,7 +80,7 @@ function ShowroomLink({
       <Link
         to="/loja"
         onClick={onNavigate}
-        className="my-1 flex items-center gap-2 rounded-full bg-primary px-3 py-2.5 text-sm font-semibold text-primary-foreground"
+        className="my-1 inline-flex w-fit items-center gap-2 rounded-full bg-primary px-3 py-2.5 text-sm font-semibold text-primary-foreground"
       >
         <Store size={16} strokeWidth={1.75} />
         Showroom
