@@ -1,15 +1,26 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
-import { Plus, AlertTriangle, User, Wrench, LogIn } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Plus, AlertTriangle, Wrench, LogIn, Columns3 } from "lucide-react";
 import { OSFormDialog } from "@/components/OSFormDialog";
 import { toast } from "sonner";
+import { useAuth } from "@/lib/auth-context";
+import {
+  COLUNAS,
+  GRUPOS_FILTRO,
+  ALL_COLUMN_IDS,
+  getDefaultVisible,
+  loadVisibleColumns,
+  saveVisibleColumns,
+  type KanbanColumnId,
+} from "@/lib/kanban-preferences";
 import {
   DndContext,
-  PointerSensor,
   TouchSensor,
   MouseSensor,
   useSensor,
@@ -23,37 +34,20 @@ export const Route = createFileRoute("/_app/oficina")({
   component: OficinaPage,
 });
 
-const GRUPOS = [
-  {
-    titulo: "Recepção",
-    colunas: [
-      { id: "fila", label: "Fila de Entrada" },
-      { id: "avaliacao", label: "Avaliação" },
-      { id: "aguardando_aprovacao", label: "Aguardando aprovação" },
-    ],
-  },
-  {
-    titulo: "Execução",
-    colunas: [
-      { id: "em_execucao", label: "Em execução" },
-      { id: "com_problemas", label: "Com problemas" },
-      { id: "finalizada", label: "Finalizada" },
-    ],
-  },
-  {
-    titulo: "Entrega & Pagamento",
-    colunas: [
-      { id: "entregue", label: "Entregue" },
-      { id: "pago", label: "Pago" },
-    ],
-  },
-];
-const COLUNAS = GRUPOS.flatMap((g) => g.colunas);
 const FORMAS_PAGAMENTO = ["Dinheiro", "Pix", "Cartão"];
 
 function OficinaPage() {
+  const { roles } = useAuth();
   const [open, setOpen] = useState(false);
   const [edit, setEdit] = useState<any>(null);
+  const [visibleIds, setVisibleIds] = useState<KanbanColumnId[]>(() =>
+    typeof window !== "undefined" ? loadVisibleColumns(roles) : [...ALL_COLUMN_IDS],
+  );
+
+  // Reaplica preferência/preset quando roles carregarem
+  useEffect(() => {
+    setVisibleIds(loadVisibleColumns(roles));
+  }, [roles]);
 
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 5 } }),
@@ -79,6 +73,41 @@ function OficinaPage() {
     });
     return g;
   }, [data]);
+
+  const visibleColumns = useMemo(
+    () => COLUNAS.filter((c) => visibleIds.includes(c.id)),
+    [visibleIds],
+  );
+
+  /**
+   * Alterna visibilidade de uma coluna; exige ao menos uma visível.
+   */
+  const toggleColumn = (id: KanbanColumnId, checked: boolean) => {
+    setVisibleIds((prev) => {
+      let next: KanbanColumnId[];
+      if (checked) {
+        next = ALL_COLUMN_IDS.filter((c) => prev.includes(c) || c === id);
+      } else {
+        if (prev.length <= 1) {
+          toast.error("Mantenha pelo menos uma coluna visível");
+          return prev;
+        }
+        next = prev.filter((c) => c !== id);
+      }
+      saveVisibleColumns(next);
+      return next;
+    });
+  };
+
+  /**
+   * Restaura o preset de colunas do perfil atual.
+   */
+  const restoreDefault = () => {
+    const next = getDefaultVisible(roles);
+    saveVisibleColumns(next);
+    setVisibleIds(next);
+    toast.success("Colunas restauradas ao padrão do perfil");
+  };
 
   const moveTo = async (osId: string, status: string) => {
     const os = (data ?? []).find((o) => o.id === osId);
@@ -159,42 +188,90 @@ function OficinaPage() {
       <PageHeader
         title="Painel"
         description="Kanban das ordens de serviço"
-        action={<Button onClick={() => { setEdit(null); setOpen(true); }}><Plus className="size-4" /> Nova OS</Button>}
-      />
-
-      <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
-        <div className="space-y-6">
-          {GRUPOS.map((grupo) => (
-            <div key={grupo.titulo}>
-              <h2 className="text-xs uppercase tracking-wider font-semibold text-muted-foreground mb-2">
-                {grupo.titulo}
-              </h2>
-              <div className="-mx-4 sm:mx-0 px-4 sm:px-0 overflow-x-auto pb-2">
-                <div
-                  className="grid gap-3 min-w-max sm:min-w-0"
-                  style={{ gridTemplateColumns: `repeat(${grupo.colunas.length}, minmax(220px, 1fr))` }}
-                >
-                  {grupo.colunas.map((col) => {
-                    const isPago = col.id === "pago";
-                    const items = isPago
-                      ? (grouped[col.id]?.slice(0, 5) ?? [])
-                      : (grouped[col.id] ?? []);
+        action={
+          <div className="flex items-center gap-2">
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline">
+                  <Columns3 className="size-4" />
+                  Colunas
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent align="end" className="w-72 p-3">
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-sm font-display font-bold">Colunas visíveis</p>
+                  <button
+                    type="button"
+                    onClick={restoreDefault}
+                    className="text-xs text-muted-foreground hover:text-foreground"
+                  >
+                    Restaurar padrão
+                  </button>
+                </div>
+                <div className="space-y-3 max-h-[60vh] overflow-y-auto">
+                  {GRUPOS_FILTRO.map((grupo) => {
+                    const cols = COLUNAS.filter((c) => c.grupo === grupo);
                     return (
-                      <DroppableColumn key={col.id} id={col.id} label={col.label} count={items.length}>
-                        {items.map((o) => (
-                          <DraggableCard
-                            key={o.id}
-                            os={o}
-                            onClick={() => { setEdit(o); setOpen(true); }}
-                          />
-                        ))}
-                      </DroppableColumn>
+                      <div key={grupo}>
+                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">
+                          {grupo}
+                        </p>
+                        <div className="space-y-2">
+                          {cols.map((col) => {
+                            const checked = visibleIds.includes(col.id);
+                            return (
+                              <label
+                                key={col.id}
+                                className="flex items-center gap-2 text-sm cursor-pointer"
+                              >
+                                <Checkbox
+                                  checked={checked}
+                                  onCheckedChange={(v) => toggleColumn(col.id, v === true)}
+                                />
+                                <span>{col.label}</span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      </div>
                     );
                   })}
                 </div>
-              </div>
-            </div>
-          ))}
+              </PopoverContent>
+            </Popover>
+            <Button onClick={() => { setEdit(null); setOpen(true); }}>
+              <Plus className="size-4" /> Nova OS
+            </Button>
+          </div>
+        }
+      />
+
+      <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+        <div className="-mx-4 sm:mx-0 px-4 sm:px-0 overflow-x-auto pb-2">
+          <div
+            className="grid gap-3 min-w-max"
+            style={{
+              gridTemplateColumns: `repeat(${visibleColumns.length}, minmax(220px, 1fr))`,
+            }}
+          >
+            {visibleColumns.map((col) => {
+              const isPago = col.id === "pago";
+              const items = isPago
+                ? (grouped[col.id]?.slice(0, 5) ?? [])
+                : (grouped[col.id] ?? []);
+              return (
+                <DroppableColumn key={col.id} id={col.id} label={col.label} count={items.length}>
+                  {items.map((o) => (
+                    <DraggableCard
+                      key={o.id}
+                      os={o}
+                      onClick={() => { setEdit(o); setOpen(true); }}
+                    />
+                  ))}
+                </DroppableColumn>
+              );
+            })}
+          </div>
         </div>
       </DndContext>
 
@@ -203,12 +280,15 @@ function OficinaPage() {
   );
 }
 
+/**
+ * Coluna droppable do Kanban.
+ */
 function DroppableColumn({ id, label, count, children }: { id: string; label: string; count: number; children: React.ReactNode }) {
   const { setNodeRef, isOver } = useDroppable({ id });
   return (
     <div
       ref={setNodeRef}
-      className={`min-w-0 rounded-xl bg-secondary/40 border p-3 flex flex-col transition-colors ${isOver ? "bg-primary/10 border-primary" : ""}`}
+      className={`w-[220px] sm:w-auto min-w-0 rounded-xl bg-secondary/40 border p-3 flex flex-col transition-colors ${isOver ? "bg-primary/10 border-primary" : ""}`}
     >
       <div className="flex items-center justify-between mb-3">
         <h3 className="font-display font-bold text-sm truncate">{label}</h3>
@@ -219,6 +299,9 @@ function DroppableColumn({ id, label, count, children }: { id: string; label: st
   );
 }
 
+/**
+ * Card arrastável de uma OS no Kanban.
+ */
 function DraggableCard({ os: o, onClick }: { os: any; onClick: () => void }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: o.id });
   const style: React.CSSProperties = {
