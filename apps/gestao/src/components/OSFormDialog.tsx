@@ -207,13 +207,28 @@ export function OSFormDialog({
         /** Hidrata listas editáveis a partir do texto já gravado na OS. */
         setItensServico(parseLinhasValor(os.servicos_executados, "svc"));
         setItensPecas(parseLinhasValor(os.pecas_utilizadas, "peca"));
+        /** OS antiga sem responsável: sugere o usuário logado para preencher. */
+        if (!os.mecanico) {
+          void preencherMecanicoComUsuarioLogado();
+        }
       } else {
         setForm({ ...initial(), cliente_id: defaultClienteId ?? "" });
         setItensServico([]);
         setItensPecas([]);
+        /** Nova OS: responsável pela entrada começa como o usuário logado. */
+        void preencherMecanicoComUsuarioLogado();
       }
     }
   }, [open, os, defaultClienteId]);
+
+  /**
+   * Preenche `mecanico` com o nome do usuário logado quando o campo ainda está vazio.
+   */
+  async function preencherMecanicoComUsuarioLogado() {
+    const nome = await nomeUsuarioLogado();
+    if (!nome) return;
+    setForm((f: any) => (f.mecanico ? f : { ...f, mecanico: nome }));
+  }
 
   /**
    * Quando o catálogo carrega, associa serviços hidratados aos IDs do catálogo.
@@ -402,6 +417,10 @@ export function OSFormDialog({
   /** Nova OS com diagnóstico: fica na fila de entrada (sem escolher status na abertura). */
   const isNovaDiagnostico = !os && modo === "diagnostico";
 
+  /**
+   * Salva a OS: valida campos obrigatórios e garante responsável pela entrada
+   * (selecionado ou, se vazio, o usuário logado).
+   */
   const save = async () => {
     if (!form.cliente_id || !form.bike_id) return toast.error("Cliente e bike são obrigatórios");
     if (!form.data_prevista) return toast.error("Data prevista de entrega é obrigatória");
@@ -429,7 +448,7 @@ export function OSFormDialog({
     setBusy(true);
 
     let status = isNovaDiagnostico ? "fila" : form.status;
-    let mecanico = form.mecanico || "";
+    let mecanico = String(form.mecanico || "").trim();
     let responsavelAvaliacao = form.responsavel_avaliacao || "";
     let dataAvaliacao: string | null = form.data_avaliacao || null;
     let aprovado = form.aprovado;
@@ -477,6 +496,15 @@ export function OSFormDialog({
       valorAprovado = valorMaoObra;
     }
 
+    /** Responsável pela entrada é obrigatório; se vazio, usa quem está logado. */
+    if (!mecanico) {
+      mecanico = (await nomeUsuarioLogado()).trim();
+    }
+    if (!mecanico) {
+      setBusy(false);
+      return toast.error("Informe o responsável pela entrada da bike");
+    }
+
     const statusFinalizado = ["finalizada", "entregue", "pago"].includes(status);
     let responsavelExecucao = form.responsavel_execucao || "";
     let dataConclusao: string | null = form.data_conclusao || null;
@@ -514,7 +542,7 @@ export function OSFormDialog({
     const payload: any = {
       ...form,
       status,
-      mecanico: mecanico || null,
+      mecanico,
       responsavel_avaliacao: responsavelAvaliacao || null,
       data_avaliacao: dataAvaliacao,
       aprovado,
@@ -693,7 +721,7 @@ export function OSFormDialog({
                 </Select>
               </Field>
               {!isNovaDireto && (
-                <Field label="Responsável entrada">
+                <Field label="Responsável entrada *">
                   {os && form.mecanico ? (
                     <Input type="text" readOnly disabled value={form.mecanico} />
                   ) : (
