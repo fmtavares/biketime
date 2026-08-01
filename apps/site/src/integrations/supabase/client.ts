@@ -23,6 +23,8 @@ function createSupabaseClient() {
       storage: typeof window !== 'undefined' ? localStorage : undefined,
       persistSession: true,
       autoRefreshToken: true,
+      // Passkeys (Face ID / biometria) — experimental no Auth
+      experimental: { passkey: true },
     }
   });
 }

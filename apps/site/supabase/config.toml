@@ -1,1 +1,11 @@
 project_id = "zzgfyksiktejlyenasvo"
+
+# Passkeys (Face ID / biometria) — espelha o Dashboard Authentication → Passkeys.
+# Em produção o RP ID precisa ser o domínio estável do site.
+[auth.passkey]
+enabled = true
+
+[auth.webauthn]
+rp_display_name = "BikeTime"
+rp_id = "biketime.com.br"
+rp_origins = ["https://biketime.com.br", "https://www.biketime.com.br"]

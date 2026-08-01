@@ -4,13 +4,22 @@ import {
   Bike,
   ChevronRight,
   ClipboardList,
+  Fingerprint,
   Loader2,
   Pencil,
+  Trash2,
   UserRound,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  listarPasskeys,
+  msgErroPasskey,
+  registrarPasskey,
+  removerPasskey,
+  type PasskeyItem,
+} from "@/lib/passkey";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -184,6 +193,56 @@ function MinhaContaPage() {
   const [loadingListas, setLoadingListas] = useState(false);
   const [osDetalhe, setOsDetalhe] = useState<OsCliente | null>(null);
   const [bikeDetalhe, setBikeDetalhe] = useState<BikeCliente | null>(null);
+  const [passkeys, setPasskeys] = useState<PasskeyItem[]>([]);
+  const [loadingPasskeys, setLoadingPasskeys] = useState(false);
+  const [busyPasskey, setBusyPasskey] = useState(false);
+
+  /** Recarrega a lista de biometrias (passkeys) do usuário logado. */
+  async function carregarPasskeys() {
+    setLoadingPasskeys(true);
+    const { data, error } = await listarPasskeys();
+    setLoadingPasskeys(false);
+    if (error) {
+      // Projeto ainda sem Passkeys no Dashboard — não bloqueia a conta
+      setPasskeys([]);
+      return;
+    }
+    setPasskeys(data);
+  }
+
+  /** Cadastra Face ID / biometria do dispositivo atual. */
+  async function ativarBiometria() {
+    setBusyPasskey(true);
+    try {
+      const { error } = await registrarPasskey();
+      if (error) {
+        toast.error(msgErroPasskey(error));
+        return;
+      }
+      toast.success("Biometria ativada neste aparelho");
+      await carregarPasskeys();
+    } catch (err) {
+      toast.error(msgErroPasskey(err as { message?: string }));
+    } finally {
+      setBusyPasskey(false);
+    }
+  }
+
+  /** Remove uma passkey cadastrada. */
+  async function excluirBiometria(id: string) {
+    setBusyPasskey(true);
+    try {
+      const { error } = await removerPasskey(id);
+      if (error) {
+        toast.error(msgErroPasskey(error));
+        return;
+      }
+      toast.success("Biometria removida");
+      await carregarPasskeys();
+    } finally {
+      setBusyPasskey(false);
+    }
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -220,6 +279,7 @@ function MinhaContaPage() {
       setCliente(c);
       setForm(formFromCliente(c));
       setLoading(false);
+      void carregarPasskeys();
 
       // Bikes e OS do próprio cliente
       setLoadingListas(true);
@@ -609,6 +669,78 @@ function MinhaContaPage() {
                   </div>
                 </div>
               )}
+
+              <div className="mt-10 border-t border-border/50 pt-8">
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                  <div>
+                    <h3 className="flex items-center gap-2 font-display text-base font-semibold text-primary">
+                      <Fingerprint className="size-4" />
+                      Face ID / biometria
+                    </h3>
+                    <p className="mt-1 max-w-xl text-sm text-muted-foreground">
+                      Cadastre a biometria deste aparelho para entrar no site sem digitar senha
+                      (Face ID, Touch ID ou Windows Hello).
+                    </p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    className="rounded-full"
+                    onClick={ativarBiometria}
+                    disabled={busyPasskey || editando}
+                  >
+                    {busyPasskey ? (
+                      <>
+                        <Loader2 className="mr-2 size-4 animate-spin" /> Aguarde…
+                      </>
+                    ) : (
+                      <>
+                        <Fingerprint className="mr-2 size-4" /> Ativar neste aparelho
+                      </>
+                    )}
+                  </Button>
+                </div>
+
+                {loadingPasskeys ? (
+                  <p className="mt-4 text-sm text-muted-foreground">Carregando biometrias…</p>
+                ) : passkeys.length === 0 ? (
+                  <p className="mt-4 text-sm text-muted-foreground">
+                    Nenhuma biometria cadastrada ainda.
+                  </p>
+                ) : (
+                  <ul className="mt-4 space-y-2">
+                    {passkeys.map((pk) => (
+                      <li
+                        key={pk.id}
+                        className="flex items-center justify-between gap-3 rounded-xl border border-border/60 px-4 py-3 text-sm"
+                      >
+                        <div className="min-w-0">
+                          <p className="font-medium text-foreground">
+                            {pk.friendly_name || "Biometria do aparelho"}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            Cadastrada em{" "}
+                            {new Date(pk.created_at).toLocaleDateString("pt-BR")}
+                            {pk.last_used_at
+                              ? ` · último uso ${new Date(pk.last_used_at).toLocaleDateString("pt-BR")}`
+                              : ""}
+                          </p>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="shrink-0 text-muted-foreground hover:text-destructive"
+                          aria-label="Remover biometria"
+                          disabled={busyPasskey}
+                          onClick={() => excluirBiometria(pk.id)}
+                        >
+                          <Trash2 className="size-4" />
+                        </Button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
             </div>
           )}
 
