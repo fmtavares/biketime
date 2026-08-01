@@ -1,52 +1,59 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, Bike, MessageCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { PrecoShowroom } from "@/components/preco-showroom";
+import { CompartilharShowroom } from "@/components/compartilhar-showroom";
 import {
   whatsappInteresse,
   etiquetaCondicao,
+  tituloCompartilharBike,
+  descricaoCompartilharBike,
+  textoCompartilharBike,
+  urlShowroomBike,
+  metaTagsShowroom,
   type LojaBike,
 } from "@/lib/loja";
 
 export const Route = createFileRoute("/loja_/$id")({
-  head: ({ params }) => ({
-    meta: [
-      { title: `Bike · Showroom BikeTime` },
-      { property: "og:url", content: `https://biketime.com.br/loja/${params.id}` },
-    ],
-  }),
+  loader: async ({ params }) => {
+    const { data, error } = await supabase
+      .from("loja_bikes")
+      .select("*")
+      .eq("id", params.id)
+      .maybeSingle();
+    if (error) throw error;
+    return { bike: (data as LojaBike | null) ?? null };
+  },
+  head: ({ loaderData, params }) => {
+    const bike = loaderData?.bike;
+    if (!bike) {
+      return {
+        meta: [
+          { title: "Bike · Showroom BikeTime" },
+          { property: "og:url", content: urlShowroomBike(params.id) },
+        ],
+      };
+    }
+    return {
+      meta: metaTagsShowroom({
+        title: tituloCompartilharBike(bike),
+        description: descricaoCompartilharBike(bike),
+        url: urlShowroomBike(bike.id),
+        image: bike.foto_completa,
+      }),
+      links: [{ rel: "canonical", href: urlShowroomBike(bike.id) }],
+    };
+  },
   component: LojaDetalhePage,
 });
 
 /**
- * Detalhe de uma bike do showroom + CTA WhatsApp (sem pagamento).
+ * Detalhe de uma bike do showroom + CTA WhatsApp e compartilhar.
  */
 function LojaDetalhePage() {
-  const { id } = Route.useParams();
+  const { bike } = Route.useLoaderData();
 
-  const { data: bike, isLoading, isError } = useQuery({
-    queryKey: ["loja-bike", id],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("loja_bikes")
-        .select("*")
-        .eq("id", id)
-        .maybeSingle();
-      if (error) throw error;
-      return data as LojaBike | null;
-    },
-  });
-
-  if (isLoading) {
-    return (
-      <div className="container-px mx-auto max-w-7xl py-20 text-muted-foreground">
-        Carregando…
-      </div>
-    );
-  }
-
-  if (isError || !bike) {
+  if (!bike) {
     return (
       <div className="container-px mx-auto max-w-7xl py-20">
         <Link
@@ -60,7 +67,7 @@ function LojaDetalhePage() {
     );
   }
 
-  const nome = `${bike.marca} ${bike.modelo}`;
+  const nome = tituloCompartilharBike(bike);
   const wa = whatsappInteresse(bike);
   const etiqueta = etiquetaCondicao(bike.condicao);
 
@@ -126,15 +133,22 @@ function LojaDetalhePage() {
             </div>
           )}
 
-          <a
-            href={wa}
-            target="_blank"
-            rel="noreferrer"
-            className="mt-10 inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground transition hover:opacity-90"
-          >
-            <MessageCircle size={18} />
-            Tenho interesse no WhatsApp
-          </a>
+          <div className="mt-10 flex flex-wrap items-center gap-3">
+            <a
+              href={wa}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground transition hover:opacity-90"
+            >
+              <MessageCircle size={18} />
+              Tenho interesse no WhatsApp
+            </a>
+            <CompartilharShowroom
+              title={`${nome} · Showroom BikeTime`}
+              text={textoCompartilharBike(bike)}
+              url={urlShowroomBike(bike.id)}
+            />
+          </div>
           <p className="mt-3 text-xs text-muted-foreground">
             Sem pagamento online, vamos falar pelo WhatsApp sobre disponibilidade e entrega.
           </p>

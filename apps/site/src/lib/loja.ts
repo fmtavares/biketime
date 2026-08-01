@@ -75,3 +75,114 @@ export function etiquetaCondicao(condicao: string | null | undefined): string | 
   if (c.includes("usad")) return "Usado";
   return null;
 }
+
+const SITE_ORIGIN = "https://biketime.com.br";
+
+/** URL canônica de uma bike no showroom. */
+export function urlShowroomBike(id: string) {
+  return `${SITE_ORIGIN}/loja/${id}`;
+}
+
+/** URL canônica de um produto no showroom. */
+export function urlShowroomProduto(id: string) {
+  return `${SITE_ORIGIN}/loja/produto/${id}`;
+}
+
+/** Título curto para compartilhar / Open Graph (bike). */
+export function tituloCompartilharBike(
+  bike: Pick<LojaBike, "marca" | "modelo">,
+) {
+  return `${bike.marca} ${bike.modelo}`.trim();
+}
+
+/** Descrição curta e marketeira para OG / Web Share (bike). */
+export function descricaoCompartilharBike(
+  bike: Pick<LojaBike, "ano" | "tamanho" | "cor" | "condicao" | "categoria" | "valor_proposto">,
+) {
+  const meta = [
+    bike.ano && String(bike.ano),
+    bike.tamanho && `Tam. ${bike.tamanho}`,
+    bike.cor,
+    bike.condicao,
+    bike.categoria,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  const preco = bike.valor_proposto ? fmtPreco(bike.valor_proposto) : null;
+  const partes = [
+    meta || null,
+    preco ? `${preco} no showroom BikeTime` : "Disponível no showroom BikeTime",
+  ].filter(Boolean);
+  return partes.join(" — ");
+}
+
+/** Texto do Web Share / clipboard para bike. */
+export function textoCompartilharBike(
+  bike: Pick<LojaBike, "id" | "marca" | "modelo">,
+) {
+  const nome = tituloCompartilharBike(bike);
+  return `${nome} · Showroom BikeTime\n${urlShowroomBike(bike.id)}`;
+}
+
+/** Título curto para compartilhar / Open Graph (produto). */
+export function tituloCompartilharProduto(
+  produto: Pick<LojaProduto, "nome" | "marca">,
+) {
+  return [produto.marca, produto.nome].filter(Boolean).join(" ").trim();
+}
+
+/** Descrição curta para OG / Web Share (produto). */
+export function descricaoCompartilharProduto(
+  produto: Pick<LojaProduto, "categoria" | "modelo" | "preco_venda" | "descricao">,
+) {
+  const meta = [produto.categoria, produto.modelo].filter(Boolean).join(" · ");
+  const preco = produto.preco_venda ? fmtPreco(produto.preco_venda) : null;
+  const gancho =
+    produto.descricao?.trim().split(/\n/)[0]?.slice(0, 120) ||
+    (preco ? `${preco} no showroom BikeTime` : "Disponível no showroom BikeTime");
+  return [meta || null, gancho].filter(Boolean).join(" — ");
+}
+
+/** Texto do Web Share / clipboard para produto. */
+export function textoCompartilharProduto(
+  produto: Pick<LojaProduto, "id" | "nome" | "marca">,
+) {
+  const nome = tituloCompartilharProduto(produto);
+  return `${nome} · Showroom BikeTime\n${urlShowroomProduto(produto.id)}`;
+}
+
+type MetaTag =
+  | { title: string }
+  | { name: string; content: string }
+  | { property: string; content: string };
+
+/**
+ * Meta tags Open Graph / Twitter para um item do showroom (preview no WhatsApp).
+ */
+export function metaTagsShowroom(opts: {
+  title: string;
+  description: string;
+  url: string;
+  image?: string | null;
+}): MetaTag[] {
+  const title = `${opts.title} · Showroom BikeTime`;
+  const tags: MetaTag[] = [
+    { title },
+    { name: "description", content: opts.description },
+    { property: "og:type", content: "website" },
+    { property: "og:site_name", content: "BikeTime" },
+    { property: "og:title", content: title },
+    { property: "og:description", content: opts.description },
+    { property: "og:url", content: opts.url },
+    { name: "twitter:card", content: opts.image ? "summary_large_image" : "summary" },
+    { name: "twitter:title", content: title },
+    { name: "twitter:description", content: opts.description },
+  ];
+  if (opts.image) {
+    tags.push(
+      { property: "og:image", content: opts.image },
+      { name: "twitter:image", content: opts.image },
+    );
+  }
+  return tags;
+}
