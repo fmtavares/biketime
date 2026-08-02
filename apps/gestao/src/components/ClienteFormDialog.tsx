@@ -24,6 +24,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { formatCpf, formatPhoneBr } from "@/lib/utils";
 import { definirAcessoCliente } from "@/lib/cliente-acesso.functions";
+import { listarUsuariosEquipe } from "@/lib/usuarios-sistema";
 
 const ORIGENS = ["Instagram", "Indicação", "Loja", "Site", "Evento"];
 const NIVEIS = ["Iniciante", "Intermediário", "Avançado"];
@@ -142,7 +143,7 @@ export function ClienteFormDialog({
   useEffect(() => {
     if (open) {
       supabase.from("marcas_bikes").select("id, nome").order("nome").then(({ data }) => setMarcas(data ?? []));
-      supabase.from("profiles").select("id, full_name, email").neq("email", "contato@biketime.com.br").order("full_name").then(({ data }) => setUsuarios(data ?? []));
+      void listarUsuariosEquipe().then(setUsuarios);
     }
   }, [open]);
 

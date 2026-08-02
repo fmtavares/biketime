@@ -17,7 +17,7 @@ import { ClienteCombobox } from "@/components/ClienteCombobox";
 import { ServicoCombobox } from "@/components/ServicoCombobox";
 import { CurrencyInput } from "@/components/CurrencyInput";
 import { OSEtiquetaDialog } from "@/components/OSEtiquetaDialog";
-import { filtrarUsuariosEquipe } from "@/lib/usuarios-sistema";
+import { listarUsuariosEquipe } from "@/lib/usuarios-sistema";
 import { useAuth } from "@/lib/auth-context";
 import { dataMaisMeses } from "@/lib/datas";
 import { fmtBRL } from "@/lib/finance";
@@ -190,11 +190,7 @@ export function OSFormDialog({
         .select("id, nome, whatsapp, email")
         .order("nome")
         .then(({ data }) => setClientes(data ?? []));
-      supabase
-        .from("profiles")
-        .select("id, full_name, email")
-        .order("full_name")
-        .then(({ data }) => setUsuarios(filtrarUsuariosEquipe(data ?? [])));
+      void listarUsuariosEquipe().then(setUsuarios);
       supabase
         .from("servicos_precos")
         .select("id, nome, valor")
@@ -1110,10 +1106,31 @@ export function OSFormDialog({
                     <Select value={form.aprovado_por || ""} onValueChange={(v) => set("aprovado_por", v)}>
                       <SelectTrigger><SelectValue placeholder="Quem aprovou a execução?" /></SelectTrigger>
                       <SelectContent>
-                        {usuarios.map((u: any) => {
-                          const n = u.full_name ?? u.email;
-                          return <SelectItem key={u.id} value={n}>{n}</SelectItem>;
-                        })}
+                        {(() => {
+                          /** Só o cliente desta OS (não a lista inteira) + equipe do Gestão. */
+                          const clienteOs = clientes.find((c) => c.id === form.cliente_id);
+                          const nomeCliente = (clienteOs?.nome ?? "").trim();
+                          return (
+                            <>
+                              {nomeCliente && (
+                                <SelectItem key={`cliente-${form.cliente_id}`} value={nomeCliente}>
+                                  {nomeCliente} (cliente)
+                                </SelectItem>
+                              )}
+                              {usuarios.map((u: any) => {
+                                const n = (u.full_name ?? u.email ?? "").trim();
+                                if (!n) return null;
+                                /** Evita duplicar se o nome do cliente coincidir com alguém da equipe. */
+                                if (nomeCliente && n === nomeCliente) return null;
+                                return (
+                                  <SelectItem key={u.id} value={n}>
+                                    {n}
+                                  </SelectItem>
+                                );
+                              })}
+                            </>
+                          );
+                        })()}
                       </SelectContent>
                     </Select>
                   )}

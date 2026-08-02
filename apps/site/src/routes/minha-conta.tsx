@@ -862,59 +862,53 @@ function MinhaContaPage() {
                           onClick={() => setOsDetalhe(o)}
                           className="portal-item flex w-full items-start gap-3 rounded-xl border px-5 py-4 text-left transition-colors"
                         >
-                          <div className="min-w-0 flex-1">
-                            <div className="flex flex-wrap items-start justify-between gap-3">
-                              <div>
-                                <p className="font-mono text-sm font-semibold text-primary">
-                                  {o.numero}
+                          <div className="flex min-w-0 flex-1 items-start gap-3">
+                            <div className="min-w-0 flex-1">
+                              <p className="font-mono text-sm font-semibold text-primary">
+                                {o.numero}
+                              </p>
+                              <p className="mt-1 font-display text-base font-semibold">
+                                {bikeNome || "Bike"}
+                              </p>
+                              {o.problema_relatado && (
+                                <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">
+                                  {o.problema_relatado}
                                 </p>
-                                <p className="mt-1 font-display text-base font-semibold">
-                                  {bikeNome || "Bike"}
+                              )}
+                              <p className="mt-2 text-xs text-muted-foreground">
+                                {[
+                                  fmtData(o.data_entrada ?? o.created_at)
+                                    ? `Entrada ${fmtData(o.data_entrada ?? o.created_at)}`
+                                    : null,
+                                  o.data_prevista
+                                    ? `Prevista ${fmtData(o.data_prevista)}`
+                                    : null,
+                                  o.proxima_revisao
+                                    ? `Próx. revisão ${fmtData(o.proxima_revisao)}`
+                                    : null,
+                                ]
+                                  .filter(Boolean)
+                                  .join(" · ")}
+                              </p>
+                            </div>
+                            <div className="shrink-0 text-right">
+                              <span
+                                className={cn(
+                                  "inline-block whitespace-nowrap rounded-full px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider",
+                                  o.status === "aguardando_aprovacao"
+                                    ? "bg-primary/20 text-primary"
+                                    : "bg-secondary text-foreground",
+                                )}
+                              >
+                                {o.status === "aguardando_aprovacao"
+                                  ? "Aguardando sua aprovação"
+                                  : (STATUS_OS[o.status] ?? o.status.replace(/_/g, " "))}
+                              </span>
+                              {total > 0 && (
+                                <p className="mt-2 whitespace-nowrap text-sm font-medium">
+                                  {fmtMoeda(total)}
                                 </p>
-                                {o.problema_relatado && (
-                                  <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">
-                                    {o.problema_relatado}
-                                  </p>
-                                )}
-                                <p className="mt-2 text-xs text-muted-foreground">
-                                  {[
-                                    fmtData(o.data_entrada ?? o.created_at)
-                                      ? `Entrada ${fmtData(o.data_entrada ?? o.created_at)}`
-                                      : null,
-                                    o.data_prevista
-                                      ? `Prevista ${fmtData(o.data_prevista)}`
-                                      : null,
-                                    o.proxima_revisao
-                                      ? `Próx. revisão ${fmtData(o.proxima_revisao)}`
-                                      : null,
-                                  ]
-                                    .filter(Boolean)
-                                    .join(" · ")}
-                                </p>
-                              </div>
-                              <div className="text-right">
-                                <span
-                                  className={cn(
-                                    "inline-block rounded-full px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider",
-                                    o.status === "aguardando_aprovacao"
-                                      ? "bg-primary/20 text-primary"
-                                      : "bg-secondary text-foreground",
-                                  )}
-                                >
-                                  {o.status === "aguardando_aprovacao"
-                                    ? "Aguardando sua aprovação"
-                                    : (STATUS_OS[o.status] ?? o.status.replace(/_/g, " "))}
-                                </span>
-                                {total > 0 && (
-                                  <p className="mt-2 text-sm font-medium">{fmtMoeda(total)}</p>
-                                )}
-                                {temNotaDisponivel(o) && (
-                                  <p className="mt-1.5 inline-flex items-center gap-1 text-xs font-medium text-primary">
-                                    <FileText className="size-3" aria-hidden />
-                                    Nota disponível
-                                  </p>
-                                )}
-                              </div>
+                              )}
                             </div>
                           </div>
                           <ChevronRight
@@ -1325,30 +1319,29 @@ function OsDetalheDialog({
           )}
 
           {temNotaDisponivel(os) && (
-            <div className="rounded-xl border border-primary/25 bg-primary/5 p-4">
-              <p className="text-xs uppercase tracking-wider text-muted-foreground">
-                Nota fiscal (NFS-e)
-              </p>
-              {os.nfse_numero && (
-                <p className="mt-1 text-sm font-medium">
-                  Nº {os.nfse_numero}
-                </p>
-              )}
-              <Button
-                asChild
-                className="mt-3 w-full rounded-full sm:w-auto"
-                variant="default"
-              >
-                <a
-                  href={urlPdfNfse(os.nfse_url_pdf)!}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <ExternalLink className="mr-2 size-4" aria-hidden />
-                  Ver / baixar PDF da nota
-                </a>
-              </Button>
-            </div>
+            <a
+              href={urlPdfNfse(os.nfse_url_pdf)!}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-3 rounded-xl border border-primary/25 bg-primary/5 px-4 py-3 transition-colors hover:bg-primary/10"
+            >
+              <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-primary">
+                <FileText className="size-4" aria-hidden />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm font-semibold text-foreground">
+                  Nota fiscal
+                  {os.nfse_numero ? ` nº ${os.nfse_numero}` : ""}
+                </span>
+                <span className="mt-0.5 block text-xs text-muted-foreground">
+                  Abrir ou baixar PDF
+                </span>
+              </span>
+              <ExternalLink
+                className="size-4 shrink-0 text-primary"
+                aria-hidden
+              />
+            </a>
           )}
 
           {aguardando && (

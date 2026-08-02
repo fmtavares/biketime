@@ -1573,6 +1573,14 @@ export type Database = {
         }
         Returns: boolean
       }
+      listar_profiles_equipe: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          id: string
+          full_name: string | null
+          email: string | null
+        }[]
+      }
     }
     Enums: {
       app_role: "admin" | "user" | "vendedor" | "tecnico" | "cliente"

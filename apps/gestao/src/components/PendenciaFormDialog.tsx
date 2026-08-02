@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
+import { listarUsuariosEquipe } from "@/lib/usuarios-sistema";
 
 export function PendenciaFormDialog({
   open,
@@ -47,11 +48,8 @@ export function PendenciaFormDialog({
 
   useEffect(() => {
     if (!open) return;
-    supabase
-      .from("profiles")
-      .select("id, full_name, email")
-      .order("full_name", { ascending: true })
-      .then(({ data }) => setProfiles(data ?? []));
+    /** Só equipe do Gestão — nunca clientes do portal. */
+    void listarUsuariosEquipe().then(setProfiles);
   }, [open]);
 
   useEffect(() => {
