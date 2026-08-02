@@ -5,8 +5,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { PageHeader, SearchBar } from "@/components/AppLayout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import { Plus, Printer } from "lucide-react";
 import { OSFormDialog } from "@/components/OSFormDialog";
+import { OSEtiquetaDialog } from "@/components/OSEtiquetaDialog";
+import type { EtiquetaOSOpts } from "@/lib/os-etiqueta";
 
 export const Route = createFileRoute("/_app/oficina_/ordens")({
   component: OrdensServicoPage,
@@ -24,24 +26,51 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 /**
+ * Converte uma linha da lista de OS no payload da etiqueta A6.
+ */
+function osParaEtiqueta(o: any): EtiquetaOSOpts {
+  return {
+    numero: o.numero,
+    clienteNome: o.clientes?.nome ?? "",
+    marca: o.bikes?.marca ?? "",
+    modelo: o.bikes?.modelo ?? "",
+    codigoBike: o.bikes?.codigo_bike ?? null,
+    dataEntrada: o.data_entrada,
+    dataPrevista: o.data_prevista,
+    problemaRelatado: o.problema_relatado,
+    checklistEntrada: o.checklist_entrada,
+  };
+}
+
+/**
  * Lista de ordens de serviço (visão tabular, aparte do Painel kanban).
  */
 function OrdensServicoPage() {
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
   const [edit, setEdit] = useState<any>(null);
+  const [etiquetaOpen, setEtiquetaOpen] = useState(false);
+  const [etiquetaOs, setEtiquetaOs] = useState<EtiquetaOSOpts | null>(null);
 
   const { data = [], refetch, isLoading } = useQuery({
     queryKey: ["os-lista"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("ordens_servico")
-        .select("*, clientes(nome), bikes(marca, modelo)")
+        .select("*, clientes(nome), bikes(marca, modelo, codigo_bike)")
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data ?? [];
     },
   });
+
+  /** Abre o preview/impressão do comprovante sem abrir o formulário. */
+  function abrirEtiqueta(o: any, e?: { stopPropagation: () => void }) {
+    e?.stopPropagation();
+    if (!o?.numero) return;
+    setEtiquetaOs(osParaEtiqueta(o));
+    setEtiquetaOpen(true);
+  }
 
   const filtered = useMemo(() => {
     const s = q.toLowerCase().trim();
@@ -85,34 +114,48 @@ function OrdensServicoPage() {
         <>
           <div className="grid gap-3 lg:hidden">
             {filtered.map((o: any) => (
-              <button
+              <div
                 key={o.id}
-                type="button"
-                className="rounded-xl border bg-card p-4 text-left hover:shadow-md transition-shadow"
-                onClick={() => {
-                  setEdit(o);
-                  setOpen(true);
-                }}
+                className="rounded-xl border bg-card p-4 hover:shadow-md transition-shadow"
               >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="font-medium">
-                    {o.numero ?? "OS"}
-                    <span className="text-muted-foreground font-normal">
-                      {" · "}
-                      {o.clientes?.nome ?? "—"}
-                    </span>
+                <button
+                  type="button"
+                  className="w-full text-left"
+                  onClick={() => {
+                    setEdit(o);
+                    setOpen(true);
+                  }}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="font-medium">
+                      {o.numero ?? "OS"}
+                      <span className="text-muted-foreground font-normal">
+                        {" · "}
+                        {o.clientes?.nome ?? "—"}
+                      </span>
+                    </div>
+                    <Badge variant="secondary">
+                      {STATUS_LABEL[o.status] ?? o.status}
+                    </Badge>
                   </div>
-                  <Badge variant="secondary">
-                    {STATUS_LABEL[o.status] ?? o.status}
-                  </Badge>
+                  <div className="mt-1 text-xs text-muted-foreground">
+                    {[o.bikes?.marca, o.bikes?.modelo].filter(Boolean).join(" ") || "—"}
+                    {o.data_entrada
+                      ? ` · ${new Date(o.data_entrada).toLocaleDateString("pt-BR")}`
+                      : ""}
+                  </div>
+                </button>
+                <div className="mt-3 flex justify-end">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={(e) => abrirEtiqueta(o, e)}
+                  >
+                    <Printer className="size-3.5" /> Etiqueta
+                  </Button>
                 </div>
-                <div className="mt-1 text-xs text-muted-foreground">
-                  {[o.bikes?.marca, o.bikes?.modelo].filter(Boolean).join(" ") || "—"}
-                  {o.data_entrada
-                    ? ` · ${new Date(o.data_entrada).toLocaleDateString("pt-BR")}`
-                    : ""}
-                </div>
-              </button>
+              </div>
             ))}
             {filtered.length === 0 && (
               <div className="text-center py-12 text-muted-foreground border rounded-xl">
@@ -130,6 +173,7 @@ function OrdensServicoPage() {
                   <th className="text-left px-4 py-3">Bike</th>
                   <th className="text-left px-4 py-3">Entrada</th>
                   <th className="text-left px-4 py-3">Status</th>
+                  <th className="text-right px-4 py-3">Etiqueta</th>
                 </tr>
               </thead>
               <tbody>
@@ -171,12 +215,24 @@ function OrdensServicoPage() {
                         {STATUS_LABEL[o.status] ?? o.status}
                       </Badge>
                     </td>
+                    <td className="px-4 py-3 text-right">
+                      <Button
+                        type="button"
+                        size="icon"
+                        variant="ghost"
+                        className="size-8"
+                        title="Imprimir etiqueta"
+                        onClick={(e) => abrirEtiqueta(o, e)}
+                      >
+                        <Printer className="size-4" />
+                      </Button>
+                    </td>
                   </tr>
                 ))}
                 {filtered.length === 0 && (
                   <tr>
                     <td
-                      colSpan={5}
+                      colSpan={6}
                       className="text-center py-12 text-muted-foreground"
                     >
                       Nenhuma OS encontrada.
@@ -194,6 +250,12 @@ function OrdensServicoPage() {
         onOpenChange={setOpen}
         os={edit}
         onSaved={() => refetch()}
+      />
+
+      <OSEtiquetaDialog
+        open={etiquetaOpen}
+        onOpenChange={setEtiquetaOpen}
+        os={etiquetaOs}
       />
     </div>
   );

@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { Plus, Trash2, Flag, Sparkles, Loader2 } from "lucide-react";
+import { Plus, Trash2, Flag, Sparkles, Loader2, Printer } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
@@ -15,6 +15,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { ClienteCombobox } from "@/components/ClienteCombobox";
 import { ServicoCombobox } from "@/components/ServicoCombobox";
 import { CurrencyInput } from "@/components/CurrencyInput";
+import { OSEtiquetaDialog } from "@/components/OSEtiquetaDialog";
 import { filtrarUsuariosEquipe } from "@/lib/usuarios-sistema";
 import { useAuth } from "@/lib/auth-context";
 import { dataMaisMeses } from "@/lib/datas";
@@ -23,6 +24,7 @@ import {
   appendObsAprovacao,
   parseHistoricoObsAprovacao,
 } from "@/lib/observacoes-aprovacao";
+import type { EtiquetaOSOpts } from "@/lib/os-etiqueta";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -157,6 +159,9 @@ export function OSFormDialog({
   const [valorPeca, setValorPeca] = useState("");
   /** Nova nota da equipe anexada ao histórico de aprovação no save. */
   const [novaObsEquipe, setNovaObsEquipe] = useState("");
+  /** Preview/impressão do comprovante A6 da OS. */
+  const [etiquetaOpen, setEtiquetaOpen] = useState(false);
+  const [etiquetaOs, setEtiquetaOs] = useState<EtiquetaOSOpts | null>(null);
 
   function initial() {
     return {
@@ -242,7 +247,11 @@ export function OSFormDialog({
 
   useEffect(() => {
     if (form.cliente_id) {
-      supabase.from("bikes").select("id, marca, modelo").eq("cliente_id", form.cliente_id).then(({ data }) => setBikes(data ?? []));
+      supabase
+        .from("bikes")
+        .select("id, marca, modelo, codigo_bike")
+        .eq("cliente_id", form.cliente_id)
+        .then(({ data }) => setBikes(data ?? []));
     } else {
       setBikes([]);
     }
@@ -464,31 +473,94 @@ export function OSFormDialog({
   }
 
   /**
+   * Monta os dados do comprovante A6 a partir da OS persistida.
+   */
+  async function montarEtiquetaFromOs(osRow: any): Promise<EtiquetaOSOpts> {
+    let clienteNome =
+      clientes.find((c) => c.id === osRow.cliente_id)?.nome ??
+      osRow.clientes?.nome ??
+      "";
+    let marca =
+      bikes.find((b) => b.id === osRow.bike_id)?.marca ?? osRow.bikes?.marca ?? "";
+    let modelo =
+      bikes.find((b) => b.id === osRow.bike_id)?.modelo ?? osRow.bikes?.modelo ?? "";
+    let codigoBike =
+      bikes.find((b) => b.id === osRow.bike_id)?.codigo_bike ??
+      osRow.bikes?.codigo_bike ??
+      null;
+
+    if (osRow.cliente_id && !clienteNome) {
+      const { data: c } = await supabase
+        .from("clientes")
+        .select("nome")
+        .eq("id", osRow.cliente_id)
+        .maybeSingle();
+      clienteNome = c?.nome ?? "";
+    }
+    if (osRow.bike_id) {
+      const { data: bike } = await supabase
+        .from("bikes")
+        .select("marca, modelo, codigo_bike")
+        .eq("id", osRow.bike_id)
+        .maybeSingle();
+      if (bike) {
+        marca = bike.marca ?? marca;
+        modelo = bike.modelo ?? modelo;
+        codigoBike = bike.codigo_bike ?? codigoBike;
+      }
+    }
+
+    return {
+      numero: osRow.numero,
+      clienteNome,
+      marca,
+      modelo,
+      codigoBike,
+      dataEntrada: osRow.data_entrada ?? new Date().toISOString(),
+      dataPrevista: osRow.data_prevista,
+      problemaRelatado: osRow.problema_relatado,
+      checklistEntrada: osRow.checklist_entrada,
+    };
+  }
+
+  /**
    * Salva a OS: valida campos obrigatórios e garante responsável pela entrada
    * (selecionado ou, se vazio, o usuário logado).
+   * @param opts.close — fecha o diálogo após salvar (padrão true).
+   * @returns linha salva ou null se falhar/validação.
    */
-  const save = async () => {
-    if (!form.cliente_id || !form.bike_id) return toast.error("Cliente e bike são obrigatórios");
-    if (!form.data_prevista) return toast.error("Data prevista de entrega é obrigatória");
+  const save = async (opts?: { close?: boolean }): Promise<any | null> => {
+    if (!form.cliente_id || !form.bike_id) {
+      toast.error("Cliente e bike são obrigatórios");
+      return null;
+    }
+    if (!form.data_prevista) {
+      toast.error("Data prevista de entrega é obrigatória");
+      return null;
+    }
 
     if (isNovaDireto) {
       if (itensServico.length === 0) {
-        return toast.error("Adicione pelo menos um serviço");
+        toast.error("Adicione pelo menos um serviço");
+        return null;
       }
     }
 
     if (form.status === "em_execucao" && !isNovaDireto && !form.aprovado_por) {
-      return toast.error("Para iniciar a execução, informe quem aprovou (cliente ou mecânico)");
+      toast.error("Para iniciar a execução, informe quem aprovou (cliente ou mecânico)");
+      return null;
     }
     if (form.status === "pago" && (!form.pago_por || !form.forma_pagamento)) {
-      return toast.error("Para marcar como Pago, informe quem recebeu e a forma de pagamento");
+      toast.error("Para marcar como Pago, informe quem recebeu e a forma de pagamento");
+      return null;
     }
     // Em Pago, próxima revisão é obrigatória (padrão +3 meses se ainda vazia)
     let proximaRevisao = form.proxima_revisao || "";
     if (form.status === "pago") {
       if (!proximaRevisao) proximaRevisao = dataMaisMeses(3);
       if (!proximaRevisao) {
-        return toast.error("Para marcar como Pago, informe a próxima revisão recomendada");
+        toast.error("Para marcar como Pago, informe a próxima revisão recomendada");
+        return null;
       }
     }
     setBusy(true);
@@ -548,7 +620,8 @@ export function OSFormDialog({
     }
     if (!mecanico) {
       setBusy(false);
-      return toast.error("Informe o responsável pela entrada da bike");
+      toast.error("Informe o responsável pela entrada da bike");
+      return null;
     }
 
     const statusFinalizado = ["finalizada", "entregue", "pago"].includes(status);
@@ -618,11 +691,19 @@ export function OSFormDialog({
     delete payload.clientes;
     delete payload.bikes;
 
-    const { error } = os
-      ? await supabase.from("ordens_servico").update(payload).eq("id", os.id)
-      : await supabase.from("ordens_servico").insert(payload);
+    const { data: saved, error } = os
+      ? await supabase
+          .from("ordens_servico")
+          .update(payload)
+          .eq("id", os.id)
+          .select("*")
+          .single()
+      : await supabase.from("ordens_servico").insert(payload).select("*").single();
     setBusy(false);
-    if (error) return toast.error(error.message);
+    if (error) {
+      toast.error(error.message);
+      return null;
+    }
     toast.success(
       os
         ? "OS atualizada"
@@ -631,8 +712,32 @@ export function OSFormDialog({
           : "OS criada",
     );
     onSaved?.();
-    onOpenChange(false);
+    if (opts?.close !== false) onOpenChange(false);
+    return saved;
   };
+
+  /**
+   * Salva a OS (gera número se nova) e abre o comprovante A6 para impressão.
+   */
+  async function salvarEImprimirEtiqueta() {
+    const saved = await save({ close: false });
+    if (!saved?.numero) return;
+    setBusy(true);
+    try {
+      const etiqueta = await montarEtiquetaFromOs({
+        ...saved,
+        // Garante checklist/problema do formulário atual no comprovante
+        problema_relatado: form.problema_relatado ?? saved.problema_relatado,
+        checklist_entrada: form.checklist_entrada ?? saved.checklist_entrada,
+      });
+      setEtiquetaOs(etiqueta);
+      setEtiquetaOpen(true);
+      // Fecha o form para evitar conflito de modais / insert duplicado
+      onOpenChange(false);
+    } finally {
+      setBusy(false);
+    }
+  }
 
   /**
    * Exclui a OS em edição (somente admin).
@@ -654,6 +759,7 @@ export function OSFormDialog({
   }
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="flex max-h-[90vh] w-[calc(100%-1.5rem)] max-w-3xl flex-col gap-4 overflow-hidden p-4 sm:w-full sm:p-6">
         <DialogHeader className="shrink-0 pr-8">
@@ -1121,13 +1227,30 @@ export function OSFormDialog({
             >
               Cancelar
             </Button>
-            <Button className="w-full sm:w-auto" onClick={save} disabled={busy}>
+            <Button
+              type="button"
+              variant="secondary"
+              className="w-full sm:w-auto"
+              onClick={salvarEImprimirEtiqueta}
+              disabled={busy}
+            >
+              <Printer className="size-4" />
+              {busy ? "Salvando…" : "Imprimir etiqueta"}
+            </Button>
+            <Button className="w-full sm:w-auto" onClick={() => void save()} disabled={busy}>
               {busy ? "Salvando…" : "Salvar"}
             </Button>
           </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>
+
+    <OSEtiquetaDialog
+      open={etiquetaOpen}
+      onOpenChange={setEtiquetaOpen}
+      os={etiquetaOs}
+    />
+    </>
   );
 }
 

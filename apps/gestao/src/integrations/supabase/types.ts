@@ -86,6 +86,7 @@ export type Database = {
           ano: number | null
           bike_atual: boolean
           cliente_id: string
+          codigo_bike: string
           cor: string | null
           created_at: string
           data_compra: string | null
@@ -107,6 +108,7 @@ export type Database = {
           ano?: number | null
           bike_atual?: boolean
           cliente_id: string
+          codigo_bike?: string
           cor?: string | null
           created_at?: string
           data_compra?: string | null
@@ -128,6 +130,7 @@ export type Database = {
           ano?: number | null
           bike_atual?: boolean
           cliente_id?: string
+          codigo_bike?: string
           cor?: string | null
           created_at?: string
           data_compra?: string | null

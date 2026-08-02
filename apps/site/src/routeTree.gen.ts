@@ -21,6 +21,7 @@ import { Route as ContatoRouteImport } from './routes/contato'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as LojaIdRouteImport } from './routes/loja_.$id'
+import { Route as BCodigoRouteImport } from './routes/b.$codigo'
 import { Route as LojaProdutoIdRouteImport } from './routes/loja_.produto.$id'
 
 const SobreRoute = SobreRouteImport.update({
@@ -83,6 +84,11 @@ const LojaIdRoute = LojaIdRouteImport.update({
   path: '/loja/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const BCodigoRoute = BCodigoRouteImport.update({
+  id: '/b/$codigo',
+  path: '/b/$codigo',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LojaProdutoIdRoute = LojaProdutoIdRouteImport.update({
   id: '/loja_/produto/$id',
   path: '/loja/produto/$id',
@@ -101,6 +107,7 @@ export interface FileRoutesByFullPath {
   '/minha-conta': typeof MinhaContaRoute
   '/servicos': typeof ServicosRoute
   '/sobre': typeof SobreRoute
+  '/b/$codigo': typeof BCodigoRoute
   '/loja/$id': typeof LojaIdRoute
   '/loja/produto/$id': typeof LojaProdutoIdRoute
 }
@@ -116,6 +123,7 @@ export interface FileRoutesByTo {
   '/minha-conta': typeof MinhaContaRoute
   '/servicos': typeof ServicosRoute
   '/sobre': typeof SobreRoute
+  '/b/$codigo': typeof BCodigoRoute
   '/loja/$id': typeof LojaIdRoute
   '/loja/produto/$id': typeof LojaProdutoIdRoute
 }
@@ -132,6 +140,7 @@ export interface FileRoutesById {
   '/minha-conta': typeof MinhaContaRoute
   '/servicos': typeof ServicosRoute
   '/sobre': typeof SobreRoute
+  '/b/$codigo': typeof BCodigoRoute
   '/loja_/$id': typeof LojaIdRoute
   '/loja_/produto/$id': typeof LojaProdutoIdRoute
 }
@@ -149,6 +158,7 @@ export interface FileRouteTypes {
     | '/minha-conta'
     | '/servicos'
     | '/sobre'
+    | '/b/$codigo'
     | '/loja/$id'
     | '/loja/produto/$id'
   fileRoutesByTo: FileRoutesByTo
@@ -164,6 +174,7 @@ export interface FileRouteTypes {
     | '/minha-conta'
     | '/servicos'
     | '/sobre'
+    | '/b/$codigo'
     | '/loja/$id'
     | '/loja/produto/$id'
   id:
@@ -179,6 +190,7 @@ export interface FileRouteTypes {
     | '/minha-conta'
     | '/servicos'
     | '/sobre'
+    | '/b/$codigo'
     | '/loja_/$id'
     | '/loja_/produto/$id'
   fileRoutesById: FileRoutesById
@@ -195,6 +207,7 @@ export interface RootRouteChildren {
   MinhaContaRoute: typeof MinhaContaRoute
   ServicosRoute: typeof ServicosRoute
   SobreRoute: typeof SobreRoute
+  BCodigoRoute: typeof BCodigoRoute
   LojaIdRoute: typeof LojaIdRoute
   LojaProdutoIdRoute: typeof LojaProdutoIdRoute
 }
@@ -285,6 +298,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LojaIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/b/$codigo': {
+      id: '/b/$codigo'
+      path: '/b/$codigo'
+      fullPath: '/b/$codigo'
+      preLoaderRoute: typeof BCodigoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/loja_/produto/$id': {
       id: '/loja_/produto/$id'
       path: '/loja/produto/$id'
@@ -307,6 +327,7 @@ const rootRouteChildren: RootRouteChildren = {
   MinhaContaRoute: MinhaContaRoute,
   ServicosRoute: ServicosRoute,
   SobreRoute: SobreRoute,
+  BCodigoRoute: BCodigoRoute,
   LojaIdRoute: LojaIdRoute,
   LojaProdutoIdRoute: LojaProdutoIdRoute,
 }

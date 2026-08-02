@@ -41,6 +41,7 @@ import { Route as AppFornecedoresIdRouteImport } from './routes/_app.fornecedore
 import { Route as AppClientesNovaRouteImport } from './routes/_app.clientes_.nova'
 import { Route as AppClientesIdRouteImport } from './routes/_app.clientes_.$id'
 import { Route as AppBikesIdRouteImport } from './routes/_app.bikes_.$id'
+import { Route as AppBCodigoRouteImport } from './routes/_app.b.$codigo'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
@@ -202,6 +203,11 @@ const AppBikesIdRoute = AppBikesIdRouteImport.update({
   path: '/bikes/$id',
   getParentRoute: () => AppRoute,
 } as any)
+const AppBCodigoRoute = AppBCodigoRouteImport.update({
+  id: '/b/$codigo',
+  path: '/b/$codigo',
+  getParentRoute: () => AppRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
@@ -223,6 +229,7 @@ export interface FileRoutesByFullPath {
   '/relatorios': typeof AppRelatoriosRoute
   '/tipos-atividade': typeof AppTiposAtividadeRoute
   '/vendas': typeof AppVendasRouteWithChildren
+  '/b/$codigo': typeof AppBCodigoRoute
   '/bikes/$id': typeof AppBikesIdRoute
   '/clientes/$id': typeof AppClientesIdRoute
   '/clientes/nova': typeof AppClientesNovaRoute
@@ -255,6 +262,7 @@ export interface FileRoutesByTo {
   '/relatorios': typeof AppRelatoriosRoute
   '/tipos-atividade': typeof AppTiposAtividadeRoute
   '/': typeof AppIndexRoute
+  '/b/$codigo': typeof AppBCodigoRoute
   '/bikes/$id': typeof AppBikesIdRoute
   '/clientes/$id': typeof AppClientesIdRoute
   '/clientes/nova': typeof AppClientesNovaRoute
@@ -290,6 +298,7 @@ export interface FileRoutesById {
   '/_app/tipos-atividade': typeof AppTiposAtividadeRoute
   '/_app/vendas': typeof AppVendasRouteWithChildren
   '/_app/': typeof AppIndexRoute
+  '/_app/b/$codigo': typeof AppBCodigoRoute
   '/_app/bikes_/$id': typeof AppBikesIdRoute
   '/_app/clientes_/$id': typeof AppClientesIdRoute
   '/_app/clientes_/nova': typeof AppClientesNovaRoute
@@ -325,6 +334,7 @@ export interface FileRouteTypes {
     | '/relatorios'
     | '/tipos-atividade'
     | '/vendas'
+    | '/b/$codigo'
     | '/bikes/$id'
     | '/clientes/$id'
     | '/clientes/nova'
@@ -357,6 +367,7 @@ export interface FileRouteTypes {
     | '/relatorios'
     | '/tipos-atividade'
     | '/'
+    | '/b/$codigo'
     | '/bikes/$id'
     | '/clientes/$id'
     | '/clientes/nova'
@@ -391,6 +402,7 @@ export interface FileRouteTypes {
     | '/_app/tipos-atividade'
     | '/_app/vendas'
     | '/_app/'
+    | '/_app/b/$codigo'
     | '/_app/bikes_/$id'
     | '/_app/clientes_/$id'
     | '/_app/clientes_/nova'
@@ -636,6 +648,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppBikesIdRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/b/$codigo': {
+      id: '/_app/b/$codigo'
+      path: '/b/$codigo'
+      fullPath: '/b/$codigo'
+      preLoaderRoute: typeof AppBCodigoRouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
@@ -678,6 +697,7 @@ interface AppRouteChildren {
   AppTiposAtividadeRoute: typeof AppTiposAtividadeRoute
   AppVendasRoute: typeof AppVendasRouteWithChildren
   AppIndexRoute: typeof AppIndexRoute
+  AppBCodigoRoute: typeof AppBCodigoRoute
   AppBikesIdRoute: typeof AppBikesIdRoute
   AppClientesIdRoute: typeof AppClientesIdRoute
   AppClientesNovaRoute: typeof AppClientesNovaRoute
@@ -706,6 +726,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppTiposAtividadeRoute: AppTiposAtividadeRoute,
   AppVendasRoute: AppVendasRouteWithChildren,
   AppIndexRoute: AppIndexRoute,
+  AppBCodigoRoute: AppBCodigoRoute,
   AppBikesIdRoute: AppBikesIdRoute,
   AppClientesIdRoute: AppClientesIdRoute,
   AppClientesNovaRoute: AppClientesNovaRoute,

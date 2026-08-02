@@ -13,8 +13,10 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { ArrowLeft, Edit, Plus, Upload, Trash2, Bike as BikeIcon } from "lucide-react";
+import { ArrowLeft, Edit, Plus, Upload, Trash2, Bike as BikeIcon, QrCode } from "lucide-react";
 import { BikeFormDialog } from "@/components/BikeFormDialog";
+import { BikeAdesivoDialog } from "@/components/BikeAdesivoDialog";
+import { urlQrBike } from "@/lib/bike-adesivo";
 import { toast } from "sonner";
 
 const TIPOS_FOTO = ["Geral", "Câmbio Dianteiro", "Câmbio Traseiro", "Suspensão", "Canote", "Guidão / Mesa"];
@@ -28,6 +30,7 @@ function BikeDetail() {
   const { id } = Route.useParams();
   const [editOpen, setEditOpen] = useState(false);
   const [histOpen, setHistOpen] = useState(false);
+  const [adesivoOpen, setAdesivoOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const [tipoUpload, setTipoUpload] = useState("Geral");
 
@@ -111,14 +114,39 @@ function BikeDetail() {
             </div>
             <h1 className="text-2xl font-display font-bold mt-1">{bike.marca} {bike.modelo}</h1>
             <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-sm text-muted-foreground">
+              {bike.codigo_bike && (
+                <span className="font-mono font-semibold text-foreground">{bike.codigo_bike}</span>
+              )}
               <span>{bike.ano}</span>
               <span>Tamanho {bike.tamanho ?? "—"}</span>
               <span>{bike.cor}</span>
               {bike.numero_serie && <span>SN: {bike.numero_serie}</span>}
             </div>
           </div>
-          <Button variant="outline" onClick={() => setEditOpen(true)}><Edit className="size-4" /> Editar</Button>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                if (!bike.codigo_bike) {
+                  toast.error("Esta bike ainda não tem código de adesivo");
+                  return;
+                }
+                setAdesivoOpen(true);
+              }}
+            >
+              <QrCode className="size-4" /> Imprimir adesivo
+            </Button>
+            <Button variant="outline" onClick={() => setEditOpen(true)}>
+              <Edit className="size-4" /> Editar
+            </Button>
+          </div>
         </div>
+        {bike.codigo_bike && (
+          <p className="mt-3 text-xs text-muted-foreground">
+            QR aponta para{" "}
+            <span className="font-mono">{urlQrBike(bike.codigo_bike)}</span>
+          </p>
+        )}
 
         {bike.observacoes && (
           <div className="mt-4 p-3 rounded-lg bg-secondary text-sm">{bike.observacoes}</div>
@@ -205,6 +233,20 @@ function BikeDetail() {
 
       <BikeFormDialog open={editOpen} onOpenChange={setEditOpen} bike={bike} onSaved={() => refetch()} />
       <HistoricoDialog open={histOpen} onOpenChange={setHistOpen} bikeId={id} onSaved={() => refetchHist()} />
+      <BikeAdesivoDialog
+        open={adesivoOpen}
+        onOpenChange={setAdesivoOpen}
+        bike={
+          bike.codigo_bike
+            ? {
+                codigoBike: bike.codigo_bike,
+                marca: bike.marca,
+                modelo: bike.modelo,
+                clienteNome: bike.clientes?.nome,
+              }
+            : null
+        }
+      />
     </div>
   );
 }

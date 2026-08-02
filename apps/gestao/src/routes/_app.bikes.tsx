@@ -26,12 +26,14 @@ function BikesPage() {
     },
   });
 
+  /** Filtra bikes por marca, modelo, código do adesivo, série ou cliente. */
   const filtered = (data ?? []).filter((b: any) => {
     if (!q) return true;
     const s = q.toLowerCase();
     return (
       b.marca?.toLowerCase().includes(s) ||
       b.modelo?.toLowerCase().includes(s) ||
+      b.codigo_bike?.toLowerCase().includes(s) ||
       b.numero_serie?.toLowerCase().includes(s) ||
       b.clientes?.nome?.toLowerCase().includes(s)
     );
@@ -46,7 +48,7 @@ function BikesPage() {
       />
 
       <div className="mb-4 max-w-md">
-        <SearchBar value={q} onChange={setQ} placeholder="Marca, modelo, série, cliente…" />
+        <SearchBar value={q} onChange={setQ} placeholder="Marca, modelo, código, série, cliente…" />
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
