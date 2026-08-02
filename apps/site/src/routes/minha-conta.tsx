@@ -4,6 +4,8 @@ import {
   Bike,
   ChevronRight,
   ClipboardList,
+  ExternalLink,
+  FileText,
   Fingerprint,
   Loader2,
   Pencil,
@@ -127,6 +129,11 @@ type OsCliente = {
   valor_mao_obra: number | null;
   valor_pecas: number | null;
   valor_aprovado: number | null;
+  /** Status da NFS-e na Focus (ex.: autorizado). */
+  nfse_status: string | null;
+  nfse_numero: string | null;
+  /** URL do PDF da nota para o cliente abrir/baixar. */
+  nfse_url_pdf: string | null;
   created_at: string;
   bike_id: string | null;
   bikes: { marca: string | null; modelo: string | null } | null;
@@ -153,6 +160,22 @@ function fmtData(v: string | null | undefined) {
 function fmtMoeda(v: number | null | undefined) {
   if (v == null || Number.isNaN(Number(v))) return null;
   return Number(v).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
+/**
+ * Garante URL absoluta do PDF da NFS-e (Focus às vezes devolve caminho relativo).
+ */
+function urlPdfNfse(path: string | null | undefined) {
+  if (!path) return null;
+  if (path.startsWith("http")) return path;
+  return `https://focusnfe.com.br${path.startsWith("/") ? "" : "/"}${path}`;
+}
+
+/**
+ * Indica se a OS tem NFS-e autorizada com PDF disponível para o cliente.
+ */
+function temNotaDisponivel(os: Pick<OsCliente, "nfse_status" | "nfse_url_pdf">) {
+  return os.nfse_status === "autorizado" && !!urlPdfNfse(os.nfse_url_pdf);
 }
 
 /**
@@ -294,7 +317,7 @@ function MinhaContaPage() {
         (supabase as any)
           .from("ordens_servico")
           .select(
-            "id, numero, status, data_entrada, data_prevista, data_aprovacao, data_conclusao, data_entrega, data_pagamento, proxima_revisao, problema_relatado, servicos_executados, pecas_utilizadas, observacao_conclusao, aprovado, forma_pagamento, valor_mao_obra, valor_pecas, valor_aprovado, created_at, bike_id, bikes(marca, modelo)",
+            "id, numero, status, data_entrada, data_prevista, data_aprovacao, data_conclusao, data_entrega, data_pagamento, proxima_revisao, problema_relatado, servicos_executados, pecas_utilizadas, observacao_conclusao, aprovado, forma_pagamento, valor_mao_obra, valor_pecas, valor_aprovado, nfse_status, nfse_numero, nfse_url_pdf, created_at, bike_id, bikes(marca, modelo)",
           )
           .eq("cliente_id", c.id)
           .order("created_at", { ascending: false }),
@@ -885,6 +908,12 @@ function MinhaContaPage() {
                                 {total > 0 && (
                                   <p className="mt-2 text-sm font-medium">{fmtMoeda(total)}</p>
                                 )}
+                                {temNotaDisponivel(o) && (
+                                  <p className="mt-1.5 inline-flex items-center gap-1 text-xs font-medium text-primary">
+                                    <FileText className="size-3" aria-hidden />
+                                    Nota disponível
+                                  </p>
+                                )}
                               </div>
                             </div>
                           </div>
@@ -1292,6 +1321,33 @@ function OsDetalheDialog({
                   Pagamento: {os.forma_pagamento}
                 </p>
               )}
+            </div>
+          )}
+
+          {temNotaDisponivel(os) && (
+            <div className="rounded-xl border border-primary/25 bg-primary/5 p-4">
+              <p className="text-xs uppercase tracking-wider text-muted-foreground">
+                Nota fiscal (NFS-e)
+              </p>
+              {os.nfse_numero && (
+                <p className="mt-1 text-sm font-medium">
+                  Nº {os.nfse_numero}
+                </p>
+              )}
+              <Button
+                asChild
+                className="mt-3 w-full rounded-full sm:w-auto"
+                variant="default"
+              >
+                <a
+                  href={urlPdfNfse(os.nfse_url_pdf)!}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <ExternalLink className="mr-2 size-4" aria-hidden />
+                  Ver / baixar PDF da nota
+                </a>
+              </Button>
             </div>
           )}
 

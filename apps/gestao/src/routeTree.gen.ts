@@ -17,6 +17,7 @@ import { Route as AppTiposAtividadeRouteImport } from './routes/_app.tipos-ativi
 import { Route as AppRelatoriosRouteImport } from './routes/_app.relatorios'
 import { Route as AppPrecosRouteImport } from './routes/_app.precos'
 import { Route as AppPendenciasRouteImport } from './routes/_app.pendencias'
+import { Route as AppParametrosNfeRouteImport } from './routes/_app.parametros-nfe'
 import { Route as AppParametrosFinanceirosRouteImport } from './routes/_app.parametros-financeiros'
 import { Route as AppOficinaRouteImport } from './routes/_app.oficina'
 import { Route as AppMarketingRouteImport } from './routes/_app.marketing'
@@ -80,6 +81,11 @@ const AppPrecosRoute = AppPrecosRouteImport.update({
 const AppPendenciasRoute = AppPendenciasRouteImport.update({
   id: '/pendencias',
   path: '/pendencias',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppParametrosNfeRoute = AppParametrosNfeRouteImport.update({
+  id: '/parametros-nfe',
+  path: '/parametros-nfe',
   getParentRoute: () => AppRoute,
 } as any)
 const AppParametrosFinanceirosRoute =
@@ -224,6 +230,7 @@ export interface FileRoutesByFullPath {
   '/marketing': typeof AppMarketingRoute
   '/oficina': typeof AppOficinaRoute
   '/parametros-financeiros': typeof AppParametrosFinanceirosRoute
+  '/parametros-nfe': typeof AppParametrosNfeRoute
   '/pendencias': typeof AppPendenciasRoute
   '/precos': typeof AppPrecosRoute
   '/relatorios': typeof AppRelatoriosRoute
@@ -257,6 +264,7 @@ export interface FileRoutesByTo {
   '/marketing': typeof AppMarketingRoute
   '/oficina': typeof AppOficinaRoute
   '/parametros-financeiros': typeof AppParametrosFinanceirosRoute
+  '/parametros-nfe': typeof AppParametrosNfeRoute
   '/pendencias': typeof AppPendenciasRoute
   '/precos': typeof AppPrecosRoute
   '/relatorios': typeof AppRelatoriosRoute
@@ -292,6 +300,7 @@ export interface FileRoutesById {
   '/_app/marketing': typeof AppMarketingRoute
   '/_app/oficina': typeof AppOficinaRoute
   '/_app/parametros-financeiros': typeof AppParametrosFinanceirosRoute
+  '/_app/parametros-nfe': typeof AppParametrosNfeRoute
   '/_app/pendencias': typeof AppPendenciasRoute
   '/_app/precos': typeof AppPrecosRoute
   '/_app/relatorios': typeof AppRelatoriosRoute
@@ -329,6 +338,7 @@ export interface FileRouteTypes {
     | '/marketing'
     | '/oficina'
     | '/parametros-financeiros'
+    | '/parametros-nfe'
     | '/pendencias'
     | '/precos'
     | '/relatorios'
@@ -362,6 +372,7 @@ export interface FileRouteTypes {
     | '/marketing'
     | '/oficina'
     | '/parametros-financeiros'
+    | '/parametros-nfe'
     | '/pendencias'
     | '/precos'
     | '/relatorios'
@@ -396,6 +407,7 @@ export interface FileRouteTypes {
     | '/_app/marketing'
     | '/_app/oficina'
     | '/_app/parametros-financeiros'
+    | '/_app/parametros-nfe'
     | '/_app/pendencias'
     | '/_app/precos'
     | '/_app/relatorios'
@@ -478,6 +490,13 @@ declare module '@tanstack/react-router' {
       path: '/pendencias'
       fullPath: '/pendencias'
       preLoaderRoute: typeof AppPendenciasRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/parametros-nfe': {
+      id: '/_app/parametros-nfe'
+      path: '/parametros-nfe'
+      fullPath: '/parametros-nfe'
+      preLoaderRoute: typeof AppParametrosNfeRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/parametros-financeiros': {
@@ -691,6 +710,7 @@ interface AppRouteChildren {
   AppMarketingRoute: typeof AppMarketingRoute
   AppOficinaRoute: typeof AppOficinaRoute
   AppParametrosFinanceirosRoute: typeof AppParametrosFinanceirosRoute
+  AppParametrosNfeRoute: typeof AppParametrosNfeRoute
   AppPendenciasRoute: typeof AppPendenciasRoute
   AppPrecosRoute: typeof AppPrecosRoute
   AppRelatoriosRoute: typeof AppRelatoriosRoute
@@ -720,6 +740,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppMarketingRoute: AppMarketingRoute,
   AppOficinaRoute: AppOficinaRoute,
   AppParametrosFinanceirosRoute: AppParametrosFinanceirosRoute,
+  AppParametrosNfeRoute: AppParametrosNfeRoute,
   AppPendenciasRoute: AppPendenciasRoute,
   AppPrecosRoute: AppPrecosRoute,
   AppRelatoriosRoute: AppRelatoriosRoute,

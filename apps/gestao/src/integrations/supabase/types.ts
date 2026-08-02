@@ -589,6 +589,75 @@ export type Database = {
         }
         Relationships: []
       }
+      nfse_settings: {
+        Row: {
+          aliquota: number | null
+          cnpj: string
+          codigo_indicador_operacao: string | null
+          codigo_municipio: string
+          codigo_nbs: string | null
+          codigo_tributario_municipio: string | null
+          consumidor_final: number
+          created_at: string
+          discriminacao_padrao: string | null
+          exigibilidade_suspensa: number
+          finalidade_emissao: number
+          ibs_cbs_classificacao_tributaria: string | null
+          id: string
+          indicador_destinatario: number
+          inscricao_municipal: string
+          item_lista_servico: string
+          natureza_operacao: string
+          optante_simples_nacional: boolean
+          regime_especial_tributacao: string | null
+          updated_at: string
+        }
+        Insert: {
+          aliquota?: number | null
+          cnpj?: string
+          codigo_indicador_operacao?: string | null
+          codigo_municipio?: string
+          codigo_nbs?: string | null
+          codigo_tributario_municipio?: string | null
+          consumidor_final?: number
+          created_at?: string
+          discriminacao_padrao?: string | null
+          exigibilidade_suspensa?: number
+          finalidade_emissao?: number
+          ibs_cbs_classificacao_tributaria?: string | null
+          id?: string
+          indicador_destinatario?: number
+          inscricao_municipal?: string
+          item_lista_servico?: string
+          natureza_operacao?: string
+          optante_simples_nacional?: boolean
+          regime_especial_tributacao?: string | null
+          updated_at?: string
+        }
+        Update: {
+          aliquota?: number | null
+          cnpj?: string
+          codigo_indicador_operacao?: string | null
+          codigo_municipio?: string
+          codigo_nbs?: string | null
+          codigo_tributario_municipio?: string | null
+          consumidor_final?: number
+          created_at?: string
+          discriminacao_padrao?: string | null
+          exigibilidade_suspensa?: number
+          finalidade_emissao?: number
+          ibs_cbs_classificacao_tributaria?: string | null
+          id?: string
+          indicador_destinatario?: number
+          inscricao_municipal?: string
+          item_lista_servico?: string
+          natureza_operacao?: string
+          optante_simples_nacional?: boolean
+          regime_especial_tributacao?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       ordens_servico: {
         Row: {
           aprovado: boolean | null
@@ -609,6 +678,15 @@ export type Database = {
           fotos_servico: string[] | null
           id: string
           mecanico: string | null
+          nfse_codigo_verificacao: string | null
+          nfse_emitida_em: string | null
+          nfse_erro: string | null
+          nfse_numero: string | null
+          nfse_numero_rps: string | null
+          nfse_ref: string | null
+          nfse_status: string | null
+          nfse_url_pdf: string | null
+          nfse_url_xml: string | null
           numero: string
           observacao_aprovacao_origem: string | null
           observacao_conclusao: string | null
@@ -650,6 +728,15 @@ export type Database = {
           fotos_servico?: string[] | null
           id?: string
           mecanico?: string | null
+          nfse_codigo_verificacao?: string | null
+          nfse_emitida_em?: string | null
+          nfse_erro?: string | null
+          nfse_numero?: string | null
+          nfse_numero_rps?: string | null
+          nfse_ref?: string | null
+          nfse_status?: string | null
+          nfse_url_pdf?: string | null
+          nfse_url_xml?: string | null
           numero?: string
           observacao_aprovacao_origem?: string | null
           observacao_conclusao?: string | null
@@ -691,6 +778,15 @@ export type Database = {
           fotos_servico?: string[] | null
           id?: string
           mecanico?: string | null
+          nfse_codigo_verificacao?: string | null
+          nfse_emitida_em?: string | null
+          nfse_erro?: string | null
+          nfse_numero?: string | null
+          nfse_numero_rps?: string | null
+          nfse_ref?: string | null
+          nfse_status?: string | null
+          nfse_url_pdf?: string | null
+          nfse_url_xml?: string | null
           numero?: string
           observacao_aprovacao_origem?: string | null
           observacao_conclusao?: string | null

@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
-import { Plus, Trash2, Flag, Sparkles, Loader2, Printer } from "lucide-react";
+import { Plus, Trash2, Flag, Sparkles, Loader2, Printer, FileText, ExternalLink, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { invocarNfse, labelNfseStatus, podeEmitirNfse } from "@/lib/nfse";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
@@ -162,6 +163,8 @@ export function OSFormDialog({
   /** Preview/impressão do comprovante A6 da OS. */
   const [etiquetaOpen, setEtiquetaOpen] = useState(false);
   const [etiquetaOs, setEtiquetaOs] = useState<EtiquetaOSOpts | null>(null);
+  /** Indica emissão/consulta de NFS-e via Focus. */
+  const [nfseBusy, setNfseBusy] = useState(false);
 
   function initial() {
     return {
@@ -235,6 +238,70 @@ export function OSFormDialog({
     const nome = await nomeUsuarioLogado();
     if (!nome) return;
     setForm((f: any) => (f.mecanico ? f : { ...f, mecanico: nome }));
+  }
+
+  /**
+   * Mescla campos NFS-e retornados pela Edge Function no formulário local.
+   */
+  function aplicarNfseNoForm(nfseOs: Record<string, unknown> | null | undefined) {
+    if (!nfseOs) return;
+    setForm((f: any) => ({
+      ...f,
+      nfse_ref: nfseOs.nfse_ref ?? f.nfse_ref,
+      nfse_status: nfseOs.nfse_status ?? f.nfse_status,
+      nfse_numero: nfseOs.nfse_numero ?? f.nfse_numero,
+      nfse_codigo_verificacao: nfseOs.nfse_codigo_verificacao ?? f.nfse_codigo_verificacao,
+      nfse_url_pdf: nfseOs.nfse_url_pdf ?? f.nfse_url_pdf,
+      nfse_url_xml: nfseOs.nfse_url_xml ?? f.nfse_url_xml,
+      nfse_erro: nfseOs.nfse_erro ?? null,
+      nfse_numero_rps: nfseOs.nfse_numero_rps ?? f.nfse_numero_rps,
+      nfse_emitida_em: nfseOs.nfse_emitida_em ?? f.nfse_emitida_em,
+    }));
+  }
+
+  /**
+   * CTA: emite NFS-e na Focus (homologação/produção conforme secrets).
+   */
+  async function emitirNfse() {
+    if (!os?.id) return toast.error("Salve a OS antes de emitir a nota.");
+    if (form.status !== "pago") return toast.error("Marque a OS como Pago antes de emitir.");
+    setNfseBusy(true);
+    try {
+      const { data, error } = await invocarNfse("emitir", os.id);
+      if (error) {
+        aplicarNfseNoForm(data?.os);
+        toast.error(error);
+        return;
+      }
+      aplicarNfseNoForm(data?.os);
+      if (data?.ja_autorizada) toast.success("NFS-e já estava autorizada.");
+      else if (data?.os?.nfse_status === "autorizado") toast.success("NFS-e autorizada.");
+      else toast.success("NFS-e enviada. Aguarde a autorização da Prefeitura.");
+      onSaved?.();
+    } finally {
+      setNfseBusy(false);
+    }
+  }
+
+  /**
+   * CTA: atualiza status/PDF consultando a Focus pela ref da OS.
+   */
+  async function consultarNfse() {
+    if (!os?.id) return;
+    setNfseBusy(true);
+    try {
+      const { data, error } = await invocarNfse("consultar", os.id);
+      if (error) {
+        aplicarNfseNoForm(data?.os);
+        toast.error(error);
+        return;
+      }
+      aplicarNfseNoForm(data?.os);
+      toast.success(`Status: ${labelNfseStatus(data?.os?.nfse_status)}`);
+      onSaved?.();
+    } finally {
+      setNfseBusy(false);
+    }
   }
 
   /**
@@ -1202,6 +1269,70 @@ export function OSFormDialog({
                 </Field>
               </div>
             </div>
+
+            {os?.id && form.status === "pago" && (
+              <div className="rounded-lg border p-3 space-y-3">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="text-xs uppercase tracking-wider font-semibold text-muted-foreground">
+                    Nota fiscal (NFS-e)
+                  </div>
+                  {form.nfse_status && (
+                    <span className="text-xs text-muted-foreground">
+                      {labelNfseStatus(form.nfse_status)}
+                      {form.nfse_numero ? ` · nº ${form.nfse_numero}` : ""}
+                    </span>
+                  )}
+                </div>
+                {form.nfse_erro && (
+                  <p className="text-xs text-destructive">{form.nfse_erro}</p>
+                )}
+                <p className="text-[11px] text-muted-foreground">
+                  Emissão manual via Focus NFe. Não dispara ao marcar como Pago.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {podeEmitirNfse({
+                    id: os.id,
+                    status: form.status,
+                    nfse_status: form.nfse_status,
+                    nfse_url_pdf: form.nfse_url_pdf,
+                  }) && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => void emitirNfse()}
+                      disabled={nfseBusy || busy}
+                    >
+                      {nfseBusy ? (
+                        <Loader2 className="size-4 animate-spin" />
+                      ) : (
+                        <FileText className="size-4" />
+                      )}
+                      Emitir NFS-e
+                    </Button>
+                  )}
+                  {form.nfse_ref && form.nfse_status !== "autorizado" && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => void consultarNfse()}
+                      disabled={nfseBusy || busy}
+                    >
+                      <RefreshCw className={cn("size-4", nfseBusy && "animate-spin")} />
+                      Atualizar status
+                    </Button>
+                  )}
+                  {form.nfse_url_pdf && (
+                    <Button type="button" size="sm" variant="secondary" asChild>
+                      <a href={form.nfse_url_pdf} target="_blank" rel="noreferrer">
+                        <ExternalLink className="size-4" />
+                        Abrir / imprimir PDF
+                      </a>
+                    </Button>
+                  )}
+                </div>
+              </div>
+            )}
           </TabsContent>
         </Tabs>
         </div>

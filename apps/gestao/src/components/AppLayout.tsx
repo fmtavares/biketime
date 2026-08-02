@@ -29,6 +29,7 @@ import {
   Plus,
   Store,
   BookOpenCheck,
+  FileText,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -122,6 +123,7 @@ const configSectionAdmin: NavSection = {
     { to: "/marcas", label: "Marcas de bikes", icon: Tag },
     { to: "/tipos-atividade", label: "Tipos de atividade", icon: ListChecks },
     { to: "/parametros-financeiros", label: "Parâmetros financeiros", icon: SlidersHorizontal },
+    { to: "/parametros-nfe", label: "Parâmetro NFe", icon: FileText },
   ],
 };
 
