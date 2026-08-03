@@ -26,7 +26,7 @@ type Props = {
 };
 
 /**
- * Preview 80×50mm do comprovante de entrada da OS + impressão sem popup.
+ * Preview 80×100mm do comprovante de entrada da OS + impressão sem popup.
  */
 export function OSEtiquetaDialog({ open, onOpenChange, os }: Props) {
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
