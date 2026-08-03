@@ -27,7 +27,8 @@ function zplText(raw: string, maxLen = 48): string {
 
 /**
  * Desenha uma via da OS pequena (40×25 mm) em origem (ox, oy) dots.
- * QR nativo ^BQ (sem logo) — máxima legibilidade na térmica.
+ * QR nativo ^BQ — dimensionado para caber na via sem estourar a direita;
+ * textos à esquerda com ^FB para não invadir o QR.
  */
 function zplViaPequena(
   opts: EtiquetaOSOpts,
@@ -36,31 +37,45 @@ function zplViaPequena(
 ): string {
   const m = mmToDots(1);
   const viaW = mmToDots(40);
-  /** Magnificação do módulo QR (dots); ~90% da altura útil em 203 dpi. */
-  const qrMag = 5;
-  const qrFoX = ox + viaW - m - mmToDots(18);
+  const gapTxtQr = mmToDots(1);
+
+  /**
+   * Magnificação 4: URL típica (~v4, ~33 módulos) ≈ 132 dots (~16,5 mm),
+   * cabe na via com margem 1 mm sem estourar a direita.
+   */
+  const qrMag = 4;
+  const qrModulesEst = 35; // folga acima do típico para a URL /os/...
+  const qrDots = qrModulesEst * qrMag;
+  const qrFoX = ox + viaW - m - qrDots;
   const qrFoY = oy + m;
 
-  const numero = zplText(opts.numero, 20);
-  const cliente = zplText(opts.clienteNome || "—", 28);
-  const bike = zplText(tituloBikeEtiqueta(opts), 28);
+  const x = ox + m;
+  /** Largura máxima da coluna de texto (corta antes do QR). */
+  const textW = Math.max(40, qrFoX - x - gapTxtQr);
+
+  const numero = zplText(opts.numero, 16);
+  const cliente = zplText(opts.clienteNome || "—", 40);
+  const bike = zplText(tituloBikeEtiqueta(opts), 40);
   const entrada = formatarDataEtiquetaCurta(opts.dataEntrada);
   const prevista = formatarDataEtiquetaCurta(opts.dataPrevista);
   const qrUrl = urlQrOs(opts.numero);
 
-  const x = ox + m;
   let y = oy + m + mmToDots(1.2);
 
+  /** Campo de texto com largura limitada (não invade o QR). */
+  const fb = (yy: number, h: number, text: string) =>
+    `^FO${x},${yy}^A0N,${h},${h}^FB${textW},1,0,L,0^FD${text}^FS`;
+
   const lines: string[] = [];
-  lines.push(`^FO${x},${y}^A0N,28,28^FD${numero}^FS`);
+  lines.push(fb(y, 28, numero));
   y += 32;
-  lines.push(`^FO${x},${y}^A0N,18,18^FD${cliente}^FS`);
+  lines.push(fb(y, 18, cliente));
   y += 22;
-  lines.push(`^FO${x},${y}^A0N,18,18^FD${bike}^FS`);
+  lines.push(fb(y, 18, bike));
   y += 28;
-  lines.push(`^FO${x},${y}^A0N,16,16^FD> Entrada ${entrada}^FS`);
+  lines.push(fb(y, 16, `> Entrada ${entrada}`));
   y += 20;
-  lines.push(`^FO${x},${y}^A0N,16,16^FD# Previsto ${prevista}^FS`);
+  lines.push(fb(y, 16, `# Previsto ${prevista}`));
   lines.push(
     `^FO${qrFoX},${qrFoY}^BQN,2,${qrMag}^FDQA,${zplText(qrUrl, 200)}^FS`,
   );
