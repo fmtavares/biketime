@@ -90,7 +90,7 @@ export function OSEtiquetaDialog({
 
   const titulo =
     formato === "pequena"
-      ? `OS pequena (${spec.larguraMm}×${spec.alturaViaMm} mm · ${spec.vias} por linha)`
+      ? `OS pequena (${spec.larguraMm}×${spec.alturaViaMm} mm · gap ${spec.gapMm}/${spec.gapVMm} mm)`
       : formato === "simples"
         ? `OS simples (${spec.larguraMm}×${spec.alturaViaMm} mm)`
         : `OS dupla (${spec.folhaLarguraMm}×${spec.folhaAlturaMm} mm · ${spec.vias} vias)`;
@@ -106,43 +106,55 @@ export function OSEtiquetaDialog({
           <p className="text-sm text-muted-foreground">OS não selecionada.</p>
         ) : (
           <div className="mx-auto w-full max-w-[400px] overflow-hidden rounded-lg border bg-neutral-100 p-2">
+            {/* Folha física: vias + gaps H/V (cinza = gap) */}
             <div
-              className={`mx-auto flex w-full overflow-hidden rounded bg-neutral-200 shadow-sm ${
-                horizontal ? "flex-row" : "flex-col"
-              }`}
+              className="mx-auto flex w-full flex-col overflow-hidden rounded bg-neutral-200 shadow-sm"
               style={{
                 aspectRatio: `${spec.folhaLarguraMm} / ${spec.folhaAlturaMm}`,
-                gap: spec.gapMm > 0 ? `${(spec.gapMm / spec.folhaLarguraMm) * 100}%` : undefined,
               }}
             >
-              {busy || !previewUrl ? (
-                <div className="flex flex-1 items-center justify-center bg-white">
-                  <Loader2 className="size-6 animate-spin text-muted-foreground" />
-                </div>
-              ) : (
-                Array.from({ length: spec.vias }, (_, i) => (
-                  <div
-                    key={i}
-                    className={`relative overflow-hidden bg-white ${
-                      horizontal
-                        ? "h-full"
-                        : "w-full border-b border-dashed border-neutral-300 last:border-b-0"
-                    }`}
-                    style={{
-                      aspectRatio: `${spec.larguraMm} / ${spec.alturaViaMm}`,
-                      flex: horizontal
-                        ? `${spec.larguraMm} 0 0`
-                        : undefined,
-                      width: horizontal ? undefined : "100%",
-                    }}
-                  >
-                    <img
-                      src={previewUrl}
-                      alt={`Etiqueta ${os.numero} via ${i + 1}`}
-                      className="absolute inset-0 h-full w-full object-contain"
-                    />
+              <div
+                className={`flex min-h-0 w-full ${horizontal ? "flex-row" : "flex-col"}`}
+                style={{
+                  flex: `${spec.alturaViaMm} 0 0`,
+                  gap:
+                    spec.gapMm > 0
+                      ? `${(spec.gapMm / spec.folhaLarguraMm) * 100}%`
+                      : undefined,
+                }}
+              >
+                {busy || !previewUrl ? (
+                  <div className="flex flex-1 items-center justify-center bg-white">
+                    <Loader2 className="size-6 animate-spin text-muted-foreground" />
                   </div>
-                ))
+                ) : (
+                  Array.from({ length: spec.vias }, (_, i) => (
+                    <div
+                      key={i}
+                      className={`relative overflow-hidden bg-white ${
+                        horizontal ? "h-full" : "w-full"
+                      }`}
+                      style={{
+                        aspectRatio: `${spec.larguraMm} / ${spec.alturaViaMm}`,
+                        flex: horizontal ? `${spec.larguraMm} 0 0` : "1 1 0",
+                        width: horizontal ? undefined : "100%",
+                      }}
+                    >
+                      <img
+                        src={previewUrl}
+                        alt={`Etiqueta ${os.numero} via ${i + 1}`}
+                        className="absolute inset-0 h-full w-full object-contain"
+                      />
+                    </div>
+                  ))
+                )}
+              </div>
+              {spec.gapVMm > 0 && (
+                <div
+                  className="w-full shrink-0 bg-neutral-200"
+                  style={{ flex: `${spec.gapVMm} 0 0` }}
+                  aria-hidden
+                />
               )}
             </div>
           </div>

@@ -19,8 +19,10 @@ type SpecEtiqueta = {
   vias: number;
   /** Empilhamento das vias na folha. */
   layout: "coluna" | "linha";
-  /** Espaço entre vias na folha (mm). */
+  /** Espaço horizontal entre vias na mesma linha (mm). */
   gapMm: number;
+  /** Espaço vertical após a linha (mm) — avanço até a próxima fileira. */
+  gapVMm: number;
   margemMm: number;
 };
 
@@ -33,6 +35,7 @@ const SPECS: Record<FormatoEtiquetaOS, SpecEtiqueta> = {
     vias: 2,
     layout: "coluna",
     gapMm: 0,
+    gapVMm: 0,
     margemMm: 2,
   },
   simples: {
@@ -43,17 +46,19 @@ const SPECS: Record<FormatoEtiquetaOS, SpecEtiqueta> = {
     vias: 1,
     layout: "coluna",
     gapMm: 0,
+    gapVMm: 0,
     margemMm: 2,
   },
-  /** Duas vias 40×25mm lado a lado, com 2mm no meio (folha 82×25). */
+  /** Duas vias 40×25 + gap H 2mm + gap V 2mm → folha 82×27. */
   pequena: {
     larguraMm: 40,
     alturaViaMm: 25,
     folhaLarguraMm: 82,
-    folhaAlturaMm: 25,
+    folhaAlturaMm: 27,
     vias: 2,
     layout: "linha",
     gapMm: 2,
+    gapVMm: 2,
     margemMm: 1,
   },
 };
@@ -215,8 +220,8 @@ function quebrarLinhas(
 }
 
 /**
- * Layout compacto 40×25mm: QR no topo com o título;
- * serviço usa a faixa larga logo abaixo do QR até o rodapé.
+ * Layout compacto 40×25mm: QR ~90% da altura (legível no scan);
+ * textos na coluna esquerda (OS, cliente, bike, datas).
  */
 async function renderEtiquetaOSPequenaDataUrl(
   opts: EtiquetaOSOpts & { qrDataUrl?: string | null },
@@ -244,75 +249,64 @@ async function renderEtiquetaOSPequenaDataUrl(
 
   const bike = tituloBikeEtiqueta(opts);
   const cliente = (opts.clienteNome ?? "").trim() || "—";
-  const problema = (opts.problemaRelatado ?? "").trim() || "—";
   const entrada = formatarDataEtiquetaCurta(opts.dataEntrada);
   const prevista = formatarDataEtiquetaCurta(opts.dataPrevista);
 
   const gap = 4;
-  const qrSize = Math.round(11 * PX_POR_MM); // ~11mm, alinhado ao topo
-  const leftW = Math.max(40, contentW - qrSize - gap);
-  /** Faixa do serviço: um pouco abaixo do QR até o fim. */
-  const servicoTop = qrSize + 5;
-  const labelServicoH = 12;
-  const servicoLH = 13;
-  const servicoAvail = contentH - servicoTop - labelServicoH;
-  const servicoLines = Math.max(2, Math.floor(servicoAvail / servicoLH));
+  /** QR ocupa ~90% da altura útil para facilitar a leitura. */
+  const qrSize = Math.round(contentH * 0.9);
+  /** Alinhado ao topo com o título da OS. */
+  const qrY = 0;
+  const leftW = Math.max(36, contentW - qrSize - gap);
 
-  ctx.textBaseline = "top";
-  let y = 0;
-
-  // QR alinhado ao topo com o título da OS
+  // QR grande à direita — o topo do QR é a referência de alinhamento
   if (opts.qrDataUrl) {
     try {
       const qrImg = await loadImage(opts.qrDataUrl);
-      ctx.drawImage(qrImg, contentW - qrSize, 0, qrSize, qrSize);
+      ctx.drawImage(qrImg, contentW - qrSize, qrY, qrSize, qrSize);
     } catch {
       /* segue sem QR */
     }
   }
 
+  // Título da OS: desce até a faixa útil do QR (após a quiet zone branca ~8%)
   ctx.fillStyle = "#111111";
-  ctx.font = "900 24px Arial Black, Arial, Helvetica, sans-serif";
+  ctx.font = "900 18px Arial Black, Arial, Helvetica, sans-serif";
+  ctx.textBaseline = "alphabetic";
   const osNum = quebrarLinhas(ctx, opts.numero, leftW, 1)[0] ?? opts.numero;
-  ctx.fillText(osNum, 0, y);
-  y += 26;
+  const osMetrics = ctx.measureText(osNum);
+  const osAscent = osMetrics.actualBoundingBoxAscent || 14;
+  const osDescent = osMetrics.actualBoundingBoxDescent || 4;
+  const tituloOffsetY = Math.round(qrSize * 0.1);
+  ctx.fillText(osNum, 0, qrY + tituloOffsetY + osAscent);
 
-  ctx.font = "600 12px Arial, Helvetica, sans-serif";
+  ctx.textBaseline = "top";
+  let y = qrY + tituloOffsetY + osAscent + osDescent + 4;
+
+  ctx.font = "600 10px Arial, Helvetica, sans-serif";
   for (const ln of quebrarLinhas(ctx, cliente, leftW, 1)) {
-    if (y + 13 > servicoTop) break;
+    if (y > contentH - 10) break;
     ctx.fillText(ln, 0, y);
-    y += 14;
+    y += 12;
   }
   for (const ln of quebrarLinhas(ctx, bike, leftW, 1)) {
-    if (y + 13 > servicoTop) break;
+    if (y > contentH - 10) break;
     ctx.fillText(ln, 0, y);
-    y += 14;
+    y += 12;
   }
 
+  // Espaço entre bike e datas
+  y += 8;
+
   // ▶ = chegou na oficina; ⏱ = prazo à frente
-  ctx.font = "600 11px Arial, Helvetica, sans-serif";
+  ctx.font = "600 9px Arial, Helvetica, sans-serif";
   const datas = [`▶ Entrada ${entrada}`, `⏱ Previsto ${prevista}`];
   for (const data of datas) {
     for (const ln of quebrarLinhas(ctx, data, leftW, 1)) {
-      if (y + 12 > servicoTop) break;
+      if (y > contentH - 9) break;
       ctx.fillText(ln, 0, y);
-      y += 13;
+      y += 11;
     }
-  }
-
-  // Resumo do serviço: largura total, da base do QR até o rodapé
-  let sy = servicoTop;
-  ctx.fillStyle = "#555555";
-  ctx.font = "700 10px Arial, Helvetica, sans-serif";
-  ctx.fillText("SERVIÇO", 0, sy);
-  sy += labelServicoH;
-  ctx.fillStyle = "#111111";
-  ctx.font = "500 12px Arial, Helvetica, sans-serif";
-  const linhasServico = quebrarLinhas(ctx, problema, contentW, servicoLines);
-  for (const ln of linhasServico) {
-    if (sy + servicoLH > contentH + 2) break;
-    ctx.fillText(ln, 0, sy);
-    sy += servicoLH;
   }
 
   ctx.restore();
@@ -541,7 +535,7 @@ export async function renderEtiquetaOSDataUrl(
 
 /**
  * Imprime a etiqueta no formato pedido
- * (dupla coluna, simples 1 via, pequena 2 vias em linha 82×25 com gap 2mm).
+ * (dupla coluna, simples 1 via, pequena 2 vias em linha 82×27 com gaps 2mm).
  */
 export function imprimirEtiquetaOS(
   dataUrl: string,
@@ -554,7 +548,8 @@ export function imprimirEtiquetaOS(
   const viaH = spec.alturaViaMm;
   const vias = spec.vias;
   const gapMm = spec.gapMm;
-  const flexDir = spec.layout === "linha" ? "row" : "column";
+  const gapVMm = spec.gapVMm;
+  const emLinha = spec.layout === "linha";
 
   const iframe = document.createElement("iframe");
   iframe.setAttribute("aria-hidden", "true");
@@ -576,6 +571,11 @@ export function imprimirEtiquetaOS(
   const viasHtml = Array.from({ length: vias }, (_, i) =>
     `<div class="via"><img src="${dataUrl}" alt="Etiqueta OS via ${i + 1}" /></div>`,
   ).join("");
+
+  /** Linha com vias + gap vertical reservado no fim da folha (próxima fileira). */
+  const corpoHtml = emLinha
+    ? `<div class="linha">${viasHtml}</div>`
+    : viasHtml;
 
   doc.open();
   doc.write(`<!DOCTYPE html>
@@ -599,14 +599,22 @@ export function imprimirEtiquetaOS(
       width: ${folhaW}mm;
       height: ${folhaH}mm;
       display: flex;
-      flex-direction: ${flexDir};
+      flex-direction: ${emLinha ? "column" : "column"};
+      ${emLinha ? "" : `gap: ${gapMm}mm;`}
+    }
+    .linha {
+      width: ${folhaW}mm;
+      height: ${viaH}mm;
+      flex: 0 0 ${viaH}mm;
+      display: flex;
+      flex-direction: row;
       gap: ${gapMm}mm;
     }
     .via {
       width: ${viaW}mm;
       height: ${viaH}mm;
       overflow: hidden;
-      flex: 0 0 ${spec.layout === "linha" ? `${viaW}mm` : `${viaH}mm`};
+      flex: 0 0 ${emLinha ? `${viaW}mm` : `${viaH}mm`};
     }
     .via img {
       display: block;
@@ -615,6 +623,14 @@ export function imprimirEtiquetaOS(
       max-width: ${viaW}mm;
       max-height: ${viaH}mm;
       border: 0;
+    }
+    /* Gap vertical: espaço em branco até a próxima linha de etiquetas */
+    .folha::after {
+      content: "";
+      display: ${gapVMm > 0 ? "block" : "none"};
+      flex: 0 0 ${gapVMm}mm;
+      height: ${gapVMm}mm;
+      width: 100%;
     }
     @media print {
       html, body, .folha {
@@ -630,7 +646,7 @@ export function imprimirEtiquetaOS(
 </head>
 <body>
   <div class="folha">
-    ${viasHtml}
+    ${corpoHtml}
   </div>
 </body>
 </html>`);
