@@ -53,6 +53,15 @@ export function tituloBikeEtiqueta(opts: Pick<EtiquetaOSOpts, "marca" | "modelo"
 }
 
 /**
+ * Limita texto longo para caber na etiqueta 80×50mm.
+ */
+function truncar(s: string, max: number) {
+  const t = s.trim();
+  if (t.length <= max) return t;
+  return `${t.slice(0, max - 1).trimEnd()}…`;
+}
+
+/**
  * Gera QR da bike quando há código; senão retorna null (etiqueta sem QR).
  */
 export async function gerarQrEtiquetaOS(
@@ -64,23 +73,23 @@ export async function gerarQrEtiquetaOS(
 }
 
 /**
- * Imprime a etiqueta 80mm (rolo contínuo) via iframe oculto.
+ * Imprime a etiqueta 80×50mm via iframe oculto.
  */
 export function imprimirEtiquetaOS(html: string) {
   imprimirAdesivoHtml(html);
 }
 
 /**
- * Monta o HTML do comprovante de entrada da OS para papel térmico 80mm (rolo contínuo).
- * Largura fixa 80mm; altura acompanha o conteúdo.
+ * Monta o HTML do comprovante de entrada da OS — 80mm × 50mm, margem 2mm.
+ * Área útil: 76mm × 46mm.
  */
 export function htmlEtiquetaOS(
   opts: EtiquetaOSOpts & { qrDataUrl?: string | null },
 ) {
   const bike = tituloBikeEtiqueta(opts);
-  const cliente = (opts.clienteNome ?? "").trim() || "—";
-  const problema = (opts.problemaRelatado ?? "").trim() || "—";
-  const checklist = textoChecklistEtiqueta(opts.checklistEntrada);
+  const cliente = truncar((opts.clienteNome ?? "").trim() || "—", 28);
+  const problema = truncar((opts.problemaRelatado ?? "").trim() || "—", 90);
+  const checklist = truncar(textoChecklistEtiqueta(opts.checklistEntrada), 70);
   const entrada = formatarDataEtiqueta(opts.dataEntrada);
   const prevista = formatarDataEtiqueta(opts.dataPrevista);
   const codigo = (opts.codigoBike ?? "").trim();
@@ -93,98 +102,117 @@ export function htmlEtiquetaOS(
   <title>Comprovante ${esc(opts.numero)}</title>
   <style>
     @page {
-      size: 80mm auto;
-      margin: 2mm 3mm;
+      size: 80mm 50mm;
+      margin: 2mm;
     }
     * { box-sizing: border-box; }
     html, body {
       margin: 0;
       padding: 0;
       width: 80mm;
+      height: 50mm;
     }
     body {
       font-family: system-ui, -apple-system, sans-serif;
       color: #111;
       background: #fff;
-      font-size: 8.5pt;
-      line-height: 1.25;
+      font-size: 6.5pt;
+      line-height: 1.15;
+      overflow: hidden;
     }
     .sheet {
-      width: 74mm;
+      width: 76mm;
+      height: 46mm;
       margin: 0 auto;
       display: flex;
       flex-direction: column;
+      overflow: hidden;
+    }
+    .head {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 2mm;
     }
     .brand {
-      font-size: 12pt;
+      font-size: 8pt;
       font-weight: 800;
       letter-spacing: 0.02em;
-      line-height: 1.1;
+      line-height: 1;
     }
     .subtitle {
-      margin-top: 0.8mm;
-      font-size: 7.5pt;
-      color: #444;
+      font-size: 5.5pt;
+      color: #555;
+      white-space: nowrap;
     }
     .top {
       display: flex;
-      gap: 2.5mm;
+      gap: 2mm;
       align-items: flex-start;
       justify-content: space-between;
-      margin-top: 2mm;
-      padding-bottom: 2mm;
-      border-bottom: 0.35mm solid #111;
+      margin-top: 1mm;
+      padding-bottom: 1mm;
+      border-bottom: 0.3mm solid #111;
+      min-height: 0;
     }
     .top-text { min-width: 0; flex: 1; }
     .os {
       font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-      font-size: 13pt;
+      font-size: 10pt;
       font-weight: 800;
       letter-spacing: 0.02em;
-      line-height: 1.1;
-      word-break: break-word;
+      line-height: 1;
     }
-    .meta { margin-top: 1mm; font-size: 7.5pt; }
+    .meta {
+      margin-top: 0.6mm;
+      font-size: 6pt;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
     .meta strong { font-weight: 700; }
     img.qr {
-      width: 22mm;
-      height: 22mm;
+      width: 16mm;
+      height: 16mm;
       display: block;
       flex-shrink: 0;
     }
-    .block { margin-top: 2mm; }
-    .label {
-      font-size: 6.5pt;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      color: #555;
-      margin-bottom: 0.5mm;
-    }
-    .text {
-      white-space: pre-wrap;
-      word-break: break-word;
-      font-size: 7.5pt;
-    }
     .dates {
       display: flex;
-      gap: 3mm;
-      margin-top: 2mm;
+      gap: 2mm;
+      margin-top: 1mm;
     }
     .dates > div { flex: 1; min-width: 0; }
-    .footer {
-      margin-top: 2.5mm;
-      padding-top: 2mm;
-      border-top: 0.3mm solid #ccc;
-      font-size: 6.5pt;
-      color: #333;
-      line-height: 1.35;
-    }
-    .footer .tagline {
-      margin-top: 1mm;
+    .label {
+      font-size: 5pt;
       font-weight: 700;
-      color: #111;
-      font-style: italic;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: #555;
+      margin-bottom: 0.2mm;
+    }
+    .block { margin-top: 0.8mm; min-height: 0; }
+    .text {
+      font-size: 6pt;
+      white-space: pre-wrap;
+      word-break: break-word;
+      overflow: hidden;
+      display: -webkit-box;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
+      line-clamp: 2;
+      max-height: 3.2em;
+    }
+    .footer {
+      margin-top: auto;
+      padding-top: 0.6mm;
+      border-top: 0.25mm solid #ccc;
+      font-size: 5pt;
+      color: #333;
+      line-height: 1.2;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
     @media print {
       body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
@@ -193,17 +221,19 @@ export function htmlEtiquetaOS(
 </head>
 <body>
   <div class="sheet">
-    <div class="brand">BikeTime</div>
-    <div class="subtitle">Comprovante de entrada</div>
+    <div class="head">
+      <div class="brand">BikeTime</div>
+      <div class="subtitle">Comprovante de entrada</div>
+    </div>
 
     <div class="top">
       <div class="top-text">
         <div class="os">${esc(opts.numero)}</div>
         <div class="meta"><strong>Cliente:</strong> ${esc(cliente)}</div>
-        <div class="meta"><strong>Bike:</strong> ${esc(bike)}</div>
+        <div class="meta"><strong>Bike:</strong> ${esc(truncar(bike, 32))}</div>
         ${
           codigo
-            ? `<div class="meta"><strong>Código:</strong> ${esc(codigo)}</div>`
+            ? `<div class="meta"><strong>Cód:</strong> ${esc(codigo)}</div>`
             : ""
         }
       </div>
@@ -235,13 +265,7 @@ export function htmlEtiquetaOS(
       <div class="text">${esc(checklist)}</div>
     </div>
 
-    <div class="footer">
-      <div>
-        Acompanhe a jornada da sua bike: acesse biketime.com.br, faça login com seu e-mail
-        e veja o status na oficina.
-      </div>
-      <div class="tagline">It's Bike Time, sua oficina premium em Perdizes.</div>
-    </div>
+    <div class="footer">biketime.com.br · It's Bike Time — Perdizes</div>
   </div>
 </body>
 </html>`;

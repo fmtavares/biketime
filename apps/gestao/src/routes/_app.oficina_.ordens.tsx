@@ -26,7 +26,7 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 /**
- * Converte uma linha da lista de OS no payload da etiqueta 80mm.
+ * Converte uma linha da lista de OS no payload da etiqueta 80×50mm.
  */
 function osParaEtiqueta(o: any): EtiquetaOSOpts {
   return {

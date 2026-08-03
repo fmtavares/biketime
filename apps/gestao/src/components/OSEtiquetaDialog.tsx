@@ -26,7 +26,7 @@ type Props = {
 };
 
 /**
- * Preview 80mm (rolo contínuo) do comprovante de entrada da OS + impressão sem popup.
+ * Preview 80×50mm do comprovante de entrada da OS + impressão sem popup.
  */
 export function OSEtiquetaDialog({ open, onOpenChange, os }: Props) {
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
@@ -57,7 +57,7 @@ export function OSEtiquetaDialog({ open, onOpenChange, os }: Props) {
     };
   }, [open, os?.codigoBike, os?.numero]);
 
-  /** Dispara impressão da etiqueta 80mm via iframe oculto. */
+  /** Dispara impressão da etiqueta 80×50mm via iframe oculto. */
   function handlePrint() {
     if (!os || busy) return;
     try {
@@ -74,87 +74,88 @@ export function OSEtiquetaDialog({ open, onOpenChange, os }: Props) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-sm">
         <DialogHeader>
-          <DialogTitle>Etiqueta da OS (80 mm)</DialogTitle>
+          <DialogTitle>Etiqueta da OS (80×50 mm)</DialogTitle>
         </DialogHeader>
 
         {!os ? (
           <p className="text-sm text-muted-foreground">OS não selecionada.</p>
         ) : (
-          <div className="mx-auto w-full max-w-[302px] rounded-xl border bg-white px-3 py-3 text-black shadow-sm">
-            <p className="text-base font-extrabold leading-tight tracking-wide">
-              BikeTime
-            </p>
-            <p className="text-[11px] text-neutral-600">Comprovante de entrada</p>
+          <div
+            className="mx-auto overflow-hidden rounded-lg border bg-white text-black shadow-sm"
+            style={{ width: 302, height: 189, padding: 8 }}
+          >
+            <div className="flex h-full flex-col">
+              <div className="flex items-baseline justify-between gap-2">
+                <p className="text-sm font-extrabold leading-none tracking-wide">
+                  BikeTime
+                </p>
+                <p className="text-[10px] text-neutral-600">Comprovante de entrada</p>
+              </div>
 
-            <div className="mt-2 flex items-start justify-between gap-2 border-b border-neutral-900 pb-2">
-              <div className="min-w-0 space-y-1">
-                <p className="font-mono text-lg font-extrabold leading-none">
-                  {os.numero}
-                </p>
-                <p className="text-[11px]">
-                  <span className="font-semibold">Cliente:</span> {os.clienteNome || "—"}
-                </p>
-                <p className="text-[11px]">
-                  <span className="font-semibold">Bike:</span> {bike}
-                </p>
-                {os.codigoBike ? (
-                  <p className="text-[11px]">
-                    <span className="font-semibold">Código:</span> {os.codigoBike}
+              <div className="mt-1.5 flex items-start justify-between gap-2 border-b border-neutral-900 pb-1.5">
+                <div className="min-w-0 space-y-0.5">
+                  <p className="font-mono text-base font-extrabold leading-none">
+                    {os.numero}
                   </p>
+                  <p className="truncate text-[10px]">
+                    <span className="font-semibold">Cliente:</span> {os.clienteNome || "—"}
+                  </p>
+                  <p className="truncate text-[10px]">
+                    <span className="font-semibold">Bike:</span> {bike}
+                  </p>
+                  {os.codigoBike ? (
+                    <p className="truncate text-[10px]">
+                      <span className="font-semibold">Cód:</span> {os.codigoBike}
+                    </p>
+                  ) : null}
+                </div>
+                {busy ? (
+                  <div className="flex h-14 w-14 shrink-0 items-center justify-center text-muted-foreground">
+                    <Loader2 className="size-4 animate-spin" />
+                  </div>
+                ) : qrDataUrl ? (
+                  <img
+                    src={qrDataUrl}
+                    alt={`QR ${os.codigoBike}`}
+                    className="h-14 w-14 shrink-0"
+                  />
                 ) : null}
               </div>
-              {busy ? (
-                <div className="flex h-[84px] w-[84px] shrink-0 items-center justify-center text-muted-foreground">
-                  <Loader2 className="size-5 animate-spin" />
+
+              <div className="mt-1.5 grid grid-cols-2 gap-2 text-[10px]">
+                <div>
+                  <p className="text-[9px] font-bold uppercase tracking-wide text-neutral-500">
+                    Entrada
+                  </p>
+                  <p>{formatarDataEtiqueta(os.dataEntrada)}</p>
                 </div>
-              ) : qrDataUrl ? (
-                <img
-                  src={qrDataUrl}
-                  alt={`QR ${os.codigoBike}`}
-                  className="h-[84px] w-[84px] shrink-0"
-                />
-              ) : null}
-            </div>
+                <div>
+                  <p className="text-[9px] font-bold uppercase tracking-wide text-neutral-500">
+                    Previsão
+                  </p>
+                  <p>{formatarDataEtiqueta(os.dataPrevista)}</p>
+                </div>
+              </div>
 
-            <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-wide text-neutral-500">
-                  Entrada
-                </p>
-                <p>{formatarDataEtiqueta(os.dataEntrada)}</p>
+              <div className="mt-1 min-w-0 space-y-1 text-[10px]">
+                <div>
+                  <p className="text-[9px] font-bold uppercase tracking-wide text-neutral-500">
+                    Problema / serviço
+                  </p>
+                  <p className="line-clamp-2 whitespace-pre-wrap">
+                    {(os.problemaRelatado ?? "").trim() || "—"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[9px] font-bold uppercase tracking-wide text-neutral-500">
+                    Checklist / acessórios
+                  </p>
+                  <p className="line-clamp-2 whitespace-pre-wrap">{checklist}</p>
+                </div>
               </div>
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-wide text-neutral-500">
-                  Previsão
-                </p>
-                <p>{formatarDataEtiqueta(os.dataPrevista)}</p>
-              </div>
-            </div>
 
-            <div className="mt-3 space-y-2 text-xs">
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-wide text-neutral-500">
-                  Problema / serviço
-                </p>
-                <p className="whitespace-pre-wrap">
-                  {(os.problemaRelatado ?? "").trim() || "—"}
-                </p>
-              </div>
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-wide text-neutral-500">
-                  Checklist / acessórios
-                </p>
-                <p className="whitespace-pre-wrap">{checklist}</p>
-              </div>
-            </div>
-
-            <div className="mt-4 border-t border-neutral-300 pt-3 text-[10px] leading-snug text-neutral-700">
-              <p>
-                Acompanhe a jornada da sua bike: acesse biketime.com.br, faça login
-                com seu e-mail e veja o status na oficina.
-              </p>
-              <p className="mt-1.5 font-semibold italic text-neutral-900">
-                It&apos;s Bike Time, sua oficina premium em Perdizes.
+              <p className="mt-auto truncate border-t border-neutral-300 pt-1 text-[9px] text-neutral-700">
+                biketime.com.br · It&apos;s Bike Time — Perdizes
               </p>
             </div>
           </div>
