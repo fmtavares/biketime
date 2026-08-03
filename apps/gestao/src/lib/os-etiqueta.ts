@@ -49,16 +49,16 @@ const SPECS: Record<FormatoEtiquetaOS, SpecEtiqueta> = {
     gapVMm: 0,
     margemMm: 2,
   },
-  /** Duas vias 40×25 + gap H 2mm + gap V 2mm → folha 82×27. */
+  /** Duas vias 40×25 + gap central 2mm → folha 82×25. */
   pequena: {
     larguraMm: 40,
     alturaViaMm: 25,
     folhaLarguraMm: 82,
-    folhaAlturaMm: 27,
+    folhaAlturaMm: 25,
     vias: 2,
     layout: "linha",
     gapMm: 2,
-    gapVMm: 2,
+    gapVMm: 0,
     margemMm: 1,
   },
 };
@@ -535,7 +535,7 @@ export async function renderEtiquetaOSDataUrl(
 
 /**
  * Imprime a etiqueta no formato pedido
- * (dupla coluna, simples 1 via, pequena 2 vias em linha 82×27 com gaps 2mm).
+ * (dupla coluna, simples 1 via, pequena 2 vias em linha 82×25 com gap central 2mm).
  */
 export function imprimirEtiquetaOS(
   dataUrl: string,

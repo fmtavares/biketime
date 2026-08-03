@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Loader2, Printer } from "lucide-react";
+import { Download, Loader2, Printer } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -16,6 +16,11 @@ import {
   type EtiquetaOSOpts,
   type FormatoEtiquetaOS,
 } from "@/lib/os-etiqueta";
+import {
+  baixarArquivoZpl,
+  gerarZplEtiquetaOS,
+} from "@/lib/os-etiqueta-zpl";
+import { imprimirZplViaQz } from "@/lib/qz-print";
 import { toast } from "sonner";
 
 type Props = {
@@ -27,7 +32,8 @@ type Props = {
 };
 
 /**
- * Preview visual da etiqueta (mesma imagem do canvas) + impressão.
+ * Preview da etiqueta + impressão.
+ * Preferência: ZPL raw via QZ Tray (Elgin L42 203 dpi). Fallback: print do navegador.
  */
 export function OSEtiquetaDialog({
   open,
@@ -74,11 +80,30 @@ export function OSEtiquetaDialog({
     };
   }, [open, os, formato]);
 
-  /** Imprime a mesma imagem do preview. */
+  /**
+   * Impressão profissional: ZPL → QZ Tray → térmica.
+   * Se QZ não estiver disponível, oferece .zpl e fallback no navegador.
+   */
   async function handlePrint() {
     if (!os || busy || printing) return;
     setPrinting(true);
     try {
+      const zpl = gerarZplEtiquetaOS(os, formato);
+      const result = await imprimirZplViaQz(zpl);
+
+      if (result.ok) {
+        toast.success(`Enviado via ZPL para ${result.printer}`);
+        return;
+      }
+
+      // Sem QZ: baixa .zpl e tenta print do navegador (preview)
+      baixarArquivoZpl(zpl, `${os.numero}-${formato}`);
+      toast.message(result.message, {
+        description:
+          "Baixamos o arquivo .zpl. Com QZ Tray, a impressão vai direto na Elgin. Usando fallback do navegador…",
+        duration: 8000,
+      });
+
       const qrDataUrl = await gerarQrEtiquetaOS(os.numero);
       await gerarEImprimirEtiquetaOS({ ...os, qrDataUrl, formato });
     } catch (e) {
@@ -88,12 +113,20 @@ export function OSEtiquetaDialog({
     }
   }
 
+  /** Só gera e baixa o .zpl (útil para teste no utilitário Elgin). */
+  function handleDownloadZpl() {
+    if (!os) return;
+    const zpl = gerarZplEtiquetaOS(os, formato);
+    baixarArquivoZpl(zpl, `${os.numero}-${formato}`);
+    toast.success("Arquivo .zpl baixado");
+  }
+
   const titulo =
     formato === "pequena"
-      ? `OS pequena (${spec.larguraMm}×${spec.alturaViaMm} mm · gap ${spec.gapMm}/${spec.gapVMm} mm)`
+      ? `OS pequena (${spec.larguraMm}×${spec.alturaViaMm} mm · ZPL 203 dpi)`
       : formato === "simples"
-        ? `OS simples (${spec.larguraMm}×${spec.alturaViaMm} mm)`
-        : `OS dupla (${spec.folhaLarguraMm}×${spec.folhaAlturaMm} mm · ${spec.vias} vias)`;
+        ? `OS simples (${spec.larguraMm}×${spec.alturaViaMm} mm · ZPL 203 dpi)`
+        : `OS dupla (${spec.folhaLarguraMm}×${spec.folhaAlturaMm} mm · ZPL 203 dpi)`;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -105,58 +138,63 @@ export function OSEtiquetaDialog({
         {!os ? (
           <p className="text-sm text-muted-foreground">OS não selecionada.</p>
         ) : (
-          <div className="mx-auto w-full max-w-[400px] overflow-hidden rounded-lg border bg-neutral-100 p-2">
-            {/* Folha física: vias + gaps H/V (cinza = gap) */}
-            <div
-              className="mx-auto flex w-full flex-col overflow-hidden rounded bg-neutral-200 shadow-sm"
-              style={{
-                aspectRatio: `${spec.folhaLarguraMm} / ${spec.folhaAlturaMm}`,
-              }}
-            >
+          <div className="space-y-3">
+            <div className="mx-auto w-full max-w-[400px] overflow-hidden rounded-lg border bg-neutral-100 p-2">
               <div
-                className={`flex min-h-0 w-full ${horizontal ? "flex-row" : "flex-col"}`}
+                className="mx-auto flex w-full flex-col overflow-hidden rounded bg-neutral-200 shadow-sm"
                 style={{
-                  flex: `${spec.alturaViaMm} 0 0`,
-                  gap:
-                    spec.gapMm > 0
-                      ? `${(spec.gapMm / spec.folhaLarguraMm) * 100}%`
-                      : undefined,
+                  aspectRatio: `${spec.folhaLarguraMm} / ${spec.folhaAlturaMm}`,
                 }}
               >
-                {busy || !previewUrl ? (
-                  <div className="flex flex-1 items-center justify-center bg-white">
-                    <Loader2 className="size-6 animate-spin text-muted-foreground" />
-                  </div>
-                ) : (
-                  Array.from({ length: spec.vias }, (_, i) => (
-                    <div
-                      key={i}
-                      className={`relative overflow-hidden bg-white ${
-                        horizontal ? "h-full" : "w-full"
-                      }`}
-                      style={{
-                        aspectRatio: `${spec.larguraMm} / ${spec.alturaViaMm}`,
-                        flex: horizontal ? `${spec.larguraMm} 0 0` : "1 1 0",
-                        width: horizontal ? undefined : "100%",
-                      }}
-                    >
-                      <img
-                        src={previewUrl}
-                        alt={`Etiqueta ${os.numero} via ${i + 1}`}
-                        className="absolute inset-0 h-full w-full object-contain"
-                      />
+                <div
+                  className={`flex min-h-0 w-full ${horizontal ? "flex-row" : "flex-col"}`}
+                  style={{
+                    flex: `${spec.alturaViaMm} 0 0`,
+                    gap:
+                      spec.gapMm > 0
+                        ? `${(spec.gapMm / spec.folhaLarguraMm) * 100}%`
+                        : undefined,
+                  }}
+                >
+                  {busy || !previewUrl ? (
+                    <div className="flex flex-1 items-center justify-center bg-white">
+                      <Loader2 className="size-6 animate-spin text-muted-foreground" />
                     </div>
-                  ))
+                  ) : (
+                    Array.from({ length: spec.vias }, (_, i) => (
+                      <div
+                        key={i}
+                        className={`relative overflow-hidden bg-white ${
+                          horizontal ? "h-full" : "w-full"
+                        }`}
+                        style={{
+                          aspectRatio: `${spec.larguraMm} / ${spec.alturaViaMm}`,
+                          flex: horizontal ? `${spec.larguraMm} 0 0` : "1 1 0",
+                          width: horizontal ? undefined : "100%",
+                        }}
+                      >
+                        <img
+                          src={previewUrl}
+                          alt={`Etiqueta ${os.numero} via ${i + 1}`}
+                          className="absolute inset-0 h-full w-full object-contain"
+                        />
+                      </div>
+                    ))
+                  )}
+                </div>
+                {spec.gapVMm > 0 && (
+                  <div
+                    className="w-full shrink-0 bg-neutral-200"
+                    style={{ flex: `${spec.gapVMm} 0 0` }}
+                    aria-hidden
+                  />
                 )}
               </div>
-              {spec.gapVMm > 0 && (
-                <div
-                  className="w-full shrink-0 bg-neutral-200"
-                  style={{ flex: `${spec.gapVMm} 0 0` }}
-                  aria-hidden
-                />
-              )}
             </div>
+            <p className="text-xs text-muted-foreground">
+              Impressão térmica via <strong>ZPL</strong> (QZ Tray). Preview é só
+              referência visual; na Elgin L42 o QR e o texto saem nativos em 203 dpi.
+            </p>
           </div>
         )}
 
@@ -164,14 +202,25 @@ export function OSEtiquetaDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Fechar
           </Button>
-          <Button onClick={() => void handlePrint()} disabled={!os || busy || printing}>
-            {printing ? (
-              <Loader2 className="size-4 animate-spin" />
-            ) : (
-              <Printer className="size-4" />
-            )}{" "}
-            Imprimir
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={handleDownloadZpl}
+              disabled={!os || busy}
+            >
+              <Download className="size-4" />
+              .zpl
+            </Button>
+            <Button onClick={() => void handlePrint()} disabled={!os || busy || printing}>
+              {printing ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <Printer className="size-4" />
+              )}{" "}
+              Imprimir ZPL
+            </Button>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>
