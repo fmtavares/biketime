@@ -60,15 +60,12 @@ export function OSEtiquetaMenuButton({
       >
         <DropdownMenuItem onSelect={() => onSelect("dupla")}>
           OS dupla
-          <span className="ml-auto text-xs text-muted-foreground">100×150</span>
         </DropdownMenuItem>
         <DropdownMenuItem onSelect={() => onSelect("simples")}>
           OS simples
-          <span className="ml-auto text-xs text-muted-foreground">78×70</span>
         </DropdownMenuItem>
         <DropdownMenuItem onSelect={() => onSelect("pequena")}>
           OS pequena
-          <span className="ml-auto text-xs text-muted-foreground">40×25 · gap 2</span>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

@@ -380,11 +380,6 @@ export async function renderEtiquetaOSDataUrl(
   ctx.fillText(osNum, 0, y);
   y += u(52);
 
-  ctx.fillStyle = "#444444";
-  ctx.font = `400 ${u(17)}px Arial, Helvetica, sans-serif`;
-  ctx.fillText("Comprovante de entrada", 0, y);
-  y += u(26);
-
   ctx.fillStyle = "#111111";
   ctx.font = `600 ${u(20)}px Arial, Helvetica, sans-serif`;
   const metaLinhas = [cliente, bike, ...(codigo ? [codigo] : [])];
@@ -447,11 +442,9 @@ export async function renderEtiquetaOSDataUrl(
   ctx.lineTo(contentW, dividerY);
   ctx.stroke();
 
-  // Corpo
+  // Corpo (sem bloco Observação — layout mais limpo)
   let by = dividerY + u(10);
   const footerH = u(44);
-  const obsText =
-    "Acompanhe a evolução da sua OS em biketime.com.br, fazendo login com seu e-mail e senha. Se ainda não tiver acesso, solicite na oficina.";
 
   const problemaLabel = u(16);
   const problemaText = u(22);
@@ -459,11 +452,9 @@ export async function renderEtiquetaOSDataUrl(
   const checkLabel = u(15);
   const checkText = u(19);
   const checkLH = u(23);
-  const obsLabel = u(14);
-  const obsTextSize = u(17);
-  const obsLH = u(21);
   const gapBlocos = u(14);
 
+  /** Desenha um bloco rótulo + texto com limite de linhas. */
   const drawBloco = (
     label: string,
     text: string,
@@ -487,10 +478,8 @@ export async function renderEtiquetaOSDataUrl(
   };
 
   const checkLines = formato === "simples" ? 1 : 2;
-  const obsLines = formato === "simples" ? 2 : 2;
   const checkReserve = checkLabel + u(5) + checkLH * checkLines + gapBlocos;
-  const obsReserve = obsLabel + u(5) + obsLH * obsLines + gapBlocos;
-  const problemaAvail = contentH - footerH - by - checkReserve - obsReserve;
+  const problemaAvail = contentH - footerH - by - checkReserve;
   const problemaLines = Math.max(
     2,
     Math.floor((problemaAvail - problemaLabel - u(5)) / problemaLH),
@@ -506,12 +495,6 @@ export async function renderEtiquetaOSDataUrl(
     labelSize: checkLabel,
     textSize: checkText,
     lineH: checkLH,
-  });
-  by += gapBlocos;
-  drawBloco("Observação", obsText, obsLines, {
-    labelSize: obsLabel,
-    textSize: obsTextSize,
-    lineH: obsLH,
   });
 
   // Rodapé centralizado

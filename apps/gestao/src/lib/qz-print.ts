@@ -80,8 +80,7 @@ export async function imprimirZplViaQz(
     return {
       ok: false,
       reason: "no_qz",
-      message:
-        "QZ Tray não está disponível. Instale e abra o QZ Tray (https://qz.io/download), confie neste site no Site Manager e tente de novo.",
+      message: "QZ Tray indisponível — imprimindo pelo navegador…",
     };
   }
 

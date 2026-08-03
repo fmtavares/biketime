@@ -12,7 +12,6 @@ import {
   gerarQrDataUrl,
   htmlAdesivoBike,
   imprimirAdesivoHtml,
-  urlQrBike,
   type AdesivoBikeOpts,
 } from "@/lib/bike-adesivo";
 import { toast } from "sonner";
@@ -99,12 +98,6 @@ export function BikeAdesivoDialog({ open, onOpenChange, bike }: Props) {
               </p>
             ) : null}
           </div>
-        )}
-
-        {bike && (
-          <p className="break-all text-center text-[11px] text-muted-foreground">
-            {urlQrBike(bike.codigoBike)}
-          </p>
         )}
 
         <DialogFooter className="gap-2 sm:justify-between">
