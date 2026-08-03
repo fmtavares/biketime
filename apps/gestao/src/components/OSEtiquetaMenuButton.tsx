@@ -6,9 +6,10 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import type { FormatoEtiquetaOS } from "@/lib/os-etiqueta";
 
 /** Tipos de etiqueta de OS disponíveis no menu. */
-export type TipoEtiquetaOS = "dupla" | "simples";
+export type TipoEtiquetaOS = FormatoEtiquetaOS;
 
 type Props = {
   /** Chamado ao escolher o formato da etiqueta. */
@@ -24,7 +25,7 @@ type Props = {
 };
 
 /**
- * Botão "Etiqueta" com submenu: OS dupla (100×150) e OS simples (78×70).
+ * Botão "Etiqueta" com submenu: OS dupla, simples e pequena.
  */
 export function OSEtiquetaMenuButton({
   onSelect,
@@ -64,6 +65,10 @@ export function OSEtiquetaMenuButton({
         <DropdownMenuItem onSelect={() => onSelect("simples")}>
           OS simples
           <span className="ml-auto text-xs text-muted-foreground">78×70</span>
+        </DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => onSelect("pequena")}>
+          OS pequena
+          <span className="ml-auto text-xs text-muted-foreground">40×25 · gap 2</span>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

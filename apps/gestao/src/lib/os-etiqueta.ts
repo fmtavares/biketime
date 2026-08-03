@@ -5,15 +5,22 @@ export const CHECKLIST_ENTRADA_PADRAO =
   "Nenhum acessório deixado junto à bike (nada mencionado na entrada).";
 
 /** Formatos de etiqueta OS. */
-export type FormatoEtiquetaOS = "dupla" | "simples";
+export type FormatoEtiquetaOS = "dupla" | "simples" | "pequena";
 
 type SpecEtiqueta = {
+  /** Largura de uma via (imagem). */
   larguraMm: number;
   /** Altura de uma via (imagem). */
   alturaViaMm: number;
+  /** Largura da folha física impressa. */
+  folhaLarguraMm: number;
   /** Altura da folha física impressa. */
   folhaAlturaMm: number;
   vias: number;
+  /** Empilhamento das vias na folha. */
+  layout: "coluna" | "linha";
+  /** Espaço entre vias na folha (mm). */
+  gapMm: number;
   margemMm: number;
 };
 
@@ -21,16 +28,33 @@ const SPECS: Record<FormatoEtiquetaOS, SpecEtiqueta> = {
   dupla: {
     larguraMm: 100,
     alturaViaMm: 75,
+    folhaLarguraMm: 100,
     folhaAlturaMm: 150,
     vias: 2,
+    layout: "coluna",
+    gapMm: 0,
     margemMm: 2,
   },
   simples: {
     larguraMm: 78,
     alturaViaMm: 70,
+    folhaLarguraMm: 78,
     folhaAlturaMm: 70,
     vias: 1,
+    layout: "coluna",
+    gapMm: 0,
     margemMm: 2,
+  },
+  /** Duas vias 40×25mm lado a lado, com 2mm no meio (folha 82×25). */
+  pequena: {
+    larguraMm: 40,
+    alturaViaMm: 25,
+    folhaLarguraMm: 82,
+    folhaAlturaMm: 25,
+    vias: 2,
+    layout: "linha",
+    gapMm: 2,
+    margemMm: 1,
   },
 };
 
@@ -191,8 +215,113 @@ function quebrarLinhas(
 }
 
 /**
+ * Layout compacto 40×25mm: QR no topo com o título;
+ * serviço usa a faixa larga logo abaixo do QR até o rodapé.
+ */
+async function renderEtiquetaOSPequenaDataUrl(
+  opts: EtiquetaOSOpts & { qrDataUrl?: string | null },
+): Promise<string> {
+  const spec = SPECS.pequena;
+  const W = Math.round(spec.larguraMm * PX_POR_MM);
+  const H = Math.round(spec.alturaViaMm * PX_POR_MM);
+  const m = Math.round(spec.margemMm * PX_POR_MM);
+  const contentW = W - m * 2;
+  const contentH = H - m * 2;
+
+  const canvas = document.createElement("canvas");
+  canvas.width = W;
+  canvas.height = H;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("Canvas indisponível");
+
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, W, H);
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(m, m, contentW, contentH);
+  ctx.clip();
+  ctx.translate(m, m);
+
+  const bike = tituloBikeEtiqueta(opts);
+  const cliente = (opts.clienteNome ?? "").trim() || "—";
+  const problema = (opts.problemaRelatado ?? "").trim() || "—";
+  const entrada = formatarDataEtiquetaCurta(opts.dataEntrada);
+  const prevista = formatarDataEtiquetaCurta(opts.dataPrevista);
+
+  const gap = 4;
+  const qrSize = Math.round(11 * PX_POR_MM); // ~11mm, alinhado ao topo
+  const leftW = Math.max(40, contentW - qrSize - gap);
+  /** Faixa do serviço: um pouco abaixo do QR até o fim. */
+  const servicoTop = qrSize + 5;
+  const labelServicoH = 12;
+  const servicoLH = 13;
+  const servicoAvail = contentH - servicoTop - labelServicoH;
+  const servicoLines = Math.max(2, Math.floor(servicoAvail / servicoLH));
+
+  ctx.textBaseline = "top";
+  let y = 0;
+
+  // QR alinhado ao topo com o título da OS
+  if (opts.qrDataUrl) {
+    try {
+      const qrImg = await loadImage(opts.qrDataUrl);
+      ctx.drawImage(qrImg, contentW - qrSize, 0, qrSize, qrSize);
+    } catch {
+      /* segue sem QR */
+    }
+  }
+
+  ctx.fillStyle = "#111111";
+  ctx.font = "900 24px Arial Black, Arial, Helvetica, sans-serif";
+  const osNum = quebrarLinhas(ctx, opts.numero, leftW, 1)[0] ?? opts.numero;
+  ctx.fillText(osNum, 0, y);
+  y += 26;
+
+  ctx.font = "600 12px Arial, Helvetica, sans-serif";
+  for (const ln of quebrarLinhas(ctx, cliente, leftW, 1)) {
+    if (y + 13 > servicoTop) break;
+    ctx.fillText(ln, 0, y);
+    y += 14;
+  }
+  for (const ln of quebrarLinhas(ctx, bike, leftW, 1)) {
+    if (y + 13 > servicoTop) break;
+    ctx.fillText(ln, 0, y);
+    y += 14;
+  }
+
+  // ▶ = chegou na oficina; ⏱ = prazo à frente
+  ctx.font = "600 11px Arial, Helvetica, sans-serif";
+  const datas = [`▶ Entrada ${entrada}`, `⏱ Previsto ${prevista}`];
+  for (const data of datas) {
+    for (const ln of quebrarLinhas(ctx, data, leftW, 1)) {
+      if (y + 12 > servicoTop) break;
+      ctx.fillText(ln, 0, y);
+      y += 13;
+    }
+  }
+
+  // Resumo do serviço: largura total, da base do QR até o rodapé
+  let sy = servicoTop;
+  ctx.fillStyle = "#555555";
+  ctx.font = "700 10px Arial, Helvetica, sans-serif";
+  ctx.fillText("SERVIÇO", 0, sy);
+  sy += labelServicoH;
+  ctx.fillStyle = "#111111";
+  ctx.font = "500 12px Arial, Helvetica, sans-serif";
+  const linhasServico = quebrarLinhas(ctx, problema, contentW, servicoLines);
+  for (const ln of linhasServico) {
+    if (sy + servicoLH > contentH + 2) break;
+    ctx.fillText(ln, 0, sy);
+    sy += servicoLH;
+  }
+
+  ctx.restore();
+  return canvas.toDataURL("image/png");
+}
+
+/**
  * Desenha a etiqueta em canvas no tamanho físico do formato.
- * Layout igual à OS dupla; tipografia escala pela largura.
+ * Dupla/simples: layout completo; pequena: layout compacto 40×25.
  */
 export async function renderEtiquetaOSDataUrl(
   opts: EtiquetaOSOpts & {
@@ -201,6 +330,10 @@ export async function renderEtiquetaOSDataUrl(
   },
 ): Promise<string> {
   const formato = opts.formato ?? "dupla";
+  if (formato === "pequena") {
+    return renderEtiquetaOSPequenaDataUrl(opts);
+  }
+
   const spec = SPECS[formato];
   /** Escala tipográfica relativa ao layout base (100mm de largura). */
   const scale = spec.larguraMm / SPECS.dupla.larguraMm;
@@ -293,10 +426,10 @@ export async function renderEtiquetaOSDataUrl(
   // Datas em uma única linha
   const datesY = headerBottom + u(8);
   ctx.textBaseline = "top";
-  const bullet = "●";
+  // ▶ = chegou na oficina; ⏱ = prazo à frente
   const sep = "   ";
-  const parteEntrada = `${bullet} Entrada ${entrada}`;
-  const partePrevisto = `${bullet} Previsto ${prevista}`;
+  const parteEntrada = `▶ Entrada ${entrada}`;
+  const partePrevisto = `⏱ Previsto ${prevista}`;
   const linhaDatas = `${parteEntrada}${sep}${partePrevisto}`;
 
   let fontSize = u(19);
@@ -407,20 +540,29 @@ export async function renderEtiquetaOSDataUrl(
 }
 
 /**
- * Imprime a etiqueta no formato pedido (dupla = 2 vias 100×150; simples = 1 via 78×70).
+ * Imprime a etiqueta no formato pedido
+ * (dupla coluna, simples 1 via, pequena 2 vias em linha 82×25 com gap 2mm).
  */
 export function imprimirEtiquetaOS(
   dataUrl: string,
   formato: FormatoEtiquetaOS = "dupla",
 ) {
   const spec = SPECS[formato];
+  const folhaW = spec.folhaLarguraMm;
+  const folhaH = spec.folhaAlturaMm;
+  const viaW = spec.larguraMm;
+  const viaH = spec.alturaViaMm;
+  const vias = spec.vias;
+  const gapMm = spec.gapMm;
+  const flexDir = spec.layout === "linha" ? "row" : "column";
+
   const iframe = document.createElement("iframe");
   iframe.setAttribute("aria-hidden", "true");
   iframe.style.position = "fixed";
   iframe.style.left = "-10000px";
   iframe.style.top = "0";
-  iframe.style.width = `${spec.larguraMm}mm`;
-  iframe.style.height = `${spec.folhaAlturaMm}mm`;
+  iframe.style.width = `${folhaW}mm`;
+  iframe.style.height = `${folhaH}mm`;
   iframe.style.border = "0";
   document.body.appendChild(iframe);
 
@@ -430,11 +572,6 @@ export function imprimirEtiquetaOS(
     document.body.removeChild(iframe);
     throw new Error("Não foi possível preparar a impressão.");
   }
-
-  const wMm = spec.larguraMm;
-  const hMm = spec.alturaViaMm;
-  const folhaH = spec.folhaAlturaMm;
-  const vias = spec.vias;
 
   const viasHtml = Array.from({ length: vias }, (_, i) =>
     `<div class="via"><img src="${dataUrl}" alt="Etiqueta OS via ${i + 1}" /></div>`,
@@ -448,44 +585,45 @@ export function imprimirEtiquetaOS(
   <title>Etiqueta OS</title>
   <style>
     @page {
-      size: ${wMm}mm ${folhaH}mm;
+      size: ${folhaW}mm ${folhaH}mm;
       margin: 0;
     }
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body {
-      width: ${wMm}mm;
+      width: ${folhaW}mm;
       height: ${folhaH}mm;
       overflow: hidden;
       background: #fff;
     }
     .folha {
-      width: ${wMm}mm;
+      width: ${folhaW}mm;
       height: ${folhaH}mm;
       display: flex;
-      flex-direction: column;
+      flex-direction: ${flexDir};
+      gap: ${gapMm}mm;
     }
     .via {
-      width: ${wMm}mm;
-      height: ${hMm}mm;
+      width: ${viaW}mm;
+      height: ${viaH}mm;
       overflow: hidden;
-      flex: 0 0 ${hMm}mm;
+      flex: 0 0 ${spec.layout === "linha" ? `${viaW}mm` : `${viaH}mm`};
     }
     .via img {
       display: block;
-      width: ${wMm}mm;
-      height: ${hMm}mm;
-      max-width: ${wMm}mm;
-      max-height: ${hMm}mm;
+      width: ${viaW}mm;
+      height: ${viaH}mm;
+      max-width: ${viaW}mm;
+      max-height: ${viaH}mm;
       border: 0;
     }
     @media print {
       html, body, .folha {
-        width: ${wMm}mm !important;
+        width: ${folhaW}mm !important;
         height: ${folhaH}mm !important;
       }
       .via, .via img {
-        width: ${wMm}mm !important;
-        height: ${hMm}mm !important;
+        width: ${viaW}mm !important;
+        height: ${viaH}mm !important;
       }
     }
   </style>

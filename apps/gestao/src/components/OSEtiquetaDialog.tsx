@@ -22,7 +22,7 @@ type Props = {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   os: EtiquetaOSOpts | null;
-  /** dupla = 100×150 (2 vias); simples = 78×70 (1 via). */
+  /** dupla | simples | pequena */
   formato?: FormatoEtiquetaOS;
 };
 
@@ -39,6 +39,7 @@ export function OSEtiquetaDialog({
   const [busy, setBusy] = useState(false);
   const [printing, setPrinting] = useState(false);
   const spec = specEtiquetaOS(formato);
+  const horizontal = spec.layout === "linha";
 
   useEffect(() => {
     if (!open || !os) {
@@ -88,9 +89,11 @@ export function OSEtiquetaDialog({
   }
 
   const titulo =
-    formato === "simples"
-      ? `OS simples (${spec.larguraMm}×${spec.alturaViaMm} mm)`
-      : `OS dupla (${spec.larguraMm}×${spec.folhaAlturaMm} mm · ${spec.vias} vias)`;
+    formato === "pequena"
+      ? `OS pequena (${spec.larguraMm}×${spec.alturaViaMm} mm · ${spec.vias} por linha)`
+      : formato === "simples"
+        ? `OS simples (${spec.larguraMm}×${spec.alturaViaMm} mm)`
+        : `OS dupla (${spec.folhaLarguraMm}×${spec.folhaAlturaMm} mm · ${spec.vias} vias)`;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -104,22 +107,33 @@ export function OSEtiquetaDialog({
         ) : (
           <div className="mx-auto w-full max-w-[400px] overflow-hidden rounded-lg border bg-neutral-100 p-2">
             <div
-              className="mx-auto flex w-full flex-col overflow-hidden rounded bg-white shadow-sm"
+              className={`mx-auto flex w-full overflow-hidden rounded bg-neutral-200 shadow-sm ${
+                horizontal ? "flex-row" : "flex-col"
+              }`}
               style={{
-                aspectRatio: `${spec.larguraMm} / ${spec.folhaAlturaMm}`,
+                aspectRatio: `${spec.folhaLarguraMm} / ${spec.folhaAlturaMm}`,
+                gap: spec.gapMm > 0 ? `${(spec.gapMm / spec.folhaLarguraMm) * 100}%` : undefined,
               }}
             >
               {busy || !previewUrl ? (
-                <div className="flex flex-1 items-center justify-center">
+                <div className="flex flex-1 items-center justify-center bg-white">
                   <Loader2 className="size-6 animate-spin text-muted-foreground" />
                 </div>
               ) : (
                 Array.from({ length: spec.vias }, (_, i) => (
                   <div
                     key={i}
-                    className="relative w-full overflow-hidden border-b border-dashed border-neutral-300 last:border-b-0"
+                    className={`relative overflow-hidden bg-white ${
+                      horizontal
+                        ? "h-full"
+                        : "w-full border-b border-dashed border-neutral-300 last:border-b-0"
+                    }`}
                     style={{
                       aspectRatio: `${spec.larguraMm} / ${spec.alturaViaMm}`,
+                      flex: horizontal
+                        ? `${spec.larguraMm} 0 0`
+                        : undefined,
+                      width: horizontal ? undefined : "100%",
                     }}
                   >
                     <img
