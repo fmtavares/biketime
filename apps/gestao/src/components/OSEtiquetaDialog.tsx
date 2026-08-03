@@ -82,40 +82,39 @@ export function OSEtiquetaDialog({ open, onOpenChange, os }: Props) {
         ) : (
           <div
             className="mx-auto overflow-hidden rounded-lg border bg-white text-black shadow-sm"
-            style={{ width: 320, height: 480, paddingTop: 10, paddingRight: 8, paddingBottom: 8, paddingLeft: 8 }}
+            style={{ width: 320, height: 480, paddingTop: 16, paddingRight: 8, paddingBottom: 16, paddingLeft: 8 }}
           >
             <div className="flex h-full flex-col">
-              <p className="text-xl font-extrabold leading-tight tracking-wide">
-                BikeTime
-              </p>
-              <p className="mt-0.5 text-xs text-neutral-600">Comprovante de entrada</p>
-
-              <div className="mt-3 flex items-start justify-between gap-3 border-b border-neutral-900 pb-3">
-                <div className="min-w-0 space-y-1.5">
-                  <p className="font-mono text-2xl font-extrabold leading-none">
+              <div className="flex items-start justify-between gap-3 border-b border-neutral-900 pb-3">
+                <div className="min-w-0 flex-1">
+                  <p className="text-xl font-extrabold leading-none tracking-wide">
+                    BikeTime
+                  </p>
+                  <p className="mt-1 text-xs text-neutral-600">Comprovante de entrada</p>
+                  <p className="mt-3 font-mono text-2xl font-extrabold leading-none">
                     {os.numero}
                   </p>
-                  <p className="text-xs">
+                  <p className="mt-1.5 text-xs">
                     <span className="font-semibold">Cliente:</span> {os.clienteNome || "—"}
                   </p>
-                  <p className="text-xs">
+                  <p className="mt-1 text-xs">
                     <span className="font-semibold">Bike:</span> {bike}
                   </p>
                   {os.codigoBike ? (
-                    <p className="text-xs">
+                    <p className="mt-1 text-xs">
                       <span className="font-semibold">Código:</span> {os.codigoBike}
                     </p>
                   ) : null}
                 </div>
                 {busy ? (
-                  <div className="flex h-[102px] w-[102px] shrink-0 items-center justify-center text-muted-foreground">
+                  <div className="flex h-[102px] w-[102px] shrink-0 items-start justify-center pt-0 text-muted-foreground">
                     <Loader2 className="size-5 animate-spin" />
                   </div>
                 ) : qrDataUrl ? (
                   <img
                     src={qrDataUrl}
                     alt={`QR ${os.codigoBike}`}
-                    className="h-[102px] w-[102px] shrink-0"
+                    className="h-[102px] w-[102px] shrink-0 self-start"
                   />
                 ) : null}
               </div>

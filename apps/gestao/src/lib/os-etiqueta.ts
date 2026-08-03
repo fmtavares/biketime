@@ -72,8 +72,9 @@ export function imprimirEtiquetaOS(html: string) {
 
 /**
  * Monta o HTML do comprovante de entrada da OS — 100mm × 150mm.
- * Margens: topo 3mm; laterais e inferior 2mm.
- * Área útil: 96mm × 145mm.
+ * Margens: topo e inferior 5mm; laterais 2mm.
+ * Área útil: 96mm × 140mm.
+ * QR alinhado no topo com o título BikeTime.
  */
 export function htmlEtiquetaOS(
   opts: EtiquetaOSOpts & { qrDataUrl?: string | null },
@@ -95,7 +96,7 @@ export function htmlEtiquetaOS(
   <style>
     @page {
       size: 100mm 150mm;
-      margin: 3mm 2mm 2mm 2mm;
+      margin: 5mm 2mm 5mm 2mm;
     }
     * { box-sizing: border-box; }
     html, body {
@@ -114,34 +115,35 @@ export function htmlEtiquetaOS(
     }
     .sheet {
       width: 96mm;
-      height: 145mm;
+      height: 140mm;
       margin: 0 auto;
       display: flex;
       flex-direction: column;
       overflow: hidden;
     }
+    .header {
+      display: flex;
+      gap: 4mm;
+      align-items: flex-start;
+      justify-content: space-between;
+      padding-bottom: 3mm;
+      border-bottom: 0.4mm solid #111;
+    }
+    .header-text { min-width: 0; flex: 1; }
     .brand {
       font-size: 16pt;
       font-weight: 800;
       letter-spacing: 0.02em;
       line-height: 1.1;
+      margin: 0;
     }
     .subtitle {
       margin-top: 1.2mm;
       font-size: 9pt;
       color: #444;
     }
-    .top {
-      display: flex;
-      gap: 4mm;
-      align-items: flex-start;
-      justify-content: space-between;
-      margin-top: 4mm;
-      padding-bottom: 3mm;
-      border-bottom: 0.4mm solid #111;
-    }
-    .top-text { min-width: 0; flex: 1; }
     .os {
+      margin-top: 3mm;
       font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
       font-size: 18pt;
       font-weight: 800;
@@ -156,6 +158,8 @@ export function htmlEtiquetaOS(
       height: 32mm;
       display: block;
       flex-shrink: 0;
+      margin: 0;
+      align-self: flex-start;
     }
     .dates {
       display: flex;
@@ -203,11 +207,10 @@ export function htmlEtiquetaOS(
 </head>
 <body>
   <div class="sheet">
-    <div class="brand">BikeTime</div>
-    <div class="subtitle">Comprovante de entrada</div>
-
-    <div class="top">
-      <div class="top-text">
+    <div class="header">
+      <div class="header-text">
+        <div class="brand">BikeTime</div>
+        <div class="subtitle">Comprovante de entrada</div>
         <div class="os">${esc(opts.numero)}</div>
         <div class="meta"><strong>Cliente:</strong> ${esc(cliente)}</div>
         <div class="meta"><strong>Bike:</strong> ${esc(bike)}</div>
