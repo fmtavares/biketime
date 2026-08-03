@@ -160,7 +160,7 @@ export function OSFormDialog({
   const [valorPeca, setValorPeca] = useState("");
   /** Nova nota da equipe anexada ao histórico de aprovação no save. */
   const [novaObsEquipe, setNovaObsEquipe] = useState("");
-  /** Preview/impressão do comprovante A6 da OS. */
+  /** Preview/impressão do comprovante 80mm da OS. */
   const [etiquetaOpen, setEtiquetaOpen] = useState(false);
   const [etiquetaOs, setEtiquetaOs] = useState<EtiquetaOSOpts | null>(null);
   /** Indica emissão/consulta de NFS-e via Focus. */
@@ -536,7 +536,7 @@ export function OSFormDialog({
   }
 
   /**
-   * Monta os dados do comprovante A6 a partir da OS persistida.
+   * Monta os dados do comprovante 80mm a partir da OS persistida.
    */
   async function montarEtiquetaFromOs(osRow: any): Promise<EtiquetaOSOpts> {
     let clienteNome =
@@ -780,7 +780,7 @@ export function OSFormDialog({
   };
 
   /**
-   * Salva a OS (gera número se nova) e abre o comprovante A6 para impressão.
+   * Salva a OS (gera número se nova) e abre o comprovante 80mm para impressão.
    */
   async function salvarEImprimirEtiqueta() {
     const saved = await save({ close: false });

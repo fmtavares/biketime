@@ -26,7 +26,7 @@ type Props = {
 };
 
 /**
- * Preview A6 do comprovante de entrada da OS + impressão sem popup.
+ * Preview 80mm (rolo contínuo) do comprovante de entrada da OS + impressão sem popup.
  */
 export function OSEtiquetaDialog({ open, onOpenChange, os }: Props) {
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
@@ -57,7 +57,7 @@ export function OSEtiquetaDialog({ open, onOpenChange, os }: Props) {
     };
   }, [open, os?.codigoBike, os?.numero]);
 
-  /** Dispara impressão da etiqueta A6 via iframe oculto. */
+  /** Dispara impressão da etiqueta 80mm via iframe oculto. */
   function handlePrint() {
     if (!os || busy) return;
     try {
@@ -72,46 +72,46 @@ export function OSEtiquetaDialog({ open, onOpenChange, os }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-sm">
         <DialogHeader>
-          <DialogTitle>Etiqueta da OS (A6)</DialogTitle>
+          <DialogTitle>Etiqueta da OS (80 mm)</DialogTitle>
         </DialogHeader>
 
         {!os ? (
           <p className="text-sm text-muted-foreground">OS não selecionada.</p>
         ) : (
-          <div className="mx-auto w-full max-w-[280px] rounded-xl border bg-white p-4 text-black shadow-sm">
-            <p className="text-lg font-extrabold leading-tight tracking-wide">
+          <div className="mx-auto w-full max-w-[302px] rounded-xl border bg-white px-3 py-3 text-black shadow-sm">
+            <p className="text-base font-extrabold leading-tight tracking-wide">
               BikeTime
             </p>
-            <p className="text-xs text-neutral-600">Comprovante de entrada</p>
+            <p className="text-[11px] text-neutral-600">Comprovante de entrada</p>
 
-            <div className="mt-3 flex items-start justify-between gap-3 border-b border-neutral-900 pb-3">
+            <div className="mt-2 flex items-start justify-between gap-2 border-b border-neutral-900 pb-2">
               <div className="min-w-0 space-y-1">
-                <p className="font-mono text-xl font-extrabold leading-none">
+                <p className="font-mono text-lg font-extrabold leading-none">
                   {os.numero}
                 </p>
-                <p className="text-xs">
+                <p className="text-[11px]">
                   <span className="font-semibold">Cliente:</span> {os.clienteNome || "—"}
                 </p>
-                <p className="text-xs">
+                <p className="text-[11px]">
                   <span className="font-semibold">Bike:</span> {bike}
                 </p>
                 {os.codigoBike ? (
-                  <p className="text-xs">
+                  <p className="text-[11px]">
                     <span className="font-semibold">Código:</span> {os.codigoBike}
                   </p>
                 ) : null}
               </div>
               {busy ? (
-                <div className="flex h-20 w-20 shrink-0 items-center justify-center text-muted-foreground">
+                <div className="flex h-[84px] w-[84px] shrink-0 items-center justify-center text-muted-foreground">
                   <Loader2 className="size-5 animate-spin" />
                 </div>
               ) : qrDataUrl ? (
                 <img
                   src={qrDataUrl}
                   alt={`QR ${os.codigoBike}`}
-                  className="h-20 w-20 shrink-0"
+                  className="h-[84px] w-[84px] shrink-0"
                 />
               ) : null}
             </div>

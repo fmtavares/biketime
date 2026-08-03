@@ -64,14 +64,15 @@ export async function gerarQrEtiquetaOS(
 }
 
 /**
- * Imprime a etiqueta A6 via iframe oculto (mesmo motor do adesivo).
+ * Imprime a etiqueta 80mm (rolo contínuo) via iframe oculto.
  */
 export function imprimirEtiquetaOS(html: string) {
   imprimirAdesivoHtml(html);
 }
 
 /**
- * Monta o HTML A6 do comprovante de entrada da OS.
+ * Monta o HTML do comprovante de entrada da OS para papel térmico 80mm (rolo contínuo).
+ * Largura fixa 80mm; altura acompanha o conteúdo.
  */
 export function htmlEtiquetaOS(
   opts: EtiquetaOSOpts & { qrDataUrl?: string | null },
@@ -91,87 +92,96 @@ export function htmlEtiquetaOS(
   <meta charset="utf-8" />
   <title>Comprovante ${esc(opts.numero)}</title>
   <style>
-    @page { size: A6; margin: 6mm; }
+    @page {
+      size: 80mm auto;
+      margin: 2mm 3mm;
+    }
     * { box-sizing: border-box; }
-    body {
+    html, body {
       margin: 0;
+      padding: 0;
+      width: 80mm;
+    }
+    body {
       font-family: system-ui, -apple-system, sans-serif;
       color: #111;
       background: #fff;
-      font-size: 9pt;
+      font-size: 8.5pt;
       line-height: 1.25;
     }
     .sheet {
-      width: 100%;
-      min-height: calc(148mm - 12mm);
+      width: 74mm;
+      margin: 0 auto;
       display: flex;
       flex-direction: column;
     }
     .brand {
-      font-size: 14pt;
+      font-size: 12pt;
       font-weight: 800;
       letter-spacing: 0.02em;
       line-height: 1.1;
     }
     .subtitle {
-      margin-top: 1mm;
-      font-size: 8.5pt;
+      margin-top: 0.8mm;
+      font-size: 7.5pt;
       color: #444;
     }
     .top {
       display: flex;
-      gap: 4mm;
+      gap: 2.5mm;
       align-items: flex-start;
       justify-content: space-between;
-      margin-top: 3mm;
-      padding-bottom: 2.5mm;
-      border-bottom: 0.4mm solid #111;
+      margin-top: 2mm;
+      padding-bottom: 2mm;
+      border-bottom: 0.35mm solid #111;
     }
+    .top-text { min-width: 0; flex: 1; }
     .os {
       font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-      font-size: 16pt;
+      font-size: 13pt;
       font-weight: 800;
-      letter-spacing: 0.03em;
+      letter-spacing: 0.02em;
       line-height: 1.1;
+      word-break: break-word;
     }
-    .meta { margin-top: 1.5mm; font-size: 8.5pt; }
+    .meta { margin-top: 1mm; font-size: 7.5pt; }
     .meta strong { font-weight: 700; }
     img.qr {
-      width: 28mm;
-      height: 28mm;
+      width: 22mm;
+      height: 22mm;
       display: block;
       flex-shrink: 0;
     }
-    .block { margin-top: 2.5mm; }
+    .block { margin-top: 2mm; }
     .label {
-      font-size: 7pt;
+      font-size: 6.5pt;
       font-weight: 700;
       text-transform: uppercase;
-      letter-spacing: 0.06em;
+      letter-spacing: 0.05em;
       color: #555;
-      margin-bottom: 0.6mm;
+      margin-bottom: 0.5mm;
     }
     .text {
       white-space: pre-wrap;
       word-break: break-word;
-      font-size: 8.5pt;
+      font-size: 7.5pt;
     }
     .dates {
       display: flex;
-      gap: 4mm;
-      margin-top: 2.5mm;
+      gap: 3mm;
+      margin-top: 2mm;
     }
-    .dates > div { flex: 1; }
+    .dates > div { flex: 1; min-width: 0; }
     .footer {
-      margin-top: auto;
-      padding-top: 3mm;
+      margin-top: 2.5mm;
+      padding-top: 2mm;
       border-top: 0.3mm solid #ccc;
-      font-size: 7pt;
+      font-size: 6.5pt;
       color: #333;
       line-height: 1.35;
     }
     .footer .tagline {
-      margin-top: 1.2mm;
+      margin-top: 1mm;
       font-weight: 700;
       color: #111;
       font-style: italic;
@@ -187,7 +197,7 @@ export function htmlEtiquetaOS(
     <div class="subtitle">Comprovante de entrada</div>
 
     <div class="top">
-      <div>
+      <div class="top-text">
         <div class="os">${esc(opts.numero)}</div>
         <div class="meta"><strong>Cliente:</strong> ${esc(cliente)}</div>
         <div class="meta"><strong>Bike:</strong> ${esc(bike)}</div>
