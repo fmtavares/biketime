@@ -1,8 +1,16 @@
-import { gerarQrDataUrl, imprimirAdesivoHtml } from "@/lib/bike-adesivo";
+import { gerarQrDataUrl } from "@/lib/bike-adesivo";
 
 /** Texto padrão quando o checklist de entrada está vazio. */
 export const CHECKLIST_ENTRADA_PADRAO =
   "Nenhum acessório deixado junto à bike (nada mencionado na entrada).";
+
+/** Página física da etiqueta (mm). */
+export const ETIQUETA_LARGURA_MM = 100;
+export const ETIQUETA_ALTURA_MM = 75;
+/** Margem interna em todos os lados (mm). */
+export const ETIQUETA_MARGEM_MM = 1;
+/** Resolução de render (px por mm) — ~203 DPI térmica. */
+const PX_POR_MM = 8;
 
 export type EtiquetaOSOpts = {
   numero: string;
@@ -17,17 +25,6 @@ export type EtiquetaOSOpts = {
 };
 
 /**
- * Escapa texto para HTML seguro na etiqueta impressa.
- */
-function esc(s: string) {
-  return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
-
-/**
  * Formata data ISO/date para pt-BR (só dia).
  */
 export function formatarDataEtiqueta(value?: string | null): string {
@@ -35,6 +32,19 @@ export function formatarDataEtiqueta(value?: string | null): string {
   const d = new Date(value.includes("T") ? value : `${value}T12:00:00`);
   if (Number.isNaN(d.getTime())) return "—";
   return d.toLocaleDateString("pt-BR");
+}
+
+/**
+ * Formata data curta dd/mm/yy para a etiqueta.
+ */
+export function formatarDataEtiquetaCurta(value?: string | null): string {
+  if (!value) return "—";
+  const d = new Date(value.includes("T") ? value : `${value}T12:00:00`);
+  if (Number.isNaN(d.getTime())) return "—";
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const yy = String(d.getFullYear()).slice(-2);
+  return `${dd}/${mm}/${yy}`;
 }
 
 /**
@@ -64,210 +74,352 @@ export async function gerarQrEtiquetaOS(
 }
 
 /**
- * Imprime a etiqueta 100×75mm via iframe oculto.
+ * Carrega imagem a partir de data URL / URL.
  */
-export function imprimirEtiquetaOS(html: string) {
-  imprimirAdesivoHtml(html);
+function loadImage(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error("Falha ao carregar imagem"));
+    img.src = src;
+  });
 }
 
 /**
- * Monta o HTML do comprovante de entrada da OS — página 100mm × 75mm, margem 1mm.
- * Área útil: 98mm × 73mm. QR alinhado no topo com BikeTime; datas abaixo do QR.
+ * Quebra texto em linhas que cabem em maxWidth (px), inclusive palavras longas.
  */
-export function htmlEtiquetaOS(
+function quebrarLinhas(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  maxWidth: number,
+  maxLines: number,
+): string[] {
+  const raw = text.replace(/\s+/g, " ").trim() || "—";
+  const encaixa = (s: string) => ctx.measureText(s).width <= maxWidth;
+
+  /** Parte uma palavra maior que a largura em pedaços. */
+  const partirPalavra = (word: string): string[] => {
+    if (encaixa(word)) return [word];
+    const parts: string[] = [];
+    let chunk = "";
+    for (const ch of word) {
+      const t = chunk + ch;
+      if (encaixa(t)) chunk = t;
+      else {
+        if (chunk) parts.push(chunk);
+        chunk = ch;
+      }
+    }
+    if (chunk) parts.push(chunk);
+    return parts.length ? parts : [word.slice(0, 1)];
+  };
+
+  const tokens = raw.split(" ").flatMap(partirPalavra);
+  const lines: string[] = [];
+  let atual = "";
+
+  for (const tok of tokens) {
+    const join = atual ? `${atual} ${tok}` : tok;
+    if (encaixa(join)) {
+      atual = join;
+      continue;
+    }
+    if (atual) lines.push(atual);
+    atual = tok;
+    if (lines.length >= maxLines) {
+      atual = "";
+      break;
+    }
+  }
+  if (atual && lines.length < maxLines) lines.push(atual);
+
+  if (lines.length > maxLines) lines.length = maxLines;
+
+  const consumido = lines.join(" ");
+  if (consumido.length < raw.length && lines.length > 0) {
+    let last = lines[lines.length - 1]!;
+    while (last.length > 1 && !encaixa(`${last}…`)) last = last.slice(0, -1);
+    lines[lines.length - 1] = encaixa(`${last}…`) ? `${last}…` : last;
+  }
+
+  return lines.length ? lines : ["—"];
+}
+
+/**
+ * Desenha a etiqueta inteira em canvas no tamanho físico exato (100×75mm).
+ * Evita o estouro lateral do HTML/CSS na impressão térmica.
+ */
+export async function renderEtiquetaOSDataUrl(
   opts: EtiquetaOSOpts & { qrDataUrl?: string | null },
-) {
+): Promise<string> {
+  const W = Math.round(ETIQUETA_LARGURA_MM * PX_POR_MM);
+  const H = Math.round(ETIQUETA_ALTURA_MM * PX_POR_MM);
+  const m = Math.round(ETIQUETA_MARGEM_MM * PX_POR_MM);
+  const contentW = W - m * 2;
+  const contentH = H - m * 2;
+
+  const canvas = document.createElement("canvas");
+  canvas.width = W;
+  canvas.height = H;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("Canvas indisponível");
+
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, W, H);
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(m, m, contentW, contentH);
+  ctx.clip();
+  ctx.translate(m, m);
+
   const bike = tituloBikeEtiqueta(opts);
   const cliente = (opts.clienteNome ?? "").trim() || "—";
   const problema = (opts.problemaRelatado ?? "").trim() || "—";
   const checklist = textoChecklistEtiqueta(opts.checklistEntrada);
-  const entrada = formatarDataEtiqueta(opts.dataEntrada);
-  const prevista = formatarDataEtiqueta(opts.dataPrevista);
+  const entrada = formatarDataEtiquetaCurta(opts.dataEntrada);
+  const prevista = formatarDataEtiquetaCurta(opts.dataPrevista);
   const codigo = (opts.codigoBike ?? "").trim();
-  const qr = opts.qrDataUrl;
 
-  return `<!DOCTYPE html>
+  const gap = Math.round(2 * PX_POR_MM);
+  const qrCol = Math.round(24 * PX_POR_MM);
+  const qrSize = Math.round(22 * PX_POR_MM);
+  const leftW = contentW - qrCol - gap;
+
+  // —— Cabeçalho esquerdo (clipado para não invadir o QR) ——
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(0, 0, leftW, contentH);
+  ctx.clip();
+
+  let y = 0;
+  ctx.fillStyle = "#111111";
+  ctx.font = "800 28px Arial, Helvetica, sans-serif";
+  ctx.textBaseline = "top";
+  const brand = "BikeTime";
+  ctx.fillText(brand, 0, y);
+  const brandW = ctx.measureText(brand).width;
+
+  ctx.font = "800 26px Courier New, monospace";
+  const osNum = quebrarLinhas(ctx, opts.numero, Math.max(40, leftW - brandW - 12), 1)[0] ?? opts.numero;
+  ctx.fillText(osNum, brandW + 12, y + 2);
+  y += 32;
+
+  ctx.fillStyle = "#444444";
+  ctx.font = "400 14px Arial, Helvetica, sans-serif";
+  ctx.fillText("Comprovante de entrada", 0, y);
+  y += 28;
+
+  ctx.fillStyle = "#111111";
+  ctx.font = "600 16px Arial, Helvetica, sans-serif";
+  const metaLinhas = [
+    `Cliente: ${cliente}`,
+    `Bike: ${bike}`,
+    ...(codigo ? [`Código: ${codigo}`] : []),
+  ];
+  for (const linha of metaLinhas) {
+    for (const t of quebrarLinhas(ctx, linha, leftW, 1)) {
+      ctx.fillText(t, 0, y);
+      y += 20;
+    }
+  }
+  ctx.restore();
+
+  // QR à direita, alinhado ao topo com BikeTime
+  const qrX = leftW + gap + Math.round((qrCol - qrSize) / 2);
+  if (opts.qrDataUrl) {
+    try {
+      const qrImg = await loadImage(opts.qrDataUrl);
+      ctx.drawImage(qrImg, qrX, 0, qrSize, qrSize);
+    } catch {
+      /* segue sem QR */
+    }
+  }
+
+  const headerBottom = Math.max(y, qrSize) + 6;
+
+  // Linha divisória
+  ctx.strokeStyle = "#111111";
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(0, headerBottom);
+  ctx.lineTo(contentW, headerBottom);
+  ctx.stroke();
+
+  // Datas em uma única linha: ● Entrada dd/mm/yy   ● Previsto dd/mm/yy
+  const datesY = headerBottom + 8;
+  ctx.font = "600 14px Arial, Helvetica, sans-serif";
+  ctx.textBaseline = "top";
+  const bullet = "●";
+  const sep = "   ";
+  const parteEntrada = `${bullet} Entrada ${entrada}`;
+  const partePrevisto = `${bullet} Previsto ${prevista}`;
+  const linhaDatas = `${parteEntrada}${sep}${partePrevisto}`;
+
+  // Se não couber na largura, reduz um pouco a fonte
+  let fontSize = 14;
+  ctx.font = `600 ${fontSize}px Arial, Helvetica, sans-serif`;
+  while (fontSize > 11 && ctx.measureText(linhaDatas).width > contentW) {
+    fontSize -= 1;
+    ctx.font = `600 ${fontSize}px Arial, Helvetica, sans-serif`;
+  }
+
+  ctx.fillStyle = "#111111";
+  let dx = 0;
+  ctx.fillText(parteEntrada, dx, datesY);
+  dx += ctx.measureText(parteEntrada).width + ctx.measureText(sep).width;
+  ctx.fillText(partePrevisto, dx, datesY);
+
+  const dividerY = datesY + fontSize + 10;
+  ctx.strokeStyle = "#dddddd";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(0, dividerY);
+  ctx.lineTo(contentW, dividerY);
+  ctx.stroke();
+
+  // Corpo (problema + checklist + observação)
+  let by = dividerY + 8;
+  const footerH = 18;
+  const obsText =
+    "Acompanhe a evolução da sua OS em biketime.com.br, fazendo login com seu e-mail e senha. Se ainda não tiver acesso, solicite na oficina.";
+
+  const drawBloco = (
+    label: string,
+    text: string,
+    maxLines: number,
+    opts?: { labelSize?: number; textSize?: number; lineH?: number },
+  ) => {
+    const labelSize = opts?.labelSize ?? 12;
+    const textSize = opts?.textSize ?? 16;
+    const lineH = opts?.lineH ?? 19;
+    if (by >= contentH - footerH - 24) return;
+    ctx.fillStyle = "#555555";
+    ctx.font = `700 ${labelSize}px Arial, Helvetica, sans-serif`;
+    ctx.fillText(label.toUpperCase(), 0, by);
+    by += labelSize + 4;
+    ctx.fillStyle = "#111111";
+    ctx.font = `500 ${textSize}px Arial, Helvetica, sans-serif`;
+    const linhas = quebrarLinhas(ctx, text, contentW, maxLines);
+    for (const ln of linhas) {
+      if (by >= contentH - footerH - lineH) break;
+      ctx.fillText(ln, 0, by);
+      by += lineH;
+    }
+  };
+
+  drawBloco("Problema / serviço", problema, 2);
+  by += 12;
+  drawBloco("Checklist / acessórios", checklist, 2);
+  by += 12;
+  drawBloco("Observação", obsText, 3, {
+    labelSize: 11,
+    textSize: 12,
+    lineH: 15,
+  });
+
+  // Rodapé
+  ctx.strokeStyle = "#cccccc";
+  ctx.beginPath();
+  ctx.moveTo(0, contentH - footerH);
+  ctx.lineTo(contentW, contentH - footerH);
+  ctx.stroke();
+  ctx.fillStyle = "#333333";
+  ctx.font = "500 11px Arial, Helvetica, sans-serif";
+  ctx.fillText("biketime.com.br · It's Bike Time — Perdizes", 0, contentH - footerH + 4);
+
+  ctx.restore();
+  return canvas.toDataURL("image/png");
+}
+
+/**
+ * Imprime a etiqueta como imagem de tamanho fixo (100×75mm).
+ * Mais estável em impressoras térmicas do que HTML/CSS com @page.
+ */
+export function imprimirEtiquetaOS(dataUrl: string) {
+  const iframe = document.createElement("iframe");
+  iframe.setAttribute("aria-hidden", "true");
+  iframe.style.position = "fixed";
+  iframe.style.left = "-10000px";
+  iframe.style.top = "0";
+  iframe.style.width = `${ETIQUETA_LARGURA_MM}mm`;
+  iframe.style.height = `${ETIQUETA_ALTURA_MM}mm`;
+  iframe.style.border = "0";
+  document.body.appendChild(iframe);
+
+  const doc = iframe.contentDocument;
+  const win = iframe.contentWindow;
+  if (!doc || !win) {
+    document.body.removeChild(iframe);
+    throw new Error("Não foi possível preparar a impressão.");
+  }
+
+  doc.open();
+  doc.write(`<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="utf-8" />
-  <title>Comprovante ${esc(opts.numero)}</title>
+  <title>Etiqueta OS</title>
   <style>
-    @page {
-      size: 100mm 75mm;
-      margin: 1mm;
-    }
-    * { box-sizing: border-box; }
+    @page { size: ${ETIQUETA_LARGURA_MM}mm ${ETIQUETA_ALTURA_MM}mm; margin: 0; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body {
-      margin: 0;
-      padding: 0;
-      width: 100mm;
-      height: 75mm;
-    }
-    body {
-      font-family: system-ui, -apple-system, sans-serif;
-      color: #111;
+      width: ${ETIQUETA_LARGURA_MM}mm;
+      height: ${ETIQUETA_ALTURA_MM}mm;
+      overflow: hidden;
       background: #fff;
-      font-size: 7.5pt;
-      line-height: 1.2;
-      overflow: hidden;
     }
-    .sheet {
-      width: 98mm;
-      height: 73mm;
-      margin: 0 auto;
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-    }
-    .header {
-      display: flex;
-      gap: 2.5mm;
-      align-items: flex-start;
-      justify-content: space-between;
-      padding-bottom: 1.5mm;
-      border-bottom: 0.3mm solid #111;
-    }
-    .header-text { min-width: 0; flex: 1; }
-    .header-side {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      flex-shrink: 0;
-      width: 22mm;
-    }
-    .brand {
-      font-size: 11pt;
-      font-weight: 800;
-      letter-spacing: 0.02em;
-      line-height: 1.1;
-      margin: 0;
-    }
-    .subtitle {
-      margin-top: 0.6mm;
-      font-size: 7pt;
-      color: #444;
-    }
-    .os {
-      margin-top: 1.5mm;
-      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-      font-size: 12pt;
-      font-weight: 800;
-      letter-spacing: 0.02em;
-      line-height: 1.1;
-      word-break: break-word;
-    }
-    .meta {
-      margin-top: 0.8mm;
-      font-size: 7pt;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-    .meta strong { font-weight: 700; }
-    img.qr {
-      width: 20mm;
-      height: 20mm;
+    img {
       display: block;
-      margin: 0;
-    }
-    .dates {
-      width: 100%;
-      margin-top: 1mm;
-      text-align: center;
-    }
-    .dates .date-row { margin-top: 0.7mm; }
-    .dates .date-row:first-child { margin-top: 0; }
-    .label {
-      font-size: 5.5pt;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-      color: #555;
-      margin-bottom: 0.2mm;
-    }
-    .date-val { font-size: 6.5pt; line-height: 1.1; }
-    .body {
-      flex: 1;
-      min-height: 0;
-      display: flex;
-      flex-direction: column;
-      margin-top: 1.5mm;
-    }
-    .block { margin-top: 1.4mm; min-height: 0; flex: 1; }
-    .block:first-child { margin-top: 0; }
-    .text {
-      white-space: pre-wrap;
-      word-break: break-word;
-      font-size: 7pt;
-      overflow: hidden;
-      display: -webkit-box;
-      -webkit-box-orient: vertical;
-      -webkit-line-clamp: 4;
-      line-clamp: 4;
-    }
-    .footer {
-      margin-top: auto;
-      padding-top: 1mm;
-      border-top: 0.25mm solid #ccc;
-      font-size: 5.5pt;
-      color: #333;
-      line-height: 1.2;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-    @media print {
-      body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      width: ${ETIQUETA_LARGURA_MM}mm;
+      height: ${ETIQUETA_ALTURA_MM}mm;
+      max-width: ${ETIQUETA_LARGURA_MM}mm;
+      max-height: ${ETIQUETA_ALTURA_MM}mm;
+      object-fit: fill;
     }
   </style>
 </head>
 <body>
-  <div class="sheet">
-    <div class="header">
-      <div class="header-text">
-        <div class="brand">BikeTime</div>
-        <div class="subtitle">Comprovante de entrada</div>
-        <div class="os">${esc(opts.numero)}</div>
-        <div class="meta"><strong>Cliente:</strong> ${esc(cliente)}</div>
-        <div class="meta"><strong>Bike:</strong> ${esc(bike)}</div>
-        ${
-          codigo
-            ? `<div class="meta"><strong>Código:</strong> ${esc(codigo)}</div>`
-            : ""
-        }
-      </div>
-      <div class="header-side">
-        ${
-          qr
-            ? `<img class="qr" src="${qr}" alt="QR ${esc(codigo || opts.numero)}" />`
-            : ""
-        }
-        <div class="dates">
-          <div class="date-row">
-            <div class="label">Entrada</div>
-            <div class="date-val">${esc(entrada)}</div>
-          </div>
-          <div class="date-row">
-            <div class="label">Previsão</div>
-            <div class="date-val">${esc(prevista)}</div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="body">
-      <div class="block">
-        <div class="label">Problema / serviço</div>
-        <div class="text">${esc(problema)}</div>
-      </div>
-      <div class="block">
-        <div class="label">Checklist / acessórios</div>
-        <div class="text">${esc(checklist)}</div>
-      </div>
-    </div>
-
-    <div class="footer">biketime.com.br · It's Bike Time — Perdizes</div>
-  </div>
+  <img src="${dataUrl}" width="${Math.round(ETIQUETA_LARGURA_MM * PX_POR_MM)}" height="${Math.round(ETIQUETA_ALTURA_MM * PX_POR_MM)}" alt="Etiqueta OS" />
 </body>
-</html>`;
+</html>`);
+  doc.close();
+
+  const cleanup = () => {
+    try {
+      document.body.removeChild(iframe);
+    } catch {
+      /* ignore */
+    }
+  };
+
+  let printed = false;
+  const triggerOnce = () => {
+    if (printed) return;
+    printed = true;
+    try {
+      win.focus();
+      win.print();
+    } finally {
+      window.setTimeout(cleanup, 1500);
+    }
+  };
+
+  const img = doc.querySelector("img");
+  if (img && !img.complete) {
+    img.addEventListener("load", () => window.setTimeout(triggerOnce, 50));
+    img.addEventListener("error", () => window.setTimeout(triggerOnce, 50));
+    window.setTimeout(triggerOnce, 2000);
+  } else {
+    window.setTimeout(triggerOnce, 150);
+  }
+}
+
+/**
+ * Gera a imagem da etiqueta e dispara a impressão.
+ */
+export async function gerarEImprimirEtiquetaOS(
+  opts: EtiquetaOSOpts & { qrDataUrl?: string | null },
+) {
+  const dataUrl = await renderEtiquetaOSDataUrl(opts);
+  imprimirEtiquetaOS(dataUrl);
 }

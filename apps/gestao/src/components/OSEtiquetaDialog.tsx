@@ -9,12 +9,11 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import {
-  formatarDataEtiqueta,
+  ETIQUETA_ALTURA_MM,
+  ETIQUETA_LARGURA_MM,
+  gerarEImprimirEtiquetaOS,
   gerarQrEtiquetaOS,
-  htmlEtiquetaOS,
-  imprimirEtiquetaOS,
-  textoChecklistEtiqueta,
-  tituloBikeEtiqueta,
+  renderEtiquetaOSDataUrl,
   type EtiquetaOSOpts,
 } from "@/lib/os-etiqueta";
 import { toast } from "sonner";
@@ -26,139 +25,84 @@ type Props = {
 };
 
 /**
- * Preview 100×75mm (útil 98×73mm) do comprovante de entrada da OS + impressão.
+ * Preview visual da etiqueta (mesma imagem do canvas) + impressão.
  */
 export function OSEtiquetaDialog({ open, onOpenChange, os }: Props) {
-  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [printing, setPrinting] = useState(false);
 
   useEffect(() => {
     if (!open || !os) {
-      setQrDataUrl(null);
+      setPreviewUrl(null);
       return;
     }
     let cancelled = false;
     setBusy(true);
-    gerarQrEtiquetaOS(os.codigoBike)
-      .then((url) => {
-        if (!cancelled) setQrDataUrl(url);
-      })
-      .catch(() => {
+    setPreviewUrl(null);
+
+    (async () => {
+      try {
+        const qrDataUrl = await gerarQrEtiquetaOS(os.codigoBike);
+        const url = await renderEtiquetaOSDataUrl({ ...os, qrDataUrl });
+        if (!cancelled) setPreviewUrl(url);
+      } catch {
         if (!cancelled) {
-          setQrDataUrl(null);
-          toast.error("Não foi possível gerar o QR da bike");
+          setPreviewUrl(null);
+          toast.error("Não foi possível montar a etiqueta");
         }
-      })
-      .finally(() => {
+      } finally {
         if (!cancelled) setBusy(false);
-      });
+      }
+    })();
+
     return () => {
       cancelled = true;
     };
-  }, [open, os?.codigoBike, os?.numero]);
+  }, [open, os]);
 
-  /** Dispara impressão da etiqueta 100×75mm via iframe oculto. */
-  function handlePrint() {
-    if (!os || busy) return;
+  /** Imprime a mesma imagem do preview. */
+  async function handlePrint() {
+    if (!os || busy || printing) return;
+    setPrinting(true);
     try {
-      imprimirEtiquetaOS(htmlEtiquetaOS({ ...os, qrDataUrl }));
+      const qrDataUrl = await gerarQrEtiquetaOS(os.codigoBike);
+      await gerarEImprimirEtiquetaOS({ ...os, qrDataUrl });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Falha ao imprimir");
+    } finally {
+      setPrinting(false);
     }
   }
 
-  const bike = os ? tituloBikeEtiqueta(os) : "";
-  const checklist = os ? textoChecklistEtiqueta(os.checklistEntrada) : "";
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-sm">
+      <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>Etiqueta da OS (100×75 mm)</DialogTitle>
+          <DialogTitle>
+            Etiqueta da OS ({ETIQUETA_LARGURA_MM}×{ETIQUETA_ALTURA_MM} mm)
+          </DialogTitle>
         </DialogHeader>
 
         {!os ? (
           <p className="text-sm text-muted-foreground">OS não selecionada.</p>
         ) : (
-          <div
-            className="mx-auto overflow-hidden rounded-lg border bg-white text-black shadow-sm"
-            style={{ width: 378, height: 283, padding: 4 }}
-          >
-            <div className="flex h-full flex-col">
-              <div className="flex items-start justify-between gap-2 border-b border-neutral-900 pb-2">
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-extrabold leading-none tracking-wide">
-                    BikeTime
-                  </p>
-                  <p className="mt-0.5 text-[10px] text-neutral-600">Comprovante de entrada</p>
-                  <p className="mt-1.5 font-mono text-base font-extrabold leading-none">
-                    {os.numero}
-                  </p>
-                  <p className="mt-1 truncate text-[10px]">
-                    <span className="font-semibold">Cliente:</span> {os.clienteNome || "—"}
-                  </p>
-                  <p className="mt-0.5 truncate text-[10px]">
-                    <span className="font-semibold">Bike:</span> {bike}
-                  </p>
-                  {os.codigoBike ? (
-                    <p className="mt-0.5 truncate text-[10px]">
-                      <span className="font-semibold">Código:</span> {os.codigoBike}
-                    </p>
-                  ) : null}
+          <div className="mx-auto w-full max-w-[400px] overflow-hidden rounded-lg border bg-neutral-100 p-2">
+            <div
+              className="relative mx-auto w-full overflow-hidden rounded bg-white shadow-sm"
+              style={{ aspectRatio: `${ETIQUETA_LARGURA_MM} / ${ETIQUETA_ALTURA_MM}` }}
+            >
+              {busy || !previewUrl ? (
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <Loader2 className="size-6 animate-spin text-muted-foreground" />
                 </div>
-                <div className="flex w-16 shrink-0 flex-col items-center">
-                  {busy ? (
-                    <div className="flex h-16 w-16 items-center justify-center text-muted-foreground">
-                      <Loader2 className="size-4 animate-spin" />
-                    </div>
-                  ) : qrDataUrl ? (
-                    <img
-                      src={qrDataUrl}
-                      alt={`QR ${os.codigoBike}`}
-                      className="h-16 w-16 self-start"
-                    />
-                  ) : null}
-                  <div className="mt-1 w-full space-y-1 text-center">
-                    <div>
-                      <p className="text-[8px] font-bold uppercase tracking-wide text-neutral-500">
-                        Entrada
-                      </p>
-                      <p className="text-[9px] leading-tight">
-                        {formatarDataEtiqueta(os.dataEntrada)}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-[8px] font-bold uppercase tracking-wide text-neutral-500">
-                        Previsão
-                      </p>
-                      <p className="text-[9px] leading-tight">
-                        {formatarDataEtiqueta(os.dataPrevista)}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="mt-1.5 min-w-0 flex-1 space-y-1.5 text-[10px]">
-                <div>
-                  <p className="text-[9px] font-bold uppercase tracking-wide text-neutral-500">
-                    Problema / serviço
-                  </p>
-                  <p className="line-clamp-4 whitespace-pre-wrap">
-                    {(os.problemaRelatado ?? "").trim() || "—"}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-[9px] font-bold uppercase tracking-wide text-neutral-500">
-                    Checklist / acessórios
-                  </p>
-                  <p className="line-clamp-4 whitespace-pre-wrap">{checklist}</p>
-                </div>
-              </div>
-
-              <p className="mt-auto truncate border-t border-neutral-300 pt-1 text-[9px] text-neutral-700">
-                biketime.com.br · It&apos;s Bike Time — Perdizes
-              </p>
+              ) : (
+                <img
+                  src={previewUrl}
+                  alt={`Etiqueta ${os.numero}`}
+                  className="absolute inset-0 h-full w-full object-contain"
+                />
+              )}
             </div>
           </div>
         )}
@@ -167,8 +111,13 @@ export function OSEtiquetaDialog({ open, onOpenChange, os }: Props) {
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Fechar
           </Button>
-          <Button onClick={handlePrint} disabled={!os || busy}>
-            <Printer className="size-4" /> Imprimir
+          <Button onClick={() => void handlePrint()} disabled={!os || busy || printing}>
+            {printing ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <Printer className="size-4" />
+            )}{" "}
+            Imprimir
           </Button>
         </DialogFooter>
       </DialogContent>
