@@ -64,16 +64,15 @@ export async function gerarQrEtiquetaOS(
 }
 
 /**
- * Imprime a etiqueta 98×78mm via iframe oculto.
+ * Imprime a etiqueta 100×75mm via iframe oculto.
  */
 export function imprimirEtiquetaOS(html: string) {
   imprimirAdesivoHtml(html);
 }
 
 /**
- * Monta o HTML do comprovante de entrada da OS — 98mm × 78mm, margem 2mm.
- * Área útil: 94mm × 74mm. QR alinhado no topo com o título BikeTime;
- * datas (entrada/previsão) abaixo do QR.
+ * Monta o HTML do comprovante de entrada da OS — página 100mm × 75mm, margem 1mm.
+ * Área útil: 98mm × 73mm. QR alinhado no topo com BikeTime; datas abaixo do QR.
  */
 export function htmlEtiquetaOS(
   opts: EtiquetaOSOpts & { qrDataUrl?: string | null },
@@ -94,15 +93,15 @@ export function htmlEtiquetaOS(
   <title>Comprovante ${esc(opts.numero)}</title>
   <style>
     @page {
-      size: 98mm 78mm;
-      margin: 2mm;
+      size: 100mm 75mm;
+      margin: 1mm;
     }
     * { box-sizing: border-box; }
     html, body {
       margin: 0;
       padding: 0;
-      width: 98mm;
-      height: 78mm;
+      width: 100mm;
+      height: 75mm;
     }
     body {
       font-family: system-ui, -apple-system, sans-serif;
@@ -113,8 +112,8 @@ export function htmlEtiquetaOS(
       overflow: hidden;
     }
     .sheet {
-      width: 94mm;
-      height: 74mm;
+      width: 98mm;
+      height: 73mm;
       margin: 0 auto;
       display: flex;
       flex-direction: column;
