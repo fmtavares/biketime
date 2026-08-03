@@ -332,8 +332,9 @@ export async function renderEtiquetaOSDataUrl(
 }
 
 /**
- * Imprime a etiqueta como imagem de tamanho fixo (100×75mm).
- * Mais estável em impressoras térmicas do que HTML/CSS com @page.
+ * Imprime a etiqueta no mesmo formato da tela (100×75mm).
+ * Usa página quadrada 100×100mm para o Chrome não forçar "paisagem"
+ * (que gira o conteúdo em várias térmicas). A imagem fica 100×75 no topo.
  */
 export function imprimirEtiquetaOS(dataUrl: string) {
   const iframe = document.createElement("iframe");
@@ -341,8 +342,8 @@ export function imprimirEtiquetaOS(dataUrl: string) {
   iframe.style.position = "fixed";
   iframe.style.left = "-10000px";
   iframe.style.top = "0";
-  iframe.style.width = `${ETIQUETA_LARGURA_MM}mm`;
-  iframe.style.height = `${ETIQUETA_ALTURA_MM}mm`;
+  iframe.style.width = "100mm";
+  iframe.style.height = "100mm";
   iframe.style.border = "0";
   document.body.appendChild(iframe);
 
@@ -353,6 +354,9 @@ export function imprimirEtiquetaOS(dataUrl: string) {
     throw new Error("Não foi possível preparar a impressão.");
   }
 
+  const wMm = ETIQUETA_LARGURA_MM;
+  const hMm = ETIQUETA_ALTURA_MM;
+
   doc.open();
   doc.write(`<!DOCTYPE html>
 <html lang="pt-BR">
@@ -360,26 +364,47 @@ export function imprimirEtiquetaOS(dataUrl: string) {
   <meta charset="utf-8" />
   <title>Etiqueta OS</title>
   <style>
-    @page { size: ${ETIQUETA_LARGURA_MM}mm ${ETIQUETA_ALTURA_MM}mm; margin: 0; }
+    @page {
+      /* Quadrado: evita rotação automática "landscape" do Chrome */
+      size: ${wMm}mm ${wMm}mm;
+      margin: 0;
+    }
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body {
-      width: ${ETIQUETA_LARGURA_MM}mm;
-      height: ${ETIQUETA_ALTURA_MM}mm;
+      width: ${wMm}mm;
+      height: ${wMm}mm;
       overflow: hidden;
       background: #fff;
     }
-    img {
+    .sheet {
+      width: ${wMm}mm;
+      height: ${hMm}mm;
+      overflow: hidden;
+    }
+    .sheet img {
       display: block;
-      width: ${ETIQUETA_LARGURA_MM}mm;
-      height: ${ETIQUETA_ALTURA_MM}mm;
-      max-width: ${ETIQUETA_LARGURA_MM}mm;
-      max-height: ${ETIQUETA_ALTURA_MM}mm;
-      object-fit: fill;
+      width: ${wMm}mm;
+      height: ${hMm}mm;
+      max-width: ${wMm}mm;
+      max-height: ${hMm}mm;
+      border: 0;
+    }
+    @media print {
+      html, body {
+        width: ${wMm}mm !important;
+        height: ${wMm}mm !important;
+      }
+      .sheet, .sheet img {
+        width: ${wMm}mm !important;
+        height: ${hMm}mm !important;
+      }
     }
   </style>
 </head>
 <body>
-  <img src="${dataUrl}" width="${Math.round(ETIQUETA_LARGURA_MM * PX_POR_MM)}" height="${Math.round(ETIQUETA_ALTURA_MM * PX_POR_MM)}" alt="Etiqueta OS" />
+  <div class="sheet">
+    <img src="${dataUrl}" alt="Etiqueta OS" />
+  </div>
 </body>
 </html>`);
   doc.close();
@@ -406,11 +431,11 @@ export function imprimirEtiquetaOS(dataUrl: string) {
 
   const img = doc.querySelector("img");
   if (img && !img.complete) {
-    img.addEventListener("load", () => window.setTimeout(triggerOnce, 50));
-    img.addEventListener("error", () => window.setTimeout(triggerOnce, 50));
-    window.setTimeout(triggerOnce, 2000);
+    img.addEventListener("load", () => window.setTimeout(triggerOnce, 80));
+    img.addEventListener("error", () => window.setTimeout(triggerOnce, 80));
+    window.setTimeout(triggerOnce, 2500);
   } else {
-    window.setTimeout(triggerOnce, 150);
+    window.setTimeout(triggerOnce, 200);
   }
 }
 
