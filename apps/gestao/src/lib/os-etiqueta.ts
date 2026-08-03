@@ -4,9 +4,14 @@ import { gerarQrDataUrl } from "@/lib/bike-adesivo";
 export const CHECKLIST_ENTRADA_PADRAO =
   "Nenhum acessório deixado junto à bike (nada mencionado na entrada).";
 
-/** Página física da etiqueta (mm). */
+/** Página física da etiqueta (mm) — folha completa. */
 export const ETIQUETA_LARGURA_MM = 100;
+/** Altura de uma via (metade da folha física). */
 export const ETIQUETA_ALTURA_MM = 75;
+/** Altura da folha física: duas vias empilhadas. */
+export const ETIQUETA_FOLHA_ALTURA_MM = 150;
+/** Quantidade de vias impressas por folha. */
+export const ETIQUETA_VIAS_POR_FOLHA = 2;
 /** Margem interna em todos os lados (mm). */
 export const ETIQUETA_MARGEM_MM = 1;
 /** Resolução de render (px por mm) — ~203 DPI térmica. */
@@ -193,38 +198,29 @@ export async function renderEtiquetaOSDataUrl(
 
   let y = 0;
   ctx.fillStyle = "#111111";
-  ctx.font = "800 28px Arial, Helvetica, sans-serif";
   ctx.textBaseline = "top";
-  const brand = "BikeTime";
-  ctx.fillText(brand, 0, y);
-  const brandW = ctx.measureText(brand).width;
-
-  ctx.font = "800 26px Courier New, monospace";
-  const osNum = quebrarLinhas(ctx, opts.numero, Math.max(40, leftW - brandW - 12), 1)[0] ?? opts.numero;
-  ctx.fillText(osNum, brandW + 12, y + 2);
-  y += 32;
+  ctx.font = "900 48px Arial Black, Arial, Helvetica, sans-serif";
+  const osNum = quebrarLinhas(ctx, opts.numero, leftW, 1)[0] ?? opts.numero;
+  ctx.fillText(osNum, 0, y);
+  y += 52;
 
   ctx.fillStyle = "#444444";
-  ctx.font = "400 14px Arial, Helvetica, sans-serif";
+  ctx.font = "400 17px Arial, Helvetica, sans-serif";
   ctx.fillText("Comprovante de entrada", 0, y);
-  y += 28;
+  y += 26;
 
   ctx.fillStyle = "#111111";
-  ctx.font = "600 16px Arial, Helvetica, sans-serif";
-  const metaLinhas = [
-    `Cliente: ${cliente}`,
-    `Bike: ${bike}`,
-    ...(codigo ? [`Código: ${codigo}`] : []),
-  ];
+  ctx.font = "600 20px Arial, Helvetica, sans-serif";
+  const metaLinhas = [cliente, bike, ...(codigo ? [codigo] : [])];
   for (const linha of metaLinhas) {
     for (const t of quebrarLinhas(ctx, linha, leftW, 1)) {
       ctx.fillText(t, 0, y);
-      y += 20;
+      y += 24;
     }
   }
   ctx.restore();
 
-  // QR à direita, alinhado ao topo com BikeTime
+  // QR à direita, alinhado ao topo
   const qrX = leftW + gap + Math.round((qrCol - qrSize) / 2);
   if (opts.qrDataUrl) {
     try {
@@ -247,7 +243,6 @@ export async function renderEtiquetaOSDataUrl(
 
   // Datas em uma única linha: ● Entrada dd/mm/yy   ● Previsto dd/mm/yy
   const datesY = headerBottom + 8;
-  ctx.font = "600 14px Arial, Helvetica, sans-serif";
   ctx.textBaseline = "top";
   const bullet = "●";
   const sep = "   ";
@@ -255,12 +250,11 @@ export async function renderEtiquetaOSDataUrl(
   const partePrevisto = `${bullet} Previsto ${prevista}`;
   const linhaDatas = `${parteEntrada}${sep}${partePrevisto}`;
 
-  // Se não couber na largura, reduz um pouco a fonte
-  let fontSize = 14;
-  ctx.font = `600 ${fontSize}px Arial, Helvetica, sans-serif`;
-  while (fontSize > 11 && ctx.measureText(linhaDatas).width > contentW) {
+  let fontSize = 19;
+  ctx.font = `700 ${fontSize}px Arial, Helvetica, sans-serif`;
+  while (fontSize > 14 && ctx.measureText(linhaDatas).width > contentW) {
     fontSize -= 1;
-    ctx.font = `600 ${fontSize}px Arial, Helvetica, sans-serif`;
+    ctx.font = `700 ${fontSize}px Arial, Helvetica, sans-serif`;
   }
 
   ctx.fillStyle = "#111111";
@@ -277,26 +271,38 @@ export async function renderEtiquetaOSDataUrl(
   ctx.lineTo(contentW, dividerY);
   ctx.stroke();
 
-  // Corpo (problema + checklist + observação)
-  let by = dividerY + 8;
-  const footerH = 18;
+  /**
+   * Corpo: tipografia maior e altura preenchida.
+   * Calcula quantas linhas cabem no espaço livre até o rodapé.
+   */
+  let by = dividerY + 10;
+  const footerH = 44;
   const obsText =
     "Acompanhe a evolução da sua OS em biketime.com.br, fazendo login com seu e-mail e senha. Se ainda não tiver acesso, solicite na oficina.";
+
+  const problemaLabel = 16;
+  const problemaText = 22;
+  const problemaLH = 26;
+  const checkLabel = 15;
+  const checkText = 19;
+  const checkLH = 23;
+  const obsLabel = 14;
+  const obsTextSize = 17;
+  const obsLH = 21;
+  const gapBlocos = 14;
 
   const drawBloco = (
     label: string,
     text: string,
     maxLines: number,
-    opts?: { labelSize?: number; textSize?: number; lineH?: number },
+    sizes: { labelSize: number; textSize: number; lineH: number },
   ) => {
-    const labelSize = opts?.labelSize ?? 12;
-    const textSize = opts?.textSize ?? 16;
-    const lineH = opts?.lineH ?? 19;
-    if (by >= contentH - footerH - 24) return;
+    const { labelSize, textSize, lineH } = sizes;
+    if (by >= contentH - footerH - lineH) return;
     ctx.fillStyle = "#555555";
     ctx.font = `700 ${labelSize}px Arial, Helvetica, sans-serif`;
     ctx.fillText(label.toUpperCase(), 0, by);
-    by += labelSize + 4;
+    by += labelSize + 5;
     ctx.fillStyle = "#111111";
     ctx.font = `500 ${textSize}px Arial, Helvetica, sans-serif`;
     const linhas = quebrarLinhas(ctx, text, contentW, maxLines);
@@ -307,34 +313,56 @@ export async function renderEtiquetaOSDataUrl(
     }
   };
 
-  drawBloco("Problema / serviço", problema, 2);
-  by += 12;
-  drawBloco("Checklist / acessórios", checklist, 2);
-  by += 12;
-  drawBloco("Observação", obsText, 3, {
-    labelSize: 11,
-    textSize: 12,
-    lineH: 15,
+  const checkLines = 2;
+  const obsLines = 2;
+  const checkReserve = checkLabel + 5 + checkLH * checkLines + gapBlocos;
+  const obsReserve = obsLabel + 5 + obsLH * obsLines + gapBlocos;
+  const problemaAvail = contentH - footerH - by - checkReserve - obsReserve;
+  const problemaLines = Math.max(
+    2,
+    Math.floor((problemaAvail - problemaLabel - 5) / problemaLH),
+  );
+
+  drawBloco("Problema / serviço", problema, problemaLines, {
+    labelSize: problemaLabel,
+    textSize: problemaText,
+    lineH: problemaLH,
+  });
+  by += gapBlocos;
+  drawBloco("Checklist / acessórios", checklist, checkLines, {
+    labelSize: checkLabel,
+    textSize: checkText,
+    lineH: checkLH,
+  });
+  by += gapBlocos;
+  drawBloco("Observação", obsText, obsLines, {
+    labelSize: obsLabel,
+    textSize: obsTextSize,
+    lineH: obsLH,
   });
 
-  // Rodapé
+  // Rodapé centralizado: site + slogan
   ctx.strokeStyle = "#cccccc";
   ctx.beginPath();
   ctx.moveTo(0, contentH - footerH);
   ctx.lineTo(contentW, contentH - footerH);
   ctx.stroke();
-  ctx.fillStyle = "#333333";
-  ctx.font = "500 11px Arial, Helvetica, sans-serif";
-  ctx.fillText("biketime.com.br · It's Bike Time — Perdizes", 0, contentH - footerH + 4);
+  ctx.fillStyle = "#111111";
+  ctx.textAlign = "center";
+  const footerCx = contentW / 2;
+  ctx.font = "600 16px Arial, Helvetica, sans-serif";
+  ctx.fillText("www.biketime.com.br", footerCx, contentH - footerH + 6);
+  ctx.font = "600 15px Arial, Helvetica, sans-serif";
+  ctx.fillText("It's Bike Time!", footerCx, contentH - footerH + 24);
+  ctx.textAlign = "left";
 
   ctx.restore();
   return canvas.toDataURL("image/png");
 }
 
 /**
- * Imprime a etiqueta no mesmo formato da tela (100×75mm).
- * Usa página quadrada 100×100mm para o Chrome não forçar "paisagem"
- * (que gira o conteúdo em várias térmicas). A imagem fica 100×75 no topo.
+ * Imprime duas vias 100×75mm empilhadas na folha física 100×150mm.
+ * Retrato (mais alto que largo) evita rotação "paisagem" do Chrome.
  */
 export function imprimirEtiquetaOS(dataUrl: string) {
   const iframe = document.createElement("iframe");
@@ -342,8 +370,8 @@ export function imprimirEtiquetaOS(dataUrl: string) {
   iframe.style.position = "fixed";
   iframe.style.left = "-10000px";
   iframe.style.top = "0";
-  iframe.style.width = "100mm";
-  iframe.style.height = "100mm";
+  iframe.style.width = `${ETIQUETA_LARGURA_MM}mm`;
+  iframe.style.height = `${ETIQUETA_FOLHA_ALTURA_MM}mm`;
   iframe.style.border = "0";
   document.body.appendChild(iframe);
 
@@ -356,6 +384,12 @@ export function imprimirEtiquetaOS(dataUrl: string) {
 
   const wMm = ETIQUETA_LARGURA_MM;
   const hMm = ETIQUETA_ALTURA_MM;
+  const folhaH = ETIQUETA_FOLHA_ALTURA_MM;
+  const vias = ETIQUETA_VIAS_POR_FOLHA;
+
+  const viasHtml = Array.from({ length: vias }, (_, i) =>
+    `<div class="via"><img src="${dataUrl}" alt="Etiqueta OS via ${i + 1}" /></div>`,
+  ).join("");
 
   doc.open();
   doc.write(`<!DOCTYPE html>
@@ -365,23 +399,29 @@ export function imprimirEtiquetaOS(dataUrl: string) {
   <title>Etiqueta OS</title>
   <style>
     @page {
-      /* Quadrado: evita rotação automática "landscape" do Chrome */
-      size: ${wMm}mm ${wMm}mm;
+      size: ${wMm}mm ${folhaH}mm;
       margin: 0;
     }
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body {
       width: ${wMm}mm;
-      height: ${wMm}mm;
+      height: ${folhaH}mm;
       overflow: hidden;
       background: #fff;
     }
-    .sheet {
+    .folha {
+      width: ${wMm}mm;
+      height: ${folhaH}mm;
+      display: flex;
+      flex-direction: column;
+    }
+    .via {
       width: ${wMm}mm;
       height: ${hMm}mm;
       overflow: hidden;
+      flex: 0 0 ${hMm}mm;
     }
-    .sheet img {
+    .via img {
       display: block;
       width: ${wMm}mm;
       height: ${hMm}mm;
@@ -390,11 +430,11 @@ export function imprimirEtiquetaOS(dataUrl: string) {
       border: 0;
     }
     @media print {
-      html, body {
+      html, body, .folha {
         width: ${wMm}mm !important;
-        height: ${wMm}mm !important;
+        height: ${folhaH}mm !important;
       }
-      .sheet, .sheet img {
+      .via, .via img {
         width: ${wMm}mm !important;
         height: ${hMm}mm !important;
       }
@@ -402,8 +442,8 @@ export function imprimirEtiquetaOS(dataUrl: string) {
   </style>
 </head>
 <body>
-  <div class="sheet">
-    <img src="${dataUrl}" alt="Etiqueta OS" />
+  <div class="folha">
+    ${viasHtml}
   </div>
 </body>
 </html>`);
@@ -429,10 +469,18 @@ export function imprimirEtiquetaOS(dataUrl: string) {
     }
   };
 
-  const img = doc.querySelector("img");
-  if (img && !img.complete) {
-    img.addEventListener("load", () => window.setTimeout(triggerOnce, 80));
-    img.addEventListener("error", () => window.setTimeout(triggerOnce, 80));
+  const imgs = Array.from(doc.querySelectorAll("img"));
+  const pendentes = imgs.filter((img) => !img.complete);
+  if (pendentes.length > 0) {
+    let restantes = pendentes.length;
+    const done = () => {
+      restantes -= 1;
+      if (restantes <= 0) window.setTimeout(triggerOnce, 80);
+    };
+    for (const img of pendentes) {
+      img.addEventListener("load", done);
+      img.addEventListener("error", done);
+    }
     window.setTimeout(triggerOnce, 2500);
   } else {
     window.setTimeout(triggerOnce, 200);

@@ -10,7 +10,9 @@ import {
 import { Button } from "@/components/ui/button";
 import {
   ETIQUETA_ALTURA_MM,
+  ETIQUETA_FOLHA_ALTURA_MM,
   ETIQUETA_LARGURA_MM,
+  ETIQUETA_VIAS_POR_FOLHA,
   gerarEImprimirEtiquetaOS,
   gerarQrEtiquetaOS,
   renderEtiquetaOSDataUrl,
@@ -80,7 +82,8 @@ export function OSEtiquetaDialog({ open, onOpenChange, os }: Props) {
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>
-            Etiqueta da OS ({ETIQUETA_LARGURA_MM}×{ETIQUETA_ALTURA_MM} mm)
+            Etiqueta da OS ({ETIQUETA_LARGURA_MM}×{ETIQUETA_FOLHA_ALTURA_MM} mm ·{" "}
+            {ETIQUETA_VIAS_POR_FOLHA} vias)
           </DialogTitle>
         </DialogHeader>
 
@@ -88,20 +91,29 @@ export function OSEtiquetaDialog({ open, onOpenChange, os }: Props) {
           <p className="text-sm text-muted-foreground">OS não selecionada.</p>
         ) : (
           <div className="mx-auto w-full max-w-[400px] overflow-hidden rounded-lg border bg-neutral-100 p-2">
+            {/* Preview da folha física: duas vias 100×75 empilhadas */}
             <div
-              className="relative mx-auto w-full overflow-hidden rounded bg-white shadow-sm"
-              style={{ aspectRatio: `${ETIQUETA_LARGURA_MM} / ${ETIQUETA_ALTURA_MM}` }}
+              className="mx-auto flex w-full flex-col overflow-hidden rounded bg-white shadow-sm"
+              style={{ aspectRatio: `${ETIQUETA_LARGURA_MM} / ${ETIQUETA_FOLHA_ALTURA_MM}` }}
             >
               {busy || !previewUrl ? (
-                <div className="absolute inset-0 flex items-center justify-center">
+                <div className="flex flex-1 items-center justify-center">
                   <Loader2 className="size-6 animate-spin text-muted-foreground" />
                 </div>
               ) : (
-                <img
-                  src={previewUrl}
-                  alt={`Etiqueta ${os.numero}`}
-                  className="absolute inset-0 h-full w-full object-contain"
-                />
+                Array.from({ length: ETIQUETA_VIAS_POR_FOLHA }, (_, i) => (
+                  <div
+                    key={i}
+                    className="relative w-full overflow-hidden border-b border-dashed border-neutral-300 last:border-b-0"
+                    style={{ aspectRatio: `${ETIQUETA_LARGURA_MM} / ${ETIQUETA_ALTURA_MM}` }}
+                  >
+                    <img
+                      src={previewUrl}
+                      alt={`Etiqueta ${os.numero} via ${i + 1}`}
+                      className="absolute inset-0 h-full w-full object-contain"
+                    />
+                  </div>
+                ))
               )}
             </div>
           </div>
