@@ -64,17 +64,15 @@ export async function gerarQrEtiquetaOS(
 }
 
 /**
- * Imprime a etiqueta 100×150mm via iframe oculto.
+ * Imprime a etiqueta 76×76mm via iframe oculto.
  */
 export function imprimirEtiquetaOS(html: string) {
   imprimirAdesivoHtml(html);
 }
 
 /**
- * Monta o HTML do comprovante de entrada da OS — 100mm × 150mm.
- * Margens: topo e inferior 5mm; laterais 2mm.
- * Área útil: 96mm × 140mm.
- * QR alinhado no topo com o título BikeTime.
+ * Monta o HTML do comprovante de entrada da OS — 76mm × 76mm, margem 2mm.
+ * Área útil: 72mm × 72mm. QR alinhado no topo com o título BikeTime.
  */
 export function htmlEtiquetaOS(
   opts: EtiquetaOSOpts & { qrDataUrl?: string | null },
@@ -95,27 +93,27 @@ export function htmlEtiquetaOS(
   <title>Comprovante ${esc(opts.numero)}</title>
   <style>
     @page {
-      size: 100mm 150mm;
-      margin: 5mm 2mm 5mm 2mm;
+      size: 76mm 76mm;
+      margin: 2mm;
     }
     * { box-sizing: border-box; }
     html, body {
       margin: 0;
       padding: 0;
-      width: 100mm;
-      height: 150mm;
+      width: 76mm;
+      height: 76mm;
     }
     body {
       font-family: system-ui, -apple-system, sans-serif;
       color: #111;
       background: #fff;
-      font-size: 9pt;
-      line-height: 1.3;
+      font-size: 7pt;
+      line-height: 1.2;
       overflow: hidden;
     }
     .sheet {
-      width: 96mm;
-      height: 140mm;
+      width: 72mm;
+      height: 72mm;
       margin: 0 auto;
       display: flex;
       flex-direction: column;
@@ -123,82 +121,100 @@ export function htmlEtiquetaOS(
     }
     .header {
       display: flex;
-      gap: 4mm;
+      gap: 2mm;
       align-items: flex-start;
       justify-content: space-between;
-      padding-bottom: 3mm;
-      border-bottom: 0.4mm solid #111;
+      padding-bottom: 1.5mm;
+      border-bottom: 0.3mm solid #111;
     }
     .header-text { min-width: 0; flex: 1; }
+    .header-side {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      flex-shrink: 0;
+      width: 20mm;
+    }
     .brand {
-      font-size: 16pt;
+      font-size: 10pt;
       font-weight: 800;
       letter-spacing: 0.02em;
       line-height: 1.1;
       margin: 0;
     }
     .subtitle {
-      margin-top: 1.2mm;
-      font-size: 9pt;
+      margin-top: 0.6mm;
+      font-size: 6.5pt;
       color: #444;
     }
     .os {
-      margin-top: 3mm;
+      margin-top: 1.5mm;
       font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-      font-size: 18pt;
+      font-size: 11pt;
       font-weight: 800;
-      letter-spacing: 0.03em;
+      letter-spacing: 0.02em;
       line-height: 1.1;
       word-break: break-word;
     }
-    .meta { margin-top: 1.8mm; font-size: 9pt; }
+    .meta {
+      margin-top: 0.8mm;
+      font-size: 6.5pt;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
     .meta strong { font-weight: 700; }
     img.qr {
-      width: 32mm;
-      height: 32mm;
+      width: 18mm;
+      height: 18mm;
       display: block;
-      flex-shrink: 0;
       margin: 0;
-      align-self: flex-start;
     }
     .dates {
-      display: flex;
-      gap: 4mm;
-      margin-top: 4mm;
+      width: 100%;
+      margin-top: 1mm;
+      text-align: center;
     }
-    .dates > div { flex: 1; min-width: 0; }
+    .dates .date-row { margin-top: 0.6mm; }
+    .dates .date-row:first-child { margin-top: 0; }
     .label {
-      font-size: 7.5pt;
+      font-size: 5pt;
       font-weight: 700;
       text-transform: uppercase;
-      letter-spacing: 0.06em;
+      letter-spacing: 0.04em;
       color: #555;
-      margin-bottom: 0.8mm;
+      margin-bottom: 0.15mm;
     }
-    .block { margin-top: 4mm; min-height: 0; }
+    .date-val { font-size: 6pt; line-height: 1.1; }
+    .body {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      margin-top: 1.2mm;
+    }
+    .block { margin-top: 1.2mm; min-height: 0; flex: 1; }
+    .block:first-child { margin-top: 0; }
     .text {
       white-space: pre-wrap;
       word-break: break-word;
-      font-size: 9pt;
+      font-size: 6.5pt;
       overflow: hidden;
       display: -webkit-box;
       -webkit-box-orient: vertical;
-      -webkit-line-clamp: 6;
-      line-clamp: 6;
+      -webkit-line-clamp: 4;
+      line-clamp: 4;
     }
     .footer {
       margin-top: auto;
-      padding-top: 3mm;
-      border-top: 0.3mm solid #ccc;
-      font-size: 7.5pt;
+      padding-top: 1mm;
+      border-top: 0.25mm solid #ccc;
+      font-size: 5.5pt;
       color: #333;
-      line-height: 1.35;
-    }
-    .footer .tagline {
-      margin-top: 1.5mm;
-      font-weight: 700;
-      color: #111;
-      font-style: italic;
+      line-height: 1.2;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
     @media print {
       body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
@@ -220,41 +236,37 @@ export function htmlEtiquetaOS(
             : ""
         }
       </div>
-      ${
-        qr
-          ? `<img class="qr" src="${qr}" alt="QR ${esc(codigo || opts.numero)}" />`
-          : ""
-      }
-    </div>
-
-    <div class="dates">
-      <div>
-        <div class="label">Entrada</div>
-        <div>${esc(entrada)}</div>
+      <div class="header-side">
+        ${
+          qr
+            ? `<img class="qr" src="${qr}" alt="QR ${esc(codigo || opts.numero)}" />`
+            : ""
+        }
+        <div class="dates">
+          <div class="date-row">
+            <div class="label">Entrada</div>
+            <div class="date-val">${esc(entrada)}</div>
+          </div>
+          <div class="date-row">
+            <div class="label">Previsão</div>
+            <div class="date-val">${esc(prevista)}</div>
+          </div>
+        </div>
       </div>
-      <div>
-        <div class="label">Previsão</div>
-        <div>${esc(prevista)}</div>
+    </div>
+
+    <div class="body">
+      <div class="block">
+        <div class="label">Problema / serviço</div>
+        <div class="text">${esc(problema)}</div>
+      </div>
+      <div class="block">
+        <div class="label">Checklist / acessórios</div>
+        <div class="text">${esc(checklist)}</div>
       </div>
     </div>
 
-    <div class="block">
-      <div class="label">Problema / serviço</div>
-      <div class="text">${esc(problema)}</div>
-    </div>
-
-    <div class="block">
-      <div class="label">Checklist / acessórios</div>
-      <div class="text">${esc(checklist)}</div>
-    </div>
-
-    <div class="footer">
-      <div>
-        Acompanhe a jornada da sua bike: acesse biketime.com.br, faça login com seu e-mail
-        e veja o status na oficina.
-      </div>
-      <div class="tagline">It's Bike Time, sua oficina premium em Perdizes.</div>
-    </div>
+    <div class="footer">biketime.com.br · It's Bike Time — Perdizes</div>
   </div>
 </body>
 </html>`;
