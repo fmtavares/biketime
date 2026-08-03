@@ -22,7 +22,8 @@ export const Route = createFileRoute("/b/$codigo")({
 
 /**
  * Landing do QR do adesivo da bike (URL pública do site).
- * Cliente dono vê a bike; staff vai para a gestão; demais veem aviso.
+ * Cliente dono vê a bike; demais veem aviso.
+ * Equipe usa o scanner dentro da gestão (link da gestão nunca é exposto aqui).
  */
 function BikeQrPage() {
   const { codigo: codigoParam } = Route.useParams();
@@ -60,19 +61,11 @@ function BikeQrPage() {
     };
   }, [codigoParam, resolver]);
 
-  useEffect(() => {
-    if (result?.kind === "staff" && result.gestaoUrl) {
-      window.location.href = result.gestaoUrl;
-    }
-  }, [result]);
-
-  if (loading || result?.kind === "staff") {
+  if (loading) {
     return (
       <div className="container-px mx-auto flex min-h-[60vh] max-w-lg flex-col items-center justify-center py-16 text-muted-foreground">
         <Loader2 className="size-6 animate-spin" />
-        <p className="mt-3 text-sm">
-          {result?.kind === "staff" ? "Abrindo na gestão…" : "Identificando bike…"}
-        </p>
+        <p className="mt-3 text-sm">Identificando bike…</p>
       </div>
     );
   }

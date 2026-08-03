@@ -3,8 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 
 /**
  * Scan interno da gestão: /b/BTB-00001 → ficha da bike.
- * O QR impresso aponta para o site; a equipe usa esta rota após login na gestão
- * (ou via redirect staff a partir do site).
+ * Usado pelo botão "Ler QR" (mobile) após decodificar o adesivo/etiqueta.
  */
 export const Route = createFileRoute("/_app/b/$codigo")({
   loader: async ({ params }) => {

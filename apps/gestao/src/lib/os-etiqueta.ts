@@ -13,7 +13,7 @@ export const ETIQUETA_FOLHA_ALTURA_MM = 150;
 /** Quantidade de vias impressas por folha. */
 export const ETIQUETA_VIAS_POR_FOLHA = 2;
 /** Margem interna em todos os lados (mm). */
-export const ETIQUETA_MARGEM_MM = 1;
+export const ETIQUETA_MARGEM_MM = 2;
 /** Resolução de render (px por mm) — ~203 DPI térmica. */
 const PX_POR_MM = 8;
 

@@ -30,9 +30,11 @@ import {
   Store,
   BookOpenCheck,
   FileText,
+  QrCode,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { BikeQrScanDialog } from "@/components/BikeQrScanDialog";
 import bikeTimeLogo from "@/assets/biketime-logo.png";
 
 type NavItem = { to: string; label: string; icon: any; exact?: boolean };
@@ -175,6 +177,7 @@ export function AppLayout() {
   const navigate = useNavigate();
   const path = useRouterState({ select: (s) => s.location.pathname });
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [qrScanOpen, setQrScanOpen] = useState(false);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>(() =>
     typeof window !== "undefined" ? loadCollapsed() : {},
   );
@@ -365,45 +368,60 @@ export function AppLayout() {
           />
           <span className="font-display font-bold truncate">Bike Time</span>
         </Link>
-        <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-          <SheetTrigger asChild>
-            <Button variant="ghost" size="icon" aria-label="Menu">
-              <Menu className="size-5" />
-            </Button>
-          </SheetTrigger>
-          <SheetContent side="right" className="w-72 p-0 flex flex-col bg-sidebar">
-            <div className="px-5 py-5 border-b flex items-center gap-2">
-              <img
-                src={bikeTimeLogo}
-                alt="Bike Time"
-                className="size-10 rounded-full object-cover"
-              />
-              <div>
-                <div className="font-display font-bold leading-tight">Bike Time</div>
-                <div className="text-[10px] uppercase tracking-widest text-muted-foreground">
-                  CRM + Oficina
+        <div className="flex items-center gap-1 shrink-0">
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            className="gap-1.5"
+            aria-label="Ler QR da bike"
+            onClick={() => setQrScanOpen(true)}
+          >
+            <QrCode className="size-4" />
+            Ler QR
+          </Button>
+          <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+            <SheetTrigger asChild>
+              <Button variant="ghost" size="icon" aria-label="Menu">
+                <Menu className="size-5" />
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="right" className="w-72 p-0 flex flex-col bg-sidebar">
+              <div className="px-5 py-5 border-b flex items-center gap-2">
+                <img
+                  src={bikeTimeLogo}
+                  alt="Bike Time"
+                  className="size-10 rounded-full object-cover"
+                />
+                <div>
+                  <div className="font-display font-bold leading-tight">Bike Time</div>
+                  <div className="text-[10px] uppercase tracking-widest text-muted-foreground">
+                    CRM + Oficina
+                  </div>
                 </div>
               </div>
-            </div>
-            <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
-              {navItems(() => setMobileOpen(false))}
-            </nav>
-            <div className="p-3 border-t">
-              <div className="px-3 py-2 text-xs text-muted-foreground truncate">
-                {user.email}
+              <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
+                {navItems(() => setMobileOpen(false))}
+              </nav>
+              <div className="p-3 border-t">
+                <div className="px-3 py-2 text-xs text-muted-foreground truncate">
+                  {user.email}
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full justify-start"
+                  onClick={signOut}
+                >
+                  <LogOut className="size-4" /> Sair
+                </Button>
               </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="w-full justify-start"
-                onClick={signOut}
-              >
-                <LogOut className="size-4" /> Sair
-              </Button>
-            </div>
-          </SheetContent>
-        </Sheet>
+            </SheetContent>
+          </Sheet>
+        </div>
       </header>
+
+      <BikeQrScanDialog open={qrScanOpen} onOpenChange={setQrScanOpen} />
 
       <main className="flex-1 overflow-x-hidden min-w-0">
         <Outlet />

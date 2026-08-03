@@ -10,11 +10,6 @@ const inputSchema = z.object({
 
 export type BikeQrResolve =
   | {
-      kind: "staff";
-      codigo: string;
-      gestaoUrl: string;
-    }
-  | {
       kind: "owner";
       codigo: string;
       bike: {
@@ -32,16 +27,11 @@ export type BikeQrResolve =
       codigo: string;
     };
 
-const GESTAO_ORIGIN =
-  process.env.GESTAO_URL ||
-  process.env.VITE_GESTAO_URL ||
-  "https://gestao.biketime.com.br";
-
 /**
- * Resolve o scan do QR da bike no site.
- * - Staff → URL da gestão
- * - Cliente dono → dados seguros da bike
- * - Demais / sem login / código inválido → aviso genérico (sem vazar existência)
+ * Resolve o scan do QR da bike no site (público).
+ * - Cliente dono logado → dados seguros da bike
+ * - Demais / staff / sem login / código inválido → aviso genérico
+ *   (equipe usa o scanner dentro da gestão; link da gestão nunca é exposto)
  */
 export const resolveBikeQr = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => inputSchema.parse(data))
@@ -67,18 +57,8 @@ export const resolveBikeQr = createServerFn({ method: "POST" })
     }
 
     if (userId) {
-      const { data: staff } = await (supabaseAdmin as any).rpc("is_staff", {
-        _user_id: userId,
-      });
-      if (staff === true) {
-        return {
-          kind: "staff",
-          codigo,
-          gestaoUrl: `${GESTAO_ORIGIN.replace(/\/$/, "")}/b/${encodeURIComponent(codigo)}`,
-        };
-      }
-
-      const ownerUserId = (bike.clientes as { user_id?: string | null } | null)?.user_id ?? null;
+      const ownerUserId =
+        (bike.clientes as { user_id?: string | null } | null)?.user_id ?? null;
       if (ownerUserId && ownerUserId === userId) {
         return {
           kind: "owner",
@@ -96,6 +76,5 @@ export const resolveBikeQr = createServerFn({ method: "POST" })
       }
     }
 
-    // Não logado, não dono, ou staff sem sessão no site → aviso público
     return { kind: "aviso", codigo };
   });
