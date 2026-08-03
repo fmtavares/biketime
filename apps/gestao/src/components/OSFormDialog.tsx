@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { Plus, Trash2, Flag, Sparkles, Loader2, Printer, FileText, ExternalLink, RefreshCw } from "lucide-react";
+import { Plus, Trash2, Flag, Sparkles, Loader2, FileText, ExternalLink, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { invocarNfse, labelNfseStatus, podeEmitirNfse } from "@/lib/nfse";
 import {
@@ -17,6 +17,7 @@ import { ClienteCombobox } from "@/components/ClienteCombobox";
 import { ServicoCombobox } from "@/components/ServicoCombobox";
 import { CurrencyInput } from "@/components/CurrencyInput";
 import { OSEtiquetaDialog } from "@/components/OSEtiquetaDialog";
+import { OSEtiquetaMenuButton } from "@/components/OSEtiquetaMenuButton";
 import { listarUsuariosEquipe } from "@/lib/usuarios-sistema";
 import { useAuth } from "@/lib/auth-context";
 import { dataMaisMeses } from "@/lib/datas";
@@ -25,7 +26,7 @@ import {
   appendObsAprovacao,
   parseHistoricoObsAprovacao,
 } from "@/lib/observacoes-aprovacao";
-import type { EtiquetaOSOpts } from "@/lib/os-etiqueta";
+import type { EtiquetaOSOpts, FormatoEtiquetaOS } from "@/lib/os-etiqueta";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -160,9 +161,10 @@ export function OSFormDialog({
   const [valorPeca, setValorPeca] = useState("");
   /** Nova nota da equipe anexada ao histórico de aprovação no save. */
   const [novaObsEquipe, setNovaObsEquipe] = useState("");
-  /** Preview/impressão do comprovante 100×75mm da OS. */
+  /** Preview/impressão do comprovante da OS. */
   const [etiquetaOpen, setEtiquetaOpen] = useState(false);
   const [etiquetaOs, setEtiquetaOs] = useState<EtiquetaOSOpts | null>(null);
+  const [etiquetaFormato, setEtiquetaFormato] = useState<FormatoEtiquetaOS>("dupla");
   /** Indica emissão/consulta de NFS-e via Focus. */
   const [nfseBusy, setNfseBusy] = useState(false);
 
@@ -780,9 +782,9 @@ export function OSFormDialog({
   };
 
   /**
-   * Salva a OS (gera número se nova) e abre o comprovante 100×75mm para impressão.
+   * Salva a OS (gera número se nova) e abre o comprovante no formato escolhido.
    */
-  async function salvarEImprimirEtiqueta() {
+  async function salvarEImprimirEtiqueta(formato: FormatoEtiquetaOS) {
     const saved = await save({ close: false });
     if (!saved?.numero) return;
     setBusy(true);
@@ -793,6 +795,7 @@ export function OSFormDialog({
         problema_relatado: form.problema_relatado ?? saved.problema_relatado,
         checklist_entrada: form.checklist_entrada ?? saved.checklist_entrada,
       });
+      setEtiquetaFormato(formato);
       setEtiquetaOs(etiqueta);
       setEtiquetaOpen(true);
       // Fecha o form para evitar conflito de modais / insert duplicado
@@ -1375,16 +1378,16 @@ export function OSFormDialog({
             >
               Cancelar
             </Button>
-            <Button
-              type="button"
+            <OSEtiquetaMenuButton
+              label={busy ? "Salvando…" : "Imprimir"}
+              size="default"
               variant="secondary"
               className="w-full sm:w-auto"
-              onClick={salvarEImprimirEtiqueta}
               disabled={busy}
-            >
-              <Printer className="size-4" />
-              {busy ? "Salvando…" : "Imprimir etiqueta"}
-            </Button>
+              onSelect={(tipo) => {
+                void salvarEImprimirEtiqueta(tipo);
+              }}
+            />
             <Button className="w-full sm:w-auto" onClick={() => void save()} disabled={busy}>
               {busy ? "Salvando…" : "Salvar"}
             </Button>
@@ -1397,6 +1400,7 @@ export function OSFormDialog({
       open={etiquetaOpen}
       onOpenChange={setEtiquetaOpen}
       os={etiquetaOs}
+      formato={etiquetaFormato}
     />
     </>
   );

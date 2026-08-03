@@ -1,21 +1,60 @@
-import { gerarQrDataUrl } from "@/lib/bike-adesivo";
+import { gerarQrDataUrlFromUrl, urlQrOs } from "@/lib/bike-adesivo";
 
 /** Texto padrão quando o checklist de entrada está vazio. */
 export const CHECKLIST_ENTRADA_PADRAO =
   "Nenhum acessório deixado junto à bike (nada mencionado na entrada).";
 
-/** Página física da etiqueta (mm) — folha completa. */
-export const ETIQUETA_LARGURA_MM = 100;
-/** Altura de uma via (metade da folha física). */
-export const ETIQUETA_ALTURA_MM = 75;
-/** Altura da folha física: duas vias empilhadas. */
-export const ETIQUETA_FOLHA_ALTURA_MM = 150;
-/** Quantidade de vias impressas por folha. */
-export const ETIQUETA_VIAS_POR_FOLHA = 2;
-/** Margem interna em todos os lados (mm). */
-export const ETIQUETA_MARGEM_MM = 2;
+/** Formatos de etiqueta OS. */
+export type FormatoEtiquetaOS = "dupla" | "simples";
+
+type SpecEtiqueta = {
+  larguraMm: number;
+  /** Altura de uma via (imagem). */
+  alturaViaMm: number;
+  /** Altura da folha física impressa. */
+  folhaAlturaMm: number;
+  vias: number;
+  margemMm: number;
+};
+
+const SPECS: Record<FormatoEtiquetaOS, SpecEtiqueta> = {
+  dupla: {
+    larguraMm: 100,
+    alturaViaMm: 75,
+    folhaAlturaMm: 150,
+    vias: 2,
+    margemMm: 2,
+  },
+  simples: {
+    larguraMm: 78,
+    alturaViaMm: 70,
+    folhaAlturaMm: 70,
+    vias: 1,
+    margemMm: 2,
+  },
+};
+
+/** Specs da OS dupla (compat / UI). */
+export const ETIQUETA_LARGURA_MM = SPECS.dupla.larguraMm;
+export const ETIQUETA_ALTURA_MM = SPECS.dupla.alturaViaMm;
+export const ETIQUETA_FOLHA_ALTURA_MM = SPECS.dupla.folhaAlturaMm;
+export const ETIQUETA_VIAS_POR_FOLHA = SPECS.dupla.vias;
+export const ETIQUETA_MARGEM_MM = SPECS.dupla.margemMm;
+
+/** Specs da OS simples. */
+export const ETIQUETA_SIMPLES_LARGURA_MM = SPECS.simples.larguraMm;
+export const ETIQUETA_SIMPLES_ALTURA_MM = SPECS.simples.alturaViaMm;
+export const ETIQUETA_SIMPLES_MARGEM_MM = SPECS.simples.margemMm;
+
 /** Resolução de render (px por mm) — ~203 DPI térmica. */
 const PX_POR_MM = 8;
+
+/**
+ * Retorna as medidas físicas do formato de etiqueta.
+ */
+export function specEtiquetaOS(formato: FormatoEtiquetaOS): SpecEtiqueta {
+  return SPECS[formato];
+}
 
 export type EtiquetaOSOpts = {
   numero: string;
@@ -68,14 +107,15 @@ export function tituloBikeEtiqueta(opts: Pick<EtiquetaOSOpts, "marca" | "modelo"
 }
 
 /**
- * Gera QR da bike quando há código; senão retorna null (etiqueta sem QR).
+ * Gera QR da etiqueta apontando para a OS (URL pública `/os/{numero}`).
+ * Sem número → etiqueta sem QR.
  */
 export async function gerarQrEtiquetaOS(
-  codigoBike?: string | null,
+  numeroOs?: string | null,
 ): Promise<string | null> {
-  const code = (codigoBike ?? "").trim();
-  if (!code) return null;
-  return gerarQrDataUrl(code);
+  const numero = (numeroOs ?? "").trim();
+  if (!numero) return null;
+  return gerarQrDataUrlFromUrl(urlQrOs(numero));
 }
 
 /**
@@ -151,15 +191,24 @@ function quebrarLinhas(
 }
 
 /**
- * Desenha a etiqueta inteira em canvas no tamanho físico exato (100×75mm).
- * Evita o estouro lateral do HTML/CSS na impressão térmica.
+ * Desenha a etiqueta em canvas no tamanho físico do formato.
+ * Layout igual à OS dupla; tipografia escala pela largura.
  */
 export async function renderEtiquetaOSDataUrl(
-  opts: EtiquetaOSOpts & { qrDataUrl?: string | null },
+  opts: EtiquetaOSOpts & {
+    qrDataUrl?: string | null;
+    formato?: FormatoEtiquetaOS;
+  },
 ): Promise<string> {
-  const W = Math.round(ETIQUETA_LARGURA_MM * PX_POR_MM);
-  const H = Math.round(ETIQUETA_ALTURA_MM * PX_POR_MM);
-  const m = Math.round(ETIQUETA_MARGEM_MM * PX_POR_MM);
+  const formato = opts.formato ?? "dupla";
+  const spec = SPECS[formato];
+  /** Escala tipográfica relativa ao layout base (100mm de largura). */
+  const scale = spec.larguraMm / SPECS.dupla.larguraMm;
+  const u = (n: number) => Math.max(1, Math.round(n * scale));
+
+  const W = Math.round(spec.larguraMm * PX_POR_MM);
+  const H = Math.round(spec.alturaViaMm * PX_POR_MM);
+  const m = Math.round(spec.margemMm * PX_POR_MM);
   const contentW = W - m * 2;
   const contentH = H - m * 2;
 
@@ -185,9 +234,9 @@ export async function renderEtiquetaOSDataUrl(
   const prevista = formatarDataEtiquetaCurta(opts.dataPrevista);
   const codigo = (opts.codigoBike ?? "").trim();
 
-  const gap = Math.round(2 * PX_POR_MM);
-  const qrCol = Math.round(24 * PX_POR_MM);
-  const qrSize = Math.round(22 * PX_POR_MM);
+  const gap = u(2 * PX_POR_MM);
+  const qrCol = u(24 * PX_POR_MM);
+  const qrSize = u(22 * PX_POR_MM);
   const leftW = contentW - qrCol - gap;
 
   // —— Cabeçalho esquerdo (clipado para não invadir o QR) ——
@@ -199,23 +248,23 @@ export async function renderEtiquetaOSDataUrl(
   let y = 0;
   ctx.fillStyle = "#111111";
   ctx.textBaseline = "top";
-  ctx.font = "900 48px Arial Black, Arial, Helvetica, sans-serif";
+  ctx.font = `900 ${u(48)}px Arial Black, Arial, Helvetica, sans-serif`;
   const osNum = quebrarLinhas(ctx, opts.numero, leftW, 1)[0] ?? opts.numero;
   ctx.fillText(osNum, 0, y);
-  y += 52;
+  y += u(52);
 
   ctx.fillStyle = "#444444";
-  ctx.font = "400 17px Arial, Helvetica, sans-serif";
+  ctx.font = `400 ${u(17)}px Arial, Helvetica, sans-serif`;
   ctx.fillText("Comprovante de entrada", 0, y);
-  y += 26;
+  y += u(26);
 
   ctx.fillStyle = "#111111";
-  ctx.font = "600 20px Arial, Helvetica, sans-serif";
+  ctx.font = `600 ${u(20)}px Arial, Helvetica, sans-serif`;
   const metaLinhas = [cliente, bike, ...(codigo ? [codigo] : [])];
   for (const linha of metaLinhas) {
     for (const t of quebrarLinhas(ctx, linha, leftW, 1)) {
       ctx.fillText(t, 0, y);
-      y += 24;
+      y += u(24);
     }
   }
   ctx.restore();
@@ -231,18 +280,18 @@ export async function renderEtiquetaOSDataUrl(
     }
   }
 
-  const headerBottom = Math.max(y, qrSize) + 6;
+  const headerBottom = Math.max(y, qrSize) + u(6);
 
   // Linha divisória
   ctx.strokeStyle = "#111111";
-  ctx.lineWidth = 1.5;
+  ctx.lineWidth = Math.max(1, scale * 1.5);
   ctx.beginPath();
   ctx.moveTo(0, headerBottom);
   ctx.lineTo(contentW, headerBottom);
   ctx.stroke();
 
-  // Datas em uma única linha: ● Entrada dd/mm/yy   ● Previsto dd/mm/yy
-  const datesY = headerBottom + 8;
+  // Datas em uma única linha
+  const datesY = headerBottom + u(8);
   ctx.textBaseline = "top";
   const bullet = "●";
   const sep = "   ";
@@ -250,9 +299,9 @@ export async function renderEtiquetaOSDataUrl(
   const partePrevisto = `${bullet} Previsto ${prevista}`;
   const linhaDatas = `${parteEntrada}${sep}${partePrevisto}`;
 
-  let fontSize = 19;
+  let fontSize = u(19);
   ctx.font = `700 ${fontSize}px Arial, Helvetica, sans-serif`;
-  while (fontSize > 14 && ctx.measureText(linhaDatas).width > contentW) {
+  while (fontSize > u(12) && ctx.measureText(linhaDatas).width > contentW) {
     fontSize -= 1;
     ctx.font = `700 ${fontSize}px Arial, Helvetica, sans-serif`;
   }
@@ -263,7 +312,7 @@ export async function renderEtiquetaOSDataUrl(
   dx += ctx.measureText(parteEntrada).width + ctx.measureText(sep).width;
   ctx.fillText(partePrevisto, dx, datesY);
 
-  const dividerY = datesY + fontSize + 10;
+  const dividerY = datesY + fontSize + u(10);
   ctx.strokeStyle = "#dddddd";
   ctx.lineWidth = 1;
   ctx.beginPath();
@@ -271,25 +320,22 @@ export async function renderEtiquetaOSDataUrl(
   ctx.lineTo(contentW, dividerY);
   ctx.stroke();
 
-  /**
-   * Corpo: tipografia maior e altura preenchida.
-   * Calcula quantas linhas cabem no espaço livre até o rodapé.
-   */
-  let by = dividerY + 10;
-  const footerH = 44;
+  // Corpo
+  let by = dividerY + u(10);
+  const footerH = u(44);
   const obsText =
     "Acompanhe a evolução da sua OS em biketime.com.br, fazendo login com seu e-mail e senha. Se ainda não tiver acesso, solicite na oficina.";
 
-  const problemaLabel = 16;
-  const problemaText = 22;
-  const problemaLH = 26;
-  const checkLabel = 15;
-  const checkText = 19;
-  const checkLH = 23;
-  const obsLabel = 14;
-  const obsTextSize = 17;
-  const obsLH = 21;
-  const gapBlocos = 14;
+  const problemaLabel = u(16);
+  const problemaText = u(22);
+  const problemaLH = u(26);
+  const checkLabel = u(15);
+  const checkText = u(19);
+  const checkLH = u(23);
+  const obsLabel = u(14);
+  const obsTextSize = u(17);
+  const obsLH = u(21);
+  const gapBlocos = u(14);
 
   const drawBloco = (
     label: string,
@@ -302,7 +348,7 @@ export async function renderEtiquetaOSDataUrl(
     ctx.fillStyle = "#555555";
     ctx.font = `700 ${labelSize}px Arial, Helvetica, sans-serif`;
     ctx.fillText(label.toUpperCase(), 0, by);
-    by += labelSize + 5;
+    by += labelSize + u(5);
     ctx.fillStyle = "#111111";
     ctx.font = `500 ${textSize}px Arial, Helvetica, sans-serif`;
     const linhas = quebrarLinhas(ctx, text, contentW, maxLines);
@@ -313,14 +359,14 @@ export async function renderEtiquetaOSDataUrl(
     }
   };
 
-  const checkLines = 2;
-  const obsLines = 2;
-  const checkReserve = checkLabel + 5 + checkLH * checkLines + gapBlocos;
-  const obsReserve = obsLabel + 5 + obsLH * obsLines + gapBlocos;
+  const checkLines = formato === "simples" ? 1 : 2;
+  const obsLines = formato === "simples" ? 2 : 2;
+  const checkReserve = checkLabel + u(5) + checkLH * checkLines + gapBlocos;
+  const obsReserve = obsLabel + u(5) + obsLH * obsLines + gapBlocos;
   const problemaAvail = contentH - footerH - by - checkReserve - obsReserve;
   const problemaLines = Math.max(
     2,
-    Math.floor((problemaAvail - problemaLabel - 5) / problemaLH),
+    Math.floor((problemaAvail - problemaLabel - u(5)) / problemaLH),
   );
 
   drawBloco("Problema / serviço", problema, problemaLines, {
@@ -341,7 +387,7 @@ export async function renderEtiquetaOSDataUrl(
     lineH: obsLH,
   });
 
-  // Rodapé centralizado: site + slogan
+  // Rodapé centralizado
   ctx.strokeStyle = "#cccccc";
   ctx.beginPath();
   ctx.moveTo(0, contentH - footerH);
@@ -350,10 +396,10 @@ export async function renderEtiquetaOSDataUrl(
   ctx.fillStyle = "#111111";
   ctx.textAlign = "center";
   const footerCx = contentW / 2;
-  ctx.font = "600 16px Arial, Helvetica, sans-serif";
-  ctx.fillText("www.biketime.com.br", footerCx, contentH - footerH + 6);
-  ctx.font = "600 15px Arial, Helvetica, sans-serif";
-  ctx.fillText("It's Bike Time!", footerCx, contentH - footerH + 24);
+  ctx.font = `600 ${u(16)}px Arial, Helvetica, sans-serif`;
+  ctx.fillText("www.biketime.com.br", footerCx, contentH - footerH + u(6));
+  ctx.font = `600 ${u(15)}px Arial, Helvetica, sans-serif`;
+  ctx.fillText("It's Bike Time!", footerCx, contentH - footerH + u(24));
   ctx.textAlign = "left";
 
   ctx.restore();
@@ -361,17 +407,20 @@ export async function renderEtiquetaOSDataUrl(
 }
 
 /**
- * Imprime duas vias 100×75mm empilhadas na folha física 100×150mm.
- * Retrato (mais alto que largo) evita rotação "paisagem" do Chrome.
+ * Imprime a etiqueta no formato pedido (dupla = 2 vias 100×150; simples = 1 via 78×70).
  */
-export function imprimirEtiquetaOS(dataUrl: string) {
+export function imprimirEtiquetaOS(
+  dataUrl: string,
+  formato: FormatoEtiquetaOS = "dupla",
+) {
+  const spec = SPECS[formato];
   const iframe = document.createElement("iframe");
   iframe.setAttribute("aria-hidden", "true");
   iframe.style.position = "fixed";
   iframe.style.left = "-10000px";
   iframe.style.top = "0";
-  iframe.style.width = `${ETIQUETA_LARGURA_MM}mm`;
-  iframe.style.height = `${ETIQUETA_FOLHA_ALTURA_MM}mm`;
+  iframe.style.width = `${spec.larguraMm}mm`;
+  iframe.style.height = `${spec.folhaAlturaMm}mm`;
   iframe.style.border = "0";
   document.body.appendChild(iframe);
 
@@ -382,10 +431,10 @@ export function imprimirEtiquetaOS(dataUrl: string) {
     throw new Error("Não foi possível preparar a impressão.");
   }
 
-  const wMm = ETIQUETA_LARGURA_MM;
-  const hMm = ETIQUETA_ALTURA_MM;
-  const folhaH = ETIQUETA_FOLHA_ALTURA_MM;
-  const vias = ETIQUETA_VIAS_POR_FOLHA;
+  const wMm = spec.larguraMm;
+  const hMm = spec.alturaViaMm;
+  const folhaH = spec.folhaAlturaMm;
+  const vias = spec.vias;
 
   const viasHtml = Array.from({ length: vias }, (_, i) =>
     `<div class="via"><img src="${dataUrl}" alt="Etiqueta OS via ${i + 1}" /></div>`,
@@ -491,8 +540,12 @@ export function imprimirEtiquetaOS(dataUrl: string) {
  * Gera a imagem da etiqueta e dispara a impressão.
  */
 export async function gerarEImprimirEtiquetaOS(
-  opts: EtiquetaOSOpts & { qrDataUrl?: string | null },
+  opts: EtiquetaOSOpts & {
+    qrDataUrl?: string | null;
+    formato?: FormatoEtiquetaOS;
+  },
 ) {
-  const dataUrl = await renderEtiquetaOSDataUrl(opts);
-  imprimirEtiquetaOS(dataUrl);
+  const formato = opts.formato ?? "dupla";
+  const dataUrl = await renderEtiquetaOSDataUrl({ ...opts, formato });
+  imprimirEtiquetaOS(dataUrl, formato);
 }

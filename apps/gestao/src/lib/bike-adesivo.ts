@@ -9,6 +9,11 @@ export function urlQrBike(codigoBike: string) {
   return `${SITE_BIKE_QR_ORIGIN}/b/${encodeURIComponent(codigoBike)}`;
 }
 
+/** Monta a URL pública do QR da etiqueta da OS (scan na gestão abre a OS). */
+export function urlQrOs(numeroOs: string) {
+  return `${SITE_BIKE_QR_ORIGIN}/os/${encodeURIComponent(numeroOs)}`;
+}
+
 export type AdesivoBikeOpts = {
   codigoBike: string;
   marca: string;
@@ -74,10 +79,11 @@ function drawLogoPb(
 
 /**
  * Gera QR com logo BikeTime pequena no centro (P&B), correção alta.
+ * `targetUrl` é o conteúdo do QR (URL pública do site).
  */
-export async function gerarQrDataUrl(codigoBike: string): Promise<string> {
+export async function gerarQrDataUrlFromUrl(targetUrl: string): Promise<string> {
   const size = 360;
-  const qrDataUrl = await QRCode.toDataURL(urlQrBike(codigoBike), {
+  const qrDataUrl = await QRCode.toDataURL(targetUrl, {
     width: size,
     margin: 2,
     errorCorrectionLevel: "H",
@@ -101,6 +107,13 @@ export async function gerarQrDataUrl(codigoBike: string): Promise<string> {
   drawLogoPb(ctx, logo, lx, ly, logoSize);
 
   return canvas.toDataURL("image/png");
+}
+
+/**
+ * Gera QR do adesivo da bike (URL `/b/{codigo}`).
+ */
+export async function gerarQrDataUrl(codigoBike: string): Promise<string> {
+  return gerarQrDataUrlFromUrl(urlQrBike(codigoBike));
 }
 
 /**

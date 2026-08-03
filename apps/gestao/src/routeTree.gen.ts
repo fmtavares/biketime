@@ -36,6 +36,7 @@ import { Route as AppVendasProdutosRouteImport } from './routes/_app.vendas.prod
 import { Route as AppVendasNovaRouteImport } from './routes/_app.vendas.nova'
 import { Route as AppVendasLojaVirtualRouteImport } from './routes/_app.vendas.loja-virtual'
 import { Route as AppVendasEstoqueRouteImport } from './routes/_app.vendas.estoque'
+import { Route as AppOsNumeroRouteImport } from './routes/_app.os.$numero'
 import { Route as AppOficinaOrdensRouteImport } from './routes/_app.oficina_.ordens'
 import { Route as AppOficinaNovaRouteImport } from './routes/_app.oficina_.nova'
 import { Route as AppFornecedoresIdRouteImport } from './routes/_app.fornecedores_.$id'
@@ -179,6 +180,11 @@ const AppVendasEstoqueRoute = AppVendasEstoqueRouteImport.update({
   path: '/estoque',
   getParentRoute: () => AppVendasRoute,
 } as any)
+const AppOsNumeroRoute = AppOsNumeroRouteImport.update({
+  id: '/os/$numero',
+  path: '/os/$numero',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppOficinaOrdensRoute = AppOficinaOrdensRouteImport.update({
   id: '/oficina_/ordens',
   path: '/oficina/ordens',
@@ -243,6 +249,7 @@ export interface FileRoutesByFullPath {
   '/fornecedores/$id': typeof AppFornecedoresIdRoute
   '/oficina/nova': typeof AppOficinaNovaRoute
   '/oficina/ordens': typeof AppOficinaOrdensRoute
+  '/os/$numero': typeof AppOsNumeroRoute
   '/vendas/estoque': typeof AppVendasEstoqueRoute
   '/vendas/loja-virtual': typeof AppVendasLojaVirtualRoute
   '/vendas/nova': typeof AppVendasNovaRoute
@@ -277,6 +284,7 @@ export interface FileRoutesByTo {
   '/fornecedores/$id': typeof AppFornecedoresIdRoute
   '/oficina/nova': typeof AppOficinaNovaRoute
   '/oficina/ordens': typeof AppOficinaOrdensRoute
+  '/os/$numero': typeof AppOsNumeroRoute
   '/vendas/estoque': typeof AppVendasEstoqueRoute
   '/vendas/loja-virtual': typeof AppVendasLojaVirtualRoute
   '/vendas/nova': typeof AppVendasNovaRoute
@@ -314,6 +322,7 @@ export interface FileRoutesById {
   '/_app/fornecedores_/$id': typeof AppFornecedoresIdRoute
   '/_app/oficina_/nova': typeof AppOficinaNovaRoute
   '/_app/oficina_/ordens': typeof AppOficinaOrdensRoute
+  '/_app/os/$numero': typeof AppOsNumeroRoute
   '/_app/vendas/estoque': typeof AppVendasEstoqueRoute
   '/_app/vendas/loja-virtual': typeof AppVendasLojaVirtualRoute
   '/_app/vendas/nova': typeof AppVendasNovaRoute
@@ -351,6 +360,7 @@ export interface FileRouteTypes {
     | '/fornecedores/$id'
     | '/oficina/nova'
     | '/oficina/ordens'
+    | '/os/$numero'
     | '/vendas/estoque'
     | '/vendas/loja-virtual'
     | '/vendas/nova'
@@ -385,6 +395,7 @@ export interface FileRouteTypes {
     | '/fornecedores/$id'
     | '/oficina/nova'
     | '/oficina/ordens'
+    | '/os/$numero'
     | '/vendas/estoque'
     | '/vendas/loja-virtual'
     | '/vendas/nova'
@@ -421,6 +432,7 @@ export interface FileRouteTypes {
     | '/_app/fornecedores_/$id'
     | '/_app/oficina_/nova'
     | '/_app/oficina_/ordens'
+    | '/_app/os/$numero'
     | '/_app/vendas/estoque'
     | '/_app/vendas/loja-virtual'
     | '/_app/vendas/nova'
@@ -625,6 +637,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppVendasEstoqueRouteImport
       parentRoute: typeof AppVendasRoute
     }
+    '/_app/os/$numero': {
+      id: '/_app/os/$numero'
+      path: '/os/$numero'
+      fullPath: '/os/$numero'
+      preLoaderRoute: typeof AppOsNumeroRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/oficina_/ordens': {
       id: '/_app/oficina_/ordens'
       path: '/oficina/ordens'
@@ -724,6 +743,7 @@ interface AppRouteChildren {
   AppFornecedoresIdRoute: typeof AppFornecedoresIdRoute
   AppOficinaNovaRoute: typeof AppOficinaNovaRoute
   AppOficinaOrdensRoute: typeof AppOficinaOrdensRoute
+  AppOsNumeroRoute: typeof AppOsNumeroRoute
   AppVendasIdRoute: typeof AppVendasIdRoute
 }
 
@@ -754,6 +774,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppFornecedoresIdRoute: AppFornecedoresIdRoute,
   AppOficinaNovaRoute: AppOficinaNovaRoute,
   AppOficinaOrdensRoute: AppOficinaOrdensRoute,
+  AppOsNumeroRoute: AppOsNumeroRoute,
   AppVendasIdRoute: AppVendasIdRoute,
 }
 

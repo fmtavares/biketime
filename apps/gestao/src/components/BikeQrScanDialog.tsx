@@ -10,7 +10,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { extrairCodigoBikeDoQr } from "@/lib/bike-qr-scan";
+import { interpretarQrScan } from "@/lib/bike-qr-scan";
 import { toast } from "sonner";
 
 type Props = {
@@ -21,8 +21,8 @@ type Props = {
 const READER_ID = "bt-bike-qr-reader";
 
 /**
- * Scanner de QR da bike (somente gestão / mobile).
- * Lê a URL pública do adesivo e navega para `/b/{codigo}`.
+ * Scanner de QR (somente gestão / mobile).
+ * Adesivo bike → `/b/{codigo}`; etiqueta OS → `/os/{numero}`.
  */
 export function BikeQrScanDialog({ open, onOpenChange }: Props) {
   const navigate = useNavigate();
@@ -59,18 +59,22 @@ export function BikeQrScanDialog({ open, onOpenChange }: Props) {
       }
     }
 
-    /** Ao ler um QR válido, fecha e abre a ficha da bike. */
+    /** Ao ler um QR válido, fecha e abre bike ou OS. */
     async function onDecoded(text: string) {
       if (handledRef.current || cancelled) return;
-      const codigo = extrairCodigoBikeDoQr(text);
-      if (!codigo) {
-        toast.error("QR inválido. Use o adesivo/etiqueta da bike.");
+      const target = interpretarQrScan(text);
+      if (!target) {
+        toast.error("QR inválido. Use o adesivo da bike ou a etiqueta da OS.");
         return;
       }
       handledRef.current = true;
       await stopScanner();
       onOpenChange(false);
-      navigate({ to: "/b/$codigo", params: { codigo } });
+      if (target.kind === "os") {
+        navigate({ to: "/os/$numero", params: { numero: target.numero } });
+      } else {
+        navigate({ to: "/b/$codigo", params: { codigo: target.codigo } });
+      }
     }
 
     /** Aguarda o Dialog montar o #reader antes de iniciar a câmera. */
@@ -130,7 +134,7 @@ export function BikeQrScanDialog({ open, onOpenChange }: Props) {
             Ler QR da bike
           </DialogTitle>
           <DialogDescription>
-            Aponte a câmera para o adesivo ou a etiqueta. A ficha abre na gestão.
+            Aponte a câmera para o adesivo da bike ou a etiqueta da OS.
           </DialogDescription>
         </DialogHeader>
 

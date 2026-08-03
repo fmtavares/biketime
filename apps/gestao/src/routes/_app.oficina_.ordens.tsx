@@ -5,10 +5,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { PageHeader, SearchBar } from "@/components/AppLayout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Plus, Printer } from "lucide-react";
+import { Plus } from "lucide-react";
 import { OSFormDialog } from "@/components/OSFormDialog";
 import { OSEtiquetaDialog } from "@/components/OSEtiquetaDialog";
-import type { EtiquetaOSOpts } from "@/lib/os-etiqueta";
+import { OSEtiquetaMenuButton } from "@/components/OSEtiquetaMenuButton";
+import type { EtiquetaOSOpts, FormatoEtiquetaOS } from "@/lib/os-etiqueta";
 
 export const Route = createFileRoute("/_app/oficina_/ordens")({
   component: OrdensServicoPage,
@@ -51,6 +52,7 @@ function OrdensServicoPage() {
   const [edit, setEdit] = useState<any>(null);
   const [etiquetaOpen, setEtiquetaOpen] = useState(false);
   const [etiquetaOs, setEtiquetaOs] = useState<EtiquetaOSOpts | null>(null);
+  const [etiquetaFormato, setEtiquetaFormato] = useState<FormatoEtiquetaOS>("dupla");
 
   const { data = [], refetch, isLoading } = useQuery({
     queryKey: ["os-lista"],
@@ -64,10 +66,10 @@ function OrdensServicoPage() {
     },
   });
 
-  /** Abre o preview/impressão do comprovante sem abrir o formulário. */
-  function abrirEtiqueta(o: any, e?: { stopPropagation: () => void }) {
-    e?.stopPropagation();
+  /** Abre o preview/impressão no formato escolhido (sem abrir o formulário). */
+  function abrirEtiqueta(o: any, formato: FormatoEtiquetaOS) {
     if (!o?.numero) return;
+    setEtiquetaFormato(formato);
     setEtiquetaOs(osParaEtiqueta(o));
     setEtiquetaOpen(true);
   }
@@ -146,14 +148,9 @@ function OrdensServicoPage() {
                   </div>
                 </button>
                 <div className="mt-3 flex justify-end">
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={(e) => abrirEtiqueta(o, e)}
-                  >
-                    <Printer className="size-3.5" /> Etiqueta
-                  </Button>
+                  <OSEtiquetaMenuButton
+                    onSelect={(tipo) => abrirEtiqueta(o, tipo)}
+                  />
                 </div>
               </div>
             ))}
@@ -216,16 +213,11 @@ function OrdensServicoPage() {
                       </Badge>
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <Button
-                        type="button"
-                        size="icon"
+                      <OSEtiquetaMenuButton
+                        iconOnly
                         variant="ghost"
-                        className="size-8"
-                        title="Imprimir etiqueta"
-                        onClick={(e) => abrirEtiqueta(o, e)}
-                      >
-                        <Printer className="size-4" />
-                      </Button>
+                        onSelect={(tipo) => abrirEtiqueta(o, tipo)}
+                      />
                     </td>
                   </tr>
                 ))}
@@ -256,6 +248,7 @@ function OrdensServicoPage() {
         open={etiquetaOpen}
         onOpenChange={setEtiquetaOpen}
         os={etiquetaOs}
+        formato={etiquetaFormato}
       />
     </div>
   );
