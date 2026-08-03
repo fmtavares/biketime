@@ -64,15 +64,15 @@ export async function gerarQrEtiquetaOS(
 }
 
 /**
- * Imprime a etiqueta 80×100mm via iframe oculto.
+ * Imprime a etiqueta 76×96mm via iframe oculto.
  */
 export function imprimirEtiquetaOS(html: string) {
   imprimirAdesivoHtml(html);
 }
 
 /**
- * Monta o HTML do comprovante de entrada da OS — 80mm × 100mm, margem 2mm.
- * Área útil: 76mm × 96mm.
+ * Monta o HTML do comprovante de entrada da OS — 76mm × 96mm, margem 2mm.
+ * Área útil: 72mm × 92mm.
  */
 export function htmlEtiquetaOS(
   opts: EtiquetaOSOpts & { qrDataUrl?: string | null },
@@ -93,15 +93,15 @@ export function htmlEtiquetaOS(
   <title>Comprovante ${esc(opts.numero)}</title>
   <style>
     @page {
-      size: 80mm 100mm;
+      size: 76mm 96mm;
       margin: 2mm;
     }
     * { box-sizing: border-box; }
     html, body {
       margin: 0;
       padding: 0;
-      width: 80mm;
-      height: 100mm;
+      width: 76mm;
+      height: 96mm;
     }
     body {
       font-family: system-ui, -apple-system, sans-serif;
@@ -112,8 +112,8 @@ export function htmlEtiquetaOS(
       overflow: hidden;
     }
     .sheet {
-      width: 76mm;
-      height: 96mm;
+      width: 72mm;
+      height: 92mm;
       margin: 0 auto;
       display: flex;
       flex-direction: column;
@@ -151,8 +151,8 @@ export function htmlEtiquetaOS(
     .meta { margin-top: 1.2mm; font-size: 7.5pt; }
     .meta strong { font-weight: 700; }
     img.qr {
-      width: 24mm;
-      height: 24mm;
+      width: 22mm;
+      height: 22mm;
       display: block;
       flex-shrink: 0;
     }
