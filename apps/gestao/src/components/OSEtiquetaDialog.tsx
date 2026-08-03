@@ -26,7 +26,7 @@ type Props = {
 };
 
 /**
- * Preview 76×76mm do comprovante de entrada da OS + impressão sem popup.
+ * Preview 98×78mm do comprovante de entrada da OS + impressão sem popup.
  */
 export function OSEtiquetaDialog({ open, onOpenChange, os }: Props) {
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
@@ -57,7 +57,7 @@ export function OSEtiquetaDialog({ open, onOpenChange, os }: Props) {
     };
   }, [open, os?.codigoBike, os?.numero]);
 
-  /** Dispara impressão da etiqueta 76×76mm via iframe oculto. */
+  /** Dispara impressão da etiqueta 98×78mm via iframe oculto. */
   function handlePrint() {
     if (!os || busy) return;
     try {
@@ -74,7 +74,7 @@ export function OSEtiquetaDialog({ open, onOpenChange, os }: Props) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-sm">
         <DialogHeader>
-          <DialogTitle>Etiqueta da OS (76×76 mm)</DialogTitle>
+          <DialogTitle>Etiqueta da OS (98×78 mm)</DialogTitle>
         </DialogHeader>
 
         {!os ? (
@@ -82,7 +82,7 @@ export function OSEtiquetaDialog({ open, onOpenChange, os }: Props) {
         ) : (
           <div
             className="mx-auto overflow-hidden rounded-lg border bg-white text-black shadow-sm"
-            style={{ width: 287, height: 287, padding: 8 }}
+            style={{ width: 370, height: 295, padding: 8 }}
           >
             <div className="flex h-full flex-col">
               <div className="flex items-start justify-between gap-2 border-b border-neutral-900 pb-2">

@@ -64,15 +64,16 @@ export async function gerarQrEtiquetaOS(
 }
 
 /**
- * Imprime a etiqueta 76×76mm via iframe oculto.
+ * Imprime a etiqueta 98×78mm via iframe oculto.
  */
 export function imprimirEtiquetaOS(html: string) {
   imprimirAdesivoHtml(html);
 }
 
 /**
- * Monta o HTML do comprovante de entrada da OS — 76mm × 76mm, margem 2mm.
- * Área útil: 72mm × 72mm. QR alinhado no topo com o título BikeTime.
+ * Monta o HTML do comprovante de entrada da OS — 98mm × 78mm, margem 2mm.
+ * Área útil: 94mm × 74mm. QR alinhado no topo com o título BikeTime;
+ * datas (entrada/previsão) abaixo do QR.
  */
 export function htmlEtiquetaOS(
   opts: EtiquetaOSOpts & { qrDataUrl?: string | null },
@@ -93,27 +94,27 @@ export function htmlEtiquetaOS(
   <title>Comprovante ${esc(opts.numero)}</title>
   <style>
     @page {
-      size: 76mm 76mm;
+      size: 98mm 78mm;
       margin: 2mm;
     }
     * { box-sizing: border-box; }
     html, body {
       margin: 0;
       padding: 0;
-      width: 76mm;
-      height: 76mm;
+      width: 98mm;
+      height: 78mm;
     }
     body {
       font-family: system-ui, -apple-system, sans-serif;
       color: #111;
       background: #fff;
-      font-size: 7pt;
+      font-size: 7.5pt;
       line-height: 1.2;
       overflow: hidden;
     }
     .sheet {
-      width: 72mm;
-      height: 72mm;
+      width: 94mm;
+      height: 74mm;
       margin: 0 auto;
       display: flex;
       flex-direction: column;
@@ -121,7 +122,7 @@ export function htmlEtiquetaOS(
     }
     .header {
       display: flex;
-      gap: 2mm;
+      gap: 2.5mm;
       align-items: flex-start;
       justify-content: space-between;
       padding-bottom: 1.5mm;
@@ -133,10 +134,10 @@ export function htmlEtiquetaOS(
       flex-direction: column;
       align-items: center;
       flex-shrink: 0;
-      width: 20mm;
+      width: 22mm;
     }
     .brand {
-      font-size: 10pt;
+      font-size: 11pt;
       font-weight: 800;
       letter-spacing: 0.02em;
       line-height: 1.1;
@@ -144,13 +145,13 @@ export function htmlEtiquetaOS(
     }
     .subtitle {
       margin-top: 0.6mm;
-      font-size: 6.5pt;
+      font-size: 7pt;
       color: #444;
     }
     .os {
       margin-top: 1.5mm;
       font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-      font-size: 11pt;
+      font-size: 12pt;
       font-weight: 800;
       letter-spacing: 0.02em;
       line-height: 1.1;
@@ -158,15 +159,15 @@ export function htmlEtiquetaOS(
     }
     .meta {
       margin-top: 0.8mm;
-      font-size: 6.5pt;
+      font-size: 7pt;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }
     .meta strong { font-weight: 700; }
     img.qr {
-      width: 18mm;
-      height: 18mm;
+      width: 20mm;
+      height: 20mm;
       display: block;
       margin: 0;
     }
@@ -175,30 +176,30 @@ export function htmlEtiquetaOS(
       margin-top: 1mm;
       text-align: center;
     }
-    .dates .date-row { margin-top: 0.6mm; }
+    .dates .date-row { margin-top: 0.7mm; }
     .dates .date-row:first-child { margin-top: 0; }
     .label {
-      font-size: 5pt;
+      font-size: 5.5pt;
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.04em;
       color: #555;
-      margin-bottom: 0.15mm;
+      margin-bottom: 0.2mm;
     }
-    .date-val { font-size: 6pt; line-height: 1.1; }
+    .date-val { font-size: 6.5pt; line-height: 1.1; }
     .body {
       flex: 1;
       min-height: 0;
       display: flex;
       flex-direction: column;
-      margin-top: 1.2mm;
+      margin-top: 1.5mm;
     }
-    .block { margin-top: 1.2mm; min-height: 0; flex: 1; }
+    .block { margin-top: 1.4mm; min-height: 0; flex: 1; }
     .block:first-child { margin-top: 0; }
     .text {
       white-space: pre-wrap;
       word-break: break-word;
-      font-size: 6.5pt;
+      font-size: 7pt;
       overflow: hidden;
       display: -webkit-box;
       -webkit-box-orient: vertical;
