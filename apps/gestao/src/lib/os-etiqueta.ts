@@ -64,15 +64,16 @@ export async function gerarQrEtiquetaOS(
 }
 
 /**
- * Imprime a etiqueta 76×96mm via iframe oculto.
+ * Imprime a etiqueta 100×150mm via iframe oculto.
  */
 export function imprimirEtiquetaOS(html: string) {
   imprimirAdesivoHtml(html);
 }
 
 /**
- * Monta o HTML do comprovante de entrada da OS — 76mm × 96mm, margem 2mm.
- * Área útil: 72mm × 92mm.
+ * Monta o HTML do comprovante de entrada da OS — 100mm × 150mm.
+ * Margens: topo 3mm; laterais e inferior 2mm.
+ * Área útil: 96mm × 145mm.
  */
 export function htmlEtiquetaOS(
   opts: EtiquetaOSOpts & { qrDataUrl?: string | null },
@@ -93,104 +94,104 @@ export function htmlEtiquetaOS(
   <title>Comprovante ${esc(opts.numero)}</title>
   <style>
     @page {
-      size: 76mm 96mm;
-      margin: 2mm;
+      size: 100mm 150mm;
+      margin: 3mm 2mm 2mm 2mm;
     }
     * { box-sizing: border-box; }
     html, body {
       margin: 0;
       padding: 0;
-      width: 76mm;
-      height: 96mm;
+      width: 100mm;
+      height: 150mm;
     }
     body {
       font-family: system-ui, -apple-system, sans-serif;
       color: #111;
       background: #fff;
-      font-size: 8pt;
-      line-height: 1.25;
+      font-size: 9pt;
+      line-height: 1.3;
       overflow: hidden;
     }
     .sheet {
-      width: 72mm;
-      height: 92mm;
+      width: 96mm;
+      height: 145mm;
       margin: 0 auto;
       display: flex;
       flex-direction: column;
       overflow: hidden;
     }
     .brand {
-      font-size: 12pt;
+      font-size: 16pt;
       font-weight: 800;
       letter-spacing: 0.02em;
       line-height: 1.1;
     }
     .subtitle {
-      margin-top: 0.8mm;
-      font-size: 7.5pt;
+      margin-top: 1.2mm;
+      font-size: 9pt;
       color: #444;
     }
     .top {
       display: flex;
-      gap: 2.5mm;
+      gap: 4mm;
       align-items: flex-start;
       justify-content: space-between;
-      margin-top: 2mm;
-      padding-bottom: 2mm;
-      border-bottom: 0.35mm solid #111;
+      margin-top: 4mm;
+      padding-bottom: 3mm;
+      border-bottom: 0.4mm solid #111;
     }
     .top-text { min-width: 0; flex: 1; }
     .os {
       font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-      font-size: 13pt;
+      font-size: 18pt;
       font-weight: 800;
-      letter-spacing: 0.02em;
+      letter-spacing: 0.03em;
       line-height: 1.1;
       word-break: break-word;
     }
-    .meta { margin-top: 1.2mm; font-size: 7.5pt; }
+    .meta { margin-top: 1.8mm; font-size: 9pt; }
     .meta strong { font-weight: 700; }
     img.qr {
-      width: 22mm;
-      height: 22mm;
+      width: 32mm;
+      height: 32mm;
       display: block;
       flex-shrink: 0;
     }
     .dates {
       display: flex;
-      gap: 3mm;
-      margin-top: 2.5mm;
+      gap: 4mm;
+      margin-top: 4mm;
     }
     .dates > div { flex: 1; min-width: 0; }
     .label {
-      font-size: 6.5pt;
+      font-size: 7.5pt;
       font-weight: 700;
       text-transform: uppercase;
-      letter-spacing: 0.05em;
+      letter-spacing: 0.06em;
       color: #555;
-      margin-bottom: 0.5mm;
+      margin-bottom: 0.8mm;
     }
-    .block { margin-top: 2.5mm; min-height: 0; }
+    .block { margin-top: 4mm; min-height: 0; }
     .text {
       white-space: pre-wrap;
       word-break: break-word;
-      font-size: 7.5pt;
+      font-size: 9pt;
       overflow: hidden;
       display: -webkit-box;
       -webkit-box-orient: vertical;
-      -webkit-line-clamp: 4;
-      line-clamp: 4;
+      -webkit-line-clamp: 6;
+      line-clamp: 6;
     }
     .footer {
       margin-top: auto;
-      padding-top: 2mm;
+      padding-top: 3mm;
       border-top: 0.3mm solid #ccc;
-      font-size: 6.5pt;
+      font-size: 7.5pt;
       color: #333;
-      line-height: 1.3;
+      line-height: 1.35;
     }
     .footer .tagline {
-      margin-top: 1mm;
+      margin-top: 1.5mm;
       font-weight: 700;
       color: #111;
       font-style: italic;
