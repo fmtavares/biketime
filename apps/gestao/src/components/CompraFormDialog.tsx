@@ -153,22 +153,30 @@ export function CompraFormDialog({
           .select("*")
           .eq("compra_id", compraId)
           .order("ordem");
-        setItens(
+        const itensLoaded =
           (its ?? []).length
             ? (its ?? []).map((i) => ({
                 descricao: i.descricao,
                 quantidade: String(i.quantidade),
                 valor: String(i.valor),
               }))
-            : [{ descricao: "", quantidade: "1", valor: "" }],
-        );
+            : [{ descricao: "", quantidade: "1", valor: "" }];
+        setItens(itensLoaded);
+
+        const somaItens = itensLoaded.reduce((acc, it) => {
+          const q = Number(it.quantidade) || 0;
+          const v = Number(String(it.valor).replace(",", ".")) || 0;
+          return acc + q * v;
+        }, 0);
+        // Preferência: total gravado na compra; fallback soma dos itens
+        const totalRef = Number(c.valor_total) > 0 ? Number(c.valor_total) : somaItens;
 
         const { data: pars } = await supabase
           .from("compra_parcelas")
           .select("*")
           .eq("compra_id", compraId)
           .order("numero");
-        const loaded = (pars ?? []).map((p) => ({
+        let loaded = (pars ?? []).map((p) => ({
           id: p.id,
           numero: p.numero,
           valor: String(p.valor),
@@ -176,6 +184,41 @@ export function CompraFormDialog({
           status: (p.status === "paga" ? "paga" : "aberta") as "aberta" | "paga",
           data_pagamento: p.data_pagamento,
         }));
+
+        // Importações antigas: ajusta última parcela para bater com o total
+        const somaParc = loaded.reduce(
+          (a, p) => a + (Number(String(p.valor).replace(",", ".")) || 0),
+          0,
+        );
+        if (loaded.length && Math.abs(somaParc - totalRef) > 0.02) {
+          const excetoUltima = loaded
+            .slice(0, -1)
+            .reduce(
+              (a, p) => a + (Number(String(p.valor).replace(",", ".")) || 0),
+              0,
+            );
+          const ultima = Math.round((totalRef - excetoUltima) * 100) / 100;
+          loaded = loaded.map((p, i) =>
+            i === loaded.length - 1
+              ? { ...p, valor: ultima.toFixed(2) }
+              : p,
+          );
+          toast.message("Parcelas ajustadas para bater com o total da compra");
+        }
+
+        // Se itens ≠ total da compra, inclui linha de ajuste (frete/desconto)
+        if (Math.abs(somaItens - totalRef) > 0.02) {
+          const diff = Math.round((totalRef - somaItens) * 100) / 100;
+          setItens([
+            ...itensLoaded,
+            {
+              descricao: "Ajuste NF (frete/desconto/outros)",
+              quantidade: "1",
+              valor: String(diff),
+            },
+          ]);
+        }
+
         setParcelas(loaded);
         setNParcelas(String(loaded.length || 1));
         setPrimeiroVenc(loaded[0]?.data_vencimento ?? c.data_compra);

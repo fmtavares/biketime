@@ -99,6 +99,73 @@ function num(raw: string): number {
   return Number.isFinite(n) ? n : 0;
 }
 
+/** Arredonda em centavos (2 casas). */
+function round2(n: number): number {
+  return Math.round((n + Number.EPSILON) * 100) / 100;
+}
+
+/**
+ * Ajusta parcelas para a soma bater exatamente no total alvo (centavos na última).
+ */
+export function reconciliarParcelasComTotal(
+  parcelas: NfeParcelaCompra[],
+  totalAlvo: number,
+): NfeParcelaCompra[] {
+  const alvo = round2(totalAlvo);
+  const hoje = new Date().toISOString().slice(0, 10);
+  if (!parcelas.length) {
+    return [{ numero: 1, valor: alvo, dataVencimento: hoje }];
+  }
+  if (parcelas.length === 1) {
+    return [{ ...parcelas[0], valor: alvo }];
+  }
+
+  const somaExcetoUltima = round2(
+    parcelas.slice(0, -1).reduce((a, p) => a + p.valor, 0),
+  );
+  const valorUltima = round2(alvo - somaExcetoUltima);
+
+  if (valorUltima < 0.01) {
+    // Redistribui o total igualmente se a última ficaria inválida
+    const n = parcelas.length;
+    const cents = Math.round(alvo * 100);
+    const base = Math.floor(cents / n);
+    const rest = cents - base * n;
+    return parcelas.map((p, i) => ({
+      ...p,
+      valor: (base + (i < rest ? 1 : 0)) / 100,
+    }));
+  }
+
+  return [
+    ...parcelas.slice(0, -1),
+    { ...parcelas[parcelas.length - 1], valor: valorUltima },
+  ];
+}
+
+/**
+ * Garante que a soma (qtd × unitário) dos itens bata com o total da NF.
+ * Frete/desconto/outros viram uma linha de ajuste.
+ */
+function reconciliarItensComTotal(
+  itens: NfeItemCompra[],
+  totalAlvo: number,
+): NfeItemCompra[] {
+  const soma = round2(
+    itens.reduce((a, i) => a + i.quantidade * i.valorUnitario, 0),
+  );
+  const diff = round2(totalAlvo - soma);
+  if (Math.abs(diff) < 0.01) return itens;
+  return [
+    ...itens,
+    {
+      descricao: "Ajuste NF (frete/desconto/outros)",
+      quantidade: 1,
+      valorUnitario: diff,
+    },
+  ];
+}
+
 /**
  * Lê XML de NFe (nfeProc ou NFe) e extrai dados para cadastrar compra.
  * Não cria produto/estoque — só fornecedor + itens textuais + parcelas.
@@ -159,30 +226,39 @@ export function parseNfeCompraXml(xmlText: string): NfeCompraParseada {
     ? byLocal(root, "det")
     : byLocal(doc, "det");
 
-  const itens: NfeItemCompra[] = detList
+  let itens: NfeItemCompra[] = detList
     .map((det) => {
       const prod = byLocal(det, "prod")[0] ?? det;
       const descricao = textOf(prod, "xProd") || textOf(prod, "cProd") || "Item";
       const quantidade = num(textOf(prod, "qCom")) || 1;
-      let valorUnitario = num(textOf(prod, "vUnCom"));
       const vProd = num(textOf(prod, "vProd"));
-      if (valorUnitario <= 0 && vProd > 0 && quantidade > 0) {
-        valorUnitario = vProd / quantidade;
+      let valorUnitario = num(textOf(prod, "vUnCom"));
+      // Prefere rateio do vProd para a linha bater com a NF
+      if (vProd > 0 && quantidade > 0) {
+        valorUnitario = round2(vProd / quantidade);
+      } else {
+        valorUnitario = round2(valorUnitario);
       }
       return {
         descricao: descricao.slice(0, 500),
         quantidade,
-        valorUnitario: Math.round(valorUnitario * 100) / 100,
+        valorUnitario,
       };
     })
     .filter((i) => i.descricao.trim());
 
   if (!itens.length) throw new Error("Nenhum item encontrado na NFe");
 
-  const vNf =
+  // vNF do total da nota (ICMSTot), não outro vNF solto no XML
+  const icmsTot = byLocal(root, "ICMSTot")[0] ?? byLocal(doc, "ICMSTot")[0];
+  const vNfRaw =
+    (icmsTot ? num(textOf(icmsTot, "vNF")) : 0) ||
     num(textOf(root, "vNF")) ||
-    num(textOf(doc, "vNF")) ||
-    itens.reduce((a, i) => a + i.quantidade * i.valorUnitario, 0);
+    num(textOf(doc, "vNF"));
+  const somaItens = round2(
+    itens.reduce((a, i) => a + i.quantidade * i.valorUnitario, 0),
+  );
+  const valorTotal = round2(vNfRaw || somaItens);
 
   const dupList = byLocal(root, "dup").length
     ? byLocal(root, "dup")
@@ -191,20 +267,38 @@ export function parseNfeCompraXml(xmlText: string): NfeCompraParseada {
   let parcelas: NfeParcelaCompra[] = dupList
     .map((dup, idx) => ({
       numero: idx + 1,
-      valor: Math.round(num(textOf(dup, "vDup")) * 100) / 100,
+      valor: round2(num(textOf(dup, "vDup"))),
       dataVencimento: toDateIso(textOf(dup, "dVenc") || dataEmissao),
     }))
     .filter((p) => p.valor > 0);
+
+  // Sem duplicatas: tenta detPag/vPag; senão 1 parcela = total da NF
+  if (!parcelas.length) {
+    const detPags = byLocal(root, "detPag").length
+      ? byLocal(root, "detPag")
+      : byLocal(doc, "detPag");
+    parcelas = detPags
+      .map((dp, idx) => ({
+        numero: idx + 1,
+        valor: round2(num(textOf(dp, "vPag"))),
+        dataVencimento: dataEmissao,
+      }))
+      .filter((p) => p.valor > 0);
+  }
 
   if (!parcelas.length) {
     parcelas = [
       {
         numero: 1,
-        valor: Math.round(vNf * 100) / 100,
+        valor: valorTotal,
         dataVencimento: dataEmissao,
       },
     ];
   }
+
+  // Itens e parcelas precisam somar o mesmo total da NF (senão o form bloqueia o save)
+  itens = reconciliarItensComTotal(itens, valorTotal);
+  parcelas = reconciliarParcelasComTotal(parcelas, valorTotal);
 
   const tPag = textOf(root, "tPag") || textOf(doc, "tPag") || "15";
   const formaPagamento = formaPagamentoFromTPag(tPag);
@@ -214,7 +308,7 @@ export function parseNfeCompraXml(xmlText: string): NfeCompraParseada {
     numeroNf,
     dataEmissao,
     formaPagamento,
-    valorTotal: Math.round(vNf * 100) / 100,
+    valorTotal,
     emitente: {
       cnpj,
       nome,

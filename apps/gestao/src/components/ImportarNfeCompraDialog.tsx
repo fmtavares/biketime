@@ -7,6 +7,7 @@ import {
   soDigitos,
   type NfeCompraParseada,
 } from "@/lib/nfe-compra-xml";
+import { fmtDataCurtaYY } from "@/lib/datas";
 import { fmtBRL } from "@/lib/finance";
 import { formatCnpj } from "@/lib/utils";
 import {
@@ -212,6 +213,9 @@ export function ImportarNfeCompraDialog({ open, onOpenChange, onSaved }: Props) 
     }
   }
 
+  const nomeExibicao =
+    parsed?.emitente.nomeFantasia || parsed?.emitente.nome || "";
+
   return (
     <Dialog
       open={open}
@@ -220,12 +224,12 @@ export function ImportarNfeCompraDialog({ open, onOpenChange, onSaved }: Props) 
         onOpenChange(v);
       }}
     >
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
+      <DialogContent className="flex max-h-[90vh] w-[calc(100vw-1.5rem)] max-w-2xl flex-col gap-0 overflow-hidden overflow-x-hidden p-0 sm:w-full">
+        <DialogHeader className="shrink-0 space-y-1 border-b px-4 py-4 pr-12 text-left sm:px-6">
           <DialogTitle>Importar XML da NFe</DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4">
+        <div className="min-h-0 min-w-0 flex-1 space-y-4 overflow-y-auto overflow-x-hidden px-4 py-4 sm:px-6">
           <input
             ref={inputRef}
             type="file"
@@ -236,71 +240,95 @@ export function ImportarNfeCompraDialog({ open, onOpenChange, onSaved }: Props) 
           <Button
             type="button"
             variant="outline"
-            className="w-full"
+            className="h-auto w-full max-w-full min-w-0 justify-start gap-2 overflow-hidden px-3 py-2.5"
             disabled={busy}
             onClick={() => inputRef.current?.click()}
           >
             {busy && !parsed ? (
-              <Loader2 className="size-4 animate-spin" />
+              <Loader2 className="size-4 shrink-0 animate-spin" />
             ) : (
-              <FileUp className="size-4" />
+              <FileUp className="size-4 shrink-0" />
             )}
-            {fileName || "Escolher arquivo XML"}
+            <span className="min-w-0 flex-1 truncate text-left">
+              {fileName || "Escolher arquivo XML"}
+            </span>
           </Button>
 
           {parsed && (
-            <div className="space-y-3 rounded-lg border bg-secondary/30 p-3 text-sm">
-              <div>
+            <div className="w-full max-w-full min-w-0 space-y-3 overflow-hidden rounded-lg border bg-secondary/30 p-3 text-sm">
+              <div className="min-w-0 overflow-hidden">
                 <p className="text-xs text-muted-foreground">Fornecedor</p>
-                <p className="font-medium">{parsed.emitente.nome}</p>
-                <p className="text-xs text-muted-foreground">
+                <p className="truncate font-medium" title={nomeExibicao}>
+                  {nomeExibicao}
+                </p>
+                <p className="truncate text-xs text-muted-foreground">
                   {formatCnpj(parsed.emitente.cnpj)}
+                </p>
+                <p className="text-xs text-muted-foreground">
                   {fornecedorExistente
-                    ? ` · já cadastrado (${fornecedorExistente.nome})`
-                    : " · será cadastrado"}
+                    ? "Já cadastrado — será reutilizado"
+                    : "Novo — será cadastrado"}
                 </p>
               </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div>
+
+              <div className="grid w-full min-w-0 grid-cols-2 gap-x-2 gap-y-2">
+                <div className="min-w-0 overflow-hidden">
                   <p className="text-xs text-muted-foreground">NF</p>
-                  <p className="font-medium">{parsed.numeroNf}</p>
+                  <p className="truncate font-medium">{parsed.numeroNf}</p>
                 </div>
-                <div>
+                <div className="min-w-0 overflow-hidden">
                   <p className="text-xs text-muted-foreground">Emissão</p>
-                  <p className="font-medium">{parsed.dataEmissao}</p>
+                  <p className="truncate font-medium">
+                    {fmtDataCurtaYY(parsed.dataEmissao)}
+                  </p>
                 </div>
-                <div>
+                <div className="min-w-0 overflow-hidden">
                   <p className="text-xs text-muted-foreground">Pagamento</p>
-                  <p className="font-medium">{parsed.formaPagamento}</p>
+                  <p className="truncate font-medium">{parsed.formaPagamento}</p>
                 </div>
-                <div>
+                <div className="min-w-0 overflow-hidden">
                   <p className="text-xs text-muted-foreground">Total</p>
-                  <p className="font-medium">{fmtBRL(parsed.valorTotal)}</p>
+                  <p className="truncate font-medium tabular-nums">
+                    {fmtBRL(parsed.valorTotal)}
+                  </p>
                 </div>
               </div>
-              <div>
-                <p className="text-xs text-muted-foreground mb-1">
+
+              <div className="min-w-0 overflow-hidden">
+                <p className="mb-1 text-xs text-muted-foreground">
                   Itens ({parsed.itens.length})
                 </p>
-                <ul className="max-h-40 space-y-1 overflow-y-auto text-xs">
+                <ul className="max-h-36 w-full min-w-0 space-y-2 overflow-y-auto overflow-x-hidden rounded-md border bg-background/60 p-2 text-xs">
                   {parsed.itens.map((it, i) => (
-                    <li key={i} className="flex justify-between gap-2">
-                      <span className="truncate">{it.descricao}</span>
-                      <span className="shrink-0 text-muted-foreground">
+                    <li
+                      key={i}
+                      className="grid w-full min-w-0 grid-cols-1 gap-0.5 sm:grid-cols-[minmax(0,1fr)_auto] sm:gap-3"
+                    >
+                      <span className="min-w-0 break-all leading-snug">
+                        {it.descricao}
+                      </span>
+                      <span className="tabular-nums text-muted-foreground sm:text-right">
                         {it.quantidade} × {fmtBRL(it.valorUnitario)}
                       </span>
                     </li>
                   ))}
                 </ul>
               </div>
-              <div>
-                <p className="text-xs text-muted-foreground mb-1">
+
+              <div className="min-w-0 overflow-hidden">
+                <p className="mb-1 text-xs text-muted-foreground">
                   Parcelas ({parsed.parcelas.length})
                 </p>
-                <ul className="space-y-0.5 text-xs text-muted-foreground">
+                <ul className="max-h-28 w-full min-w-0 space-y-1 overflow-y-auto overflow-x-hidden rounded-md border bg-background/60 p-2 text-xs text-muted-foreground">
                   {parsed.parcelas.map((p) => (
-                    <li key={p.numero}>
-                      #{p.numero} · {p.dataVencimento} · {fmtBRL(p.valor)}
+                    <li
+                      key={p.numero}
+                      className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] gap-2"
+                    >
+                      <span className="truncate">
+                        #{p.numero} · {fmtDataCurtaYY(p.dataVencimento)}
+                      </span>
+                      <span className="tabular-nums">{fmtBRL(p.valor)}</span>
                     </li>
                   ))}
                 </ul>
@@ -309,9 +337,10 @@ export function ImportarNfeCompraDialog({ open, onOpenChange, onSaved }: Props) 
           )}
         </div>
 
-        <DialogFooter className="gap-2 sm:justify-between">
+        <DialogFooter className="shrink-0 flex-col gap-2 border-t px-4 py-4 sm:flex-row sm:justify-between sm:px-6">
           <Button
             variant="outline"
+            className="w-full sm:w-auto"
             onClick={() => {
               reset();
               onOpenChange(false);
@@ -320,13 +349,14 @@ export function ImportarNfeCompraDialog({ open, onOpenChange, onSaved }: Props) 
             Cancelar
           </Button>
           <Button
+            className="w-full sm:w-auto"
             onClick={() => void confirmar()}
             disabled={!parsed || busy || !isAdmin}
           >
             {busy && parsed ? (
               <Loader2 className="size-4 animate-spin" />
             ) : null}
-            Confirmar importação
+            Confirmar
           </Button>
         </DialogFooter>
       </DialogContent>
