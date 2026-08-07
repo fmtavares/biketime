@@ -6,9 +6,11 @@ import { useAuth } from "@/lib/auth-context";
 import { PageHeader, SearchBar } from "@/components/AppLayout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Plus, Trash2 } from "lucide-react";
+import { FileUp, Plus, Trash2, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import { CompraFormDialog } from "@/components/CompraFormDialog";
+import { ImportarNfeCompraDialog } from "@/components/ImportarNfeCompraDialog";
+import { fmtDataCurtaYY } from "@/lib/datas";
 import { fmtBRL } from "@/lib/finance";
 
 export const Route = createFileRoute("/_app/compras")({
@@ -33,6 +35,23 @@ function ComprasPage() {
   const [filtroStatus, setFiltroStatus] = useState<FiltroStatus>("todas");
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
+
+  /** Atualiza listas após salvar/importar compra. */
+  function invalidateCompras() {
+    qc.invalidateQueries({ queryKey: ["compras-list"] });
+    qc.invalidateQueries({ queryKey: ["contas-a-pagar"] });
+    qc.invalidateQueries({ queryKey: ["fornecedor-compras"] });
+    qc.invalidateQueries({ queryKey: ["fechamento"] });
+    qc.invalidateQueries({ queryKey: ["fornecedores-select"] });
+    qc.invalidateQueries({ queryKey: ["fornecedores"] });
+  }
+
+  /** Abre o dialog da compra clicada na listagem. */
+  function abrirCompra(id: string) {
+    setEditId(id);
+    setOpen(true);
+  }
 
   /** Sincroniza filtro de fornecedor com o query param da URL. */
   useEffect(() => {
@@ -57,7 +76,7 @@ function ComprasPage() {
       const { data, error } = await supabase
         .from("compras")
         .select(
-          "*, fornecedores(id, nome), compra_parcelas(id, numero, valor, data_vencimento, status), compra_itens(id, descricao)",
+          "*, fornecedores(id, nome, nome_fantasia), compra_parcelas(id, numero, valor, data_vencimento, status), compra_itens(id, descricao)",
         )
         .order("data_compra", { ascending: false });
       if (error) throw error;
@@ -79,8 +98,9 @@ function ComprasPage() {
       const s = q.toLowerCase().trim();
       if (!s) return true;
       const nome = c.fornecedores?.nome ?? "";
+      const fantasia = c.fornecedores?.nome_fantasia ?? "";
       const itens = (c.compra_itens ?? []).map((i: any) => i.descricao).join(" ");
-      return `${nome} ${c.numero_nf ?? ""} ${c.forma_pagamento} ${itens}`
+      return `${nome} ${fantasia} ${c.numero_nf ?? ""} ${c.forma_pagamento} ${itens}`
         .toLowerCase()
         .includes(s);
     });
@@ -117,10 +137,7 @@ function ComprasPage() {
     const { error } = await supabase.from("compras").delete().eq("id", c.id);
     if (error) return toast.error(error.message);
     toast.success("Compra excluída");
-    qc.invalidateQueries({ queryKey: ["compras-list"] });
-    qc.invalidateQueries({ queryKey: ["contas-a-pagar"] });
-    qc.invalidateQueries({ queryKey: ["fornecedor-compras"] });
-    qc.invalidateQueries({ queryKey: ["fechamento"] });
+    invalidateCompras();
   }
 
   return (
@@ -130,14 +147,19 @@ function ComprasPage() {
         description="Histórico de compras por fornecedor"
         action={
           isAdmin ? (
-            <Button
-              onClick={() => {
-                setEditId(null);
-                setOpen(true);
-              }}
-            >
-              <Plus className="size-4" /> Nova compra
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" onClick={() => setImportOpen(true)}>
+                <FileUp className="size-4" /> Importar XML
+              </Button>
+              <Button
+                onClick={() => {
+                  setEditId(null);
+                  setOpen(true);
+                }}
+              >
+                <Plus className="size-4" /> Nova compra
+              </Button>
+            </div>
           ) : undefined
         }
       />
@@ -194,63 +216,86 @@ function ComprasPage() {
               );
               const vencida = prox && prox.data_vencimento < today;
               return (
-                <div key={c.id} className="rounded-xl border bg-card p-4 space-y-2">
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <Link
-                        to="/fornecedores/$id"
-                        params={{ id: c.fornecedor_id }}
-                        className="font-medium hover:underline"
+                <div
+                  key={c.id}
+                  role="button"
+                  tabIndex={0}
+                  className="space-y-2 rounded-xl border bg-card p-4 text-sm cursor-pointer transition-colors hover:bg-secondary/30"
+                  onClick={() => abrirCompra(c.id)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      abrirCompra(c.id);
+                    }
+                  }}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1 space-y-0.5">
+                      <div className="whitespace-nowrap text-muted-foreground">
+                        {fmtDataCurtaYY(c.data_compra)}
+                      </div>
+                      <div className="truncate text-muted-foreground">
+                        {c.numero_nf ? `NF ${c.numero_nf}` : "Sem NF"}
+                      </div>
+                      <div
+                        className="truncate font-medium"
+                        title={
+                          c.fornecedores?.nome_fantasia ||
+                          c.fornecedores?.nome ||
+                          undefined
+                        }
                       >
-                        {c.fornecedores?.nome ?? "—"}
-                      </Link>
-                      <div className="text-xs text-muted-foreground">
-                        {new Date(c.data_compra + "T12:00:00").toLocaleDateString("pt-BR")}
-                        {" · "}
-                        {c.forma_pagamento}
-                        {c.numero_nf ? ` · NF ${c.numero_nf}` : ""}
+                        {c.fornecedores?.nome_fantasia ||
+                          c.fornecedores?.nome ||
+                          "—"}
                       </div>
                     </div>
-                    <div className="font-semibold">{fmtBRL(Number(c.valor_total) || 0)}</div>
+                    <div className="shrink-0">
+                      {quitada ? (
+                        <Badge variant="secondary">Quitada</Badge>
+                      ) : (
+                        <Badge variant="outline">
+                          {pagas}/{total}
+                        </Badge>
+                      )}
+                    </div>
                   </div>
-                  <div className="flex flex-wrap gap-2 text-xs">
-                    {quitada ? (
-                      <Badge variant="secondary">Quitada</Badge>
-                    ) : (
-                      <Badge variant="outline">
-                        {pagas}/{total} pagas
-                      </Badge>
-                    )}
-                    {prox && (
-                      <Badge variant={vencida ? "destructive" : "outline"}>
-                        Próx.{" "}
-                        {new Date(prox.data_vencimento + "T12:00:00").toLocaleDateString(
-                          "pt-BR",
-                        )}
-                      </Badge>
-                    )}
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    <div>
+                      <div className="text-muted-foreground">Total</div>
+                      <div className="tabular-nums whitespace-nowrap">
+                        {fmtBRL(Number(c.valor_total) || 0)}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-muted-foreground">Parcela</div>
+                      {prox ? (
+                        <div
+                          className={`whitespace-nowrap tabular-nums ${
+                            vencida ? "text-destructive" : ""
+                          }`}
+                        >
+                          {fmtBRL(Number(prox.valor) || 0)}
+                          {" · "}
+                          {fmtDataCurtaYY(prox.data_vencimento)}
+                        </div>
+                      ) : (
+                        <div className="text-muted-foreground">—</div>
+                      )}
+                    </div>
                   </div>
-                  <div className="flex flex-wrap gap-2">
+                  <div
+                    className="flex flex-wrap gap-2"
+                    onClick={(e) => e.stopPropagation()}
+                  >
                     {isAdmin && (
-                      <>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            setEditId(c.id);
-                            setOpen(true);
-                          }}
-                        >
-                          Editar
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => excluirCompra(c)}
-                        >
-                          <Trash2 className="size-3.5" /> Excluir
-                        </Button>
-                      </>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => excluirCompra(c)}
+                      >
+                        <Trash2 className="size-3.5" />
+                      </Button>
                     )}
                     {prox && (
                       <Button variant="secondary" size="sm" asChild>
@@ -258,7 +303,7 @@ function ComprasPage() {
                           to="/contas-a-pagar"
                           search={{ fornecedor: c.fornecedor_id }}
                         >
-                          Ver parcelas em aberto
+                          Parcelas
                         </Link>
                       </Button>
                     )}
@@ -273,17 +318,26 @@ function ComprasPage() {
             )}
           </div>
 
-          <div className="hidden lg:block rounded-xl border bg-card overflow-hidden">
-            <table className="w-full text-sm">
+          <div className="hidden lg:block overflow-hidden rounded-xl border bg-card">
+            <table className="w-full table-fixed text-sm">
+              <colgroup>
+                <col className="w-[10%]" />
+                <col className="w-[12%]" />
+                <col className="w-[24%]" />
+                <col className="w-[13%]" />
+                <col className="w-[18%]" />
+                <col className="w-[11%]" />
+                <col className="w-[12%]" />
+              </colgroup>
               <thead className="bg-secondary/50 text-xs uppercase tracking-wider text-muted-foreground">
                 <tr>
-                  <th className="text-left px-4 py-3">Data</th>
-                  <th className="text-left px-4 py-3">Fornecedor</th>
-                  <th className="text-left px-4 py-3">Valor</th>
-                  <th className="text-left px-4 py-3">Pagamento</th>
-                  <th className="text-left px-4 py-3">Status</th>
-                  <th className="text-left px-4 py-3">Próx. vencimento</th>
-                  <th className="text-right px-4 py-3">Ações</th>
+                  <th className="px-3 py-3 text-left">Data</th>
+                  <th className="px-3 py-3 text-left">NF</th>
+                  <th className="px-3 py-3 text-left">Fornecedor</th>
+                  <th className="px-3 py-3 text-right">Total</th>
+                  <th className="px-3 py-3 text-left">Parcela</th>
+                  <th className="px-3 py-3 text-left">Status</th>
+                  <th className="px-2 py-3 text-right">Ações</th>
                 </tr>
               </thead>
               <tbody>
@@ -292,93 +346,85 @@ function ComprasPage() {
                     c.compra_parcelas ?? [],
                   );
                   const vencida = prox && prox.data_vencimento < today;
+                  const nomeForn =
+                    c.fornecedores?.nome_fantasia ||
+                    c.fornecedores?.nome ||
+                    "—";
                   return (
                     <tr
                       key={c.id}
-                      className="border-t hover:bg-secondary/30 transition-colors"
+                      className="cursor-pointer border-t transition-colors hover:bg-secondary/30"
+                      onClick={() => abrirCompra(c.id)}
                     >
-                      <td className="px-4 py-3 text-muted-foreground">
-                        {new Date(c.data_compra + "T12:00:00").toLocaleDateString("pt-BR")}
+                      <td className="px-3 py-3 whitespace-nowrap text-muted-foreground">
+                        {fmtDataCurtaYY(c.data_compra)}
                       </td>
-                      <td className="px-4 py-3">
-                        <Link
-                          to="/fornecedores/$id"
-                          params={{ id: c.fornecedor_id }}
-                          className="font-medium hover:underline"
-                        >
-                          {c.fornecedores?.nome ?? "—"}
-                        </Link>
-                        {c.numero_nf && (
-                          <div className="text-xs text-muted-foreground">
-                            NF {c.numero_nf}
-                          </div>
-                        )}
+                      <td className="min-w-0 px-3 py-3 whitespace-nowrap text-muted-foreground">
+                        <div className="truncate" title={c.numero_nf || undefined}>
+                          {c.numero_nf || "—"}
+                        </div>
                       </td>
-                      <td className="px-4 py-3 font-semibold">
+                      <td className="min-w-0 px-3 py-3">
+                        <div className="truncate font-medium" title={nomeForn}>
+                          {nomeForn}
+                        </div>
+                      </td>
+                      <td className="px-3 py-3 whitespace-nowrap text-right tabular-nums">
                         {fmtBRL(Number(c.valor_total) || 0)}
                       </td>
-                      <td className="px-4 py-3 text-muted-foreground">
-                        {c.forma_pagamento}
-                      </td>
-                      <td className="px-4 py-3">
-                        {quitada ? (
-                          <Badge variant="secondary">Quitada</Badge>
-                        ) : (
-                          <Badge variant="outline">
-                            {pagas}/{total} pagas
-                          </Badge>
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
+                      <td className="min-w-0 px-3 py-3">
                         {prox ? (
-                          <span
-                            className={
-                              vencida
-                                ? "text-destructive font-medium"
-                                : "text-muted-foreground"
-                            }
+                          <div
+                            className={`truncate whitespace-nowrap tabular-nums ${
+                              vencida ? "text-destructive" : "text-muted-foreground"
+                            }`}
                           >
-                            {new Date(
-                              prox.data_vencimento + "T12:00:00",
-                            ).toLocaleDateString("pt-BR")}
-                            {" · "}
                             {fmtBRL(Number(prox.valor) || 0)}
-                          </span>
+                            {" · "}
+                            {fmtDataCurtaYY(prox.data_vencimento)}
+                          </div>
                         ) : (
                           <span className="text-muted-foreground">—</span>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-right">
-                        <div className="inline-flex flex-wrap justify-end gap-1">
+                      <td className="px-3 py-3 whitespace-nowrap">
+                        {quitada ? (
+                          <Badge variant="secondary">Quitada</Badge>
+                        ) : (
+                          <Badge variant="outline">
+                            {pagas}/{total}
+                          </Badge>
+                        )}
+                      </td>
+                      <td
+                        className="px-2 py-3 text-right"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <div className="inline-flex items-center justify-end gap-0.5">
                           {isAdmin && (
-                            <>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => {
-                                  setEditId(c.id);
-                                  setOpen(true);
-                                }}
-                              >
-                                Editar
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                title="Excluir compra"
-                                onClick={() => excluirCompra(c)}
-                              >
-                                <Trash2 className="size-3.5" />
-                              </Button>
-                            </>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="size-8"
+                              title="Excluir compra"
+                              onClick={() => excluirCompra(c)}
+                            >
+                              <Trash2 className="size-3.5" />
+                            </Button>
                           )}
                           {prox && (
-                            <Button variant="secondary" size="sm" asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="size-8"
+                              title="Parcelas em aberto"
+                              asChild
+                            >
                               <Link
                                 to="/contas-a-pagar"
                                 search={{ fornecedor: c.fornecedor_id }}
                               >
-                                Parcelas
+                                <Wallet className="size-3.5" />
                               </Link>
                             </Button>
                           )}
@@ -408,7 +454,13 @@ function ComprasPage() {
         onOpenChange={setOpen}
         compraId={editId}
         defaultFornecedorId={filtroForn || fornecedorSearch || null}
-        onSaved={() => qc.invalidateQueries({ queryKey: ["compras-list"] })}
+        onSaved={invalidateCompras}
+      />
+
+      <ImportarNfeCompraDialog
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        onSaved={invalidateCompras}
       />
     </div>
   );

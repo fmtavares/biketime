@@ -27,6 +27,19 @@ export function fmtDataLocal(value: string | null | undefined): string {
 }
 
 /**
+ * Formata data para dd/mm/aa (ano com 2 dígitos) no fuso local.
+ */
+export function fmtDataCurtaYY(value: string | null | undefined): string {
+  const ymd = toDataLocal(value);
+  if (!ymd) return "—";
+  return new Date(ymd + "T12:00:00").toLocaleDateString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "2-digit",
+  });
+}
+
+/**
  * Timestamp ISO do "hoje" ao meio-dia local — grava data_pagamento sem virar outro dia em UTC.
  */
 export function agoraComoPagamentoISO(): string {

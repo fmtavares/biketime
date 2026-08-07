@@ -115,14 +115,15 @@ function FornecedoresPage() {
                     )}
                   </div>
                   {f.nome_fantasia && (
-                    <div className="text-xs text-muted-foreground mt-0.5">
+                    <div className="mt-0.5 text-sm text-muted-foreground">
                       {f.nome_fantasia}
                     </div>
                   )}
-                  <div className="mt-1 text-xs text-muted-foreground space-y-0.5">
-                    {f.cnpj && <div>{formatCnpj(f.cnpj)}</div>}
-                    {f.contato && <div>{f.contato}</div>}
-                    {f.telefone && <div>{formatPhoneBr(f.telefone)}</div>}
+                  <div className="mt-1 space-y-0.5 text-sm text-muted-foreground">
+                    {f.cnpj && <div className="whitespace-nowrap">{formatCnpj(f.cnpj)}</div>}
+                    {f.telefone && (
+                      <div className="whitespace-nowrap">{formatPhoneBr(f.telefone)}</div>
+                    )}
                     {(f.cidade || f.estado) && (
                       <div>{[f.cidade, f.estado].filter(Boolean).join("/")}</div>
                     )}
@@ -155,7 +156,7 @@ function FornecedoresPage() {
                 <tr>
                   <th className="text-left px-4 py-3">Fornecedor</th>
                   <th className="text-left px-4 py-3">CNPJ</th>
-                  <th className="text-left px-4 py-3">Contato</th>
+                  <th className="text-left px-4 py-3">Telefone</th>
                   <th className="text-left px-4 py-3">Cidade</th>
                   <th className="text-left px-4 py-3">Status</th>
                   {isAdmin && <th className="text-right px-4 py-3">Ações</th>}
@@ -167,7 +168,7 @@ function FornecedoresPage() {
                     key={f.id}
                     className="border-t hover:bg-secondary/30 transition-colors"
                   >
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3 text-sm">
                       <Link
                         to="/fornecedores/$id"
                         params={{ id: f.id }}
@@ -176,21 +177,18 @@ function FornecedoresPage() {
                         {f.nome}
                       </Link>
                       {f.nome_fantasia && (
-                        <div className="text-xs text-muted-foreground">
+                        <div className="text-sm text-muted-foreground">
                           {f.nome_fantasia}
                         </div>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-muted-foreground">
+                    <td className="px-4 py-3 text-sm whitespace-nowrap text-muted-foreground">
                       {f.cnpj ? formatCnpj(f.cnpj) : "—"}
                     </td>
-                    <td className="px-4 py-3 text-muted-foreground">
-                      <div>{f.contato || "—"}</div>
-                      {f.telefone && (
-                        <div className="text-xs">{formatPhoneBr(f.telefone)}</div>
-                      )}
+                    <td className="px-4 py-3 text-sm whitespace-nowrap text-muted-foreground">
+                      {f.telefone ? formatPhoneBr(f.telefone) : "—"}
                     </td>
-                    <td className="px-4 py-3 text-muted-foreground">
+                    <td className="px-4 py-3 text-sm whitespace-nowrap text-muted-foreground">
                       {[f.cidade, f.estado].filter(Boolean).join("/") || "—"}
                     </td>
                     <td className="px-4 py-3">
