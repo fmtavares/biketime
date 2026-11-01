@@ -163,10 +163,16 @@ export function ProdutoFormDialog({
         .from("produto_marcas")
         .select("id, nome, slug, ativo, ordem")
         .eq("ativo", true)
-        .order("ordem")
         .order("nome");
       if (error) throw error;
-      return data ?? [];
+      // A–Z; "Outra" fica no final para não misturar com marcas reais
+      const lista = data ?? [];
+      return [...lista].sort((a, b) => {
+        const aOutra = a.slug === "outra" || a.nome.toLowerCase() === "outra";
+        const bOutra = b.slug === "outra" || b.nome.toLowerCase() === "outra";
+        if (aOutra !== bOutra) return aOutra ? 1 : -1;
+        return a.nome.localeCompare(b.nome, "pt-BR", { sensitivity: "base" });
+      });
     },
   });
 
