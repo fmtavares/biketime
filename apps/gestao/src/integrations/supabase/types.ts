@@ -1309,6 +1309,103 @@ export type Database = {
         }
         Relationships: []
       }
+      tamanho_grades: {
+        Row: {
+          id: string
+          slug: string
+          nome: string
+          ativo: boolean
+          ordem: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          slug: string
+          nome: string
+          ativo?: boolean
+          ordem?: number
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          slug?: string
+          nome?: string
+          ativo?: boolean
+          ordem?: number
+          created_at?: string
+        }
+        Relationships: []
+      }
+      tamanho_grade_itens: {
+        Row: {
+          id: string
+          grade_id: string
+          valor: string
+          ordem: number
+        }
+        Insert: {
+          id?: string
+          grade_id: string
+          valor: string
+          ordem?: number
+        }
+        Update: {
+          id?: string
+          grade_id?: string
+          valor?: string
+          ordem?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tamanho_grade_itens_grade_id_fkey"
+            columns: ["grade_id"]
+            isOneToOne: false
+            referencedRelation: "tamanho_grades"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      produto_variantes: {
+        Row: {
+          id: string
+          produto_id: string
+          tamanho: string
+          sku: string | null
+          estoque: number
+          ativo: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          produto_id: string
+          tamanho: string
+          sku?: string | null
+          estoque?: number
+          ativo?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          produto_id?: string
+          tamanho?: string
+          sku?: string | null
+          estoque?: number
+          ativo?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "produto_variantes_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "produtos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       produtos: {
         Row: {
           ativo: boolean
@@ -1323,6 +1420,7 @@ export type Database = {
           estoque_minimo: number
           fornecedor: string | null
           fotos: string[] | null
+          grade_id: string | null
           id: string
           marca: string | null
           marca_id: string | null
@@ -1350,6 +1448,7 @@ export type Database = {
           estoque_minimo?: number
           fornecedor?: string | null
           fotos?: string[] | null
+          grade_id?: string | null
           id?: string
           marca?: string | null
           marca_id?: string | null
@@ -1377,6 +1476,7 @@ export type Database = {
           estoque_minimo?: number
           fornecedor?: string | null
           fotos?: string[] | null
+          grade_id?: string | null
           id?: string
           marca?: string | null
           marca_id?: string | null
@@ -1404,6 +1504,13 @@ export type Database = {
             columns: ["marca_id"]
             isOneToOne: false
             referencedRelation: "produto_marcas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "produtos_grade_id_fkey"
+            columns: ["grade_id"]
+            isOneToOne: false
+            referencedRelation: "tamanho_grades"
             referencedColumns: ["id"]
           },
         ]

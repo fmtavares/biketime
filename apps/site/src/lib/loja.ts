@@ -48,10 +48,12 @@ export function whatsappInteresse(bike: Pick<LojaBike, "marca" | "modelo" | "val
 /** Monta URL de WhatsApp com interesse em produto/acessório do showroom. */
 export function whatsappInteresseProduto(
   produto: Pick<LojaProduto, "nome" | "marca" | "modelo" | "preco_venda">,
+  tamanho?: string | null,
 ) {
   const nome = [produto.marca, produto.nome || produto.modelo].filter(Boolean).join(" ").trim();
   const preco = fmtPreco(produto.preco_venda);
-  const text = `Olá! Tenho interesse no produto: ${nome} — ${preco} (showroom BikeTime)`;
+  const tam = tamanho?.trim() ? ` · Tam. ${tamanho.trim()}` : "";
+  const text = `Olá! Tenho interesse no produto: ${nome}${tam} — ${preco} (showroom BikeTime)`;
   return `https://wa.me/${WA_NUMBER}?text=${encodeURIComponent(text)}`;
 }
 

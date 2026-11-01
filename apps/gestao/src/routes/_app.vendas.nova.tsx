@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import { Sparkles, Loader2 } from "lucide-react";
 import { CategoriaBikeSelect } from "@/components/CategoriaBikeSelect";
+import { TamanhoSelect } from "@/components/TamanhoSelect";
 
 export const Route = createFileRoute("/_app/vendas/nova")({ component: NovaBike });
 
@@ -146,7 +147,12 @@ function NovaBike() {
               onChange={(v) => set("categoria", v || null)}
             />
           </Field>
-          <Field label="Tamanho"><Input value={form.tamanho ?? ""} onChange={(e) => set("tamanho", e.target.value)} /></Field>
+          <Field label="Tamanho">
+            <TamanhoSelect
+              value={form.tamanho ?? ""}
+              onChange={(v) => set("tamanho", v || null)}
+            />
+          </Field>
           <Field label="Material do quadro"><Input value={form.material_quadro ?? ""} onChange={(e) => set("material_quadro", e.target.value)} /></Field>
           <Field label="Peso (kg)"><Input type="number" step="0.01" value={form.peso ?? ""} onChange={(e) => set("peso", e.target.value ? +e.target.value : null)} /></Field>
           <Field label="Cor"><Input value={form.cor ?? ""} onChange={(e) => set("cor", e.target.value)} /></Field>

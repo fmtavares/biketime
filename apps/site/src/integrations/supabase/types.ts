@@ -107,6 +107,39 @@ export type Database = {
         }
         Relationships: []
       }
+      produto_variantes: {
+        Row: {
+          id: string
+          produto_id: string
+          tamanho: string
+          sku: string | null
+          estoque: number
+          ativo: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          produto_id: string
+          tamanho: string
+          sku?: string | null
+          estoque?: number
+          ativo?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          produto_id?: string
+          tamanho?: string
+          sku?: string | null
+          estoque?: number
+          ativo?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       loja_bikes: {

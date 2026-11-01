@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
+import { TamanhoSelect } from "@/components/TamanhoSelect";
 
 const brl = (n: number) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
@@ -140,7 +141,12 @@ export function BikeFormDialog({
             <Field label="Rodas"><Input value={form.rodas ?? ""} onChange={(e) => set("rodas", e.target.value)} placeholder="Ex: 29, 700c, DT Swiss…" /></Field>
             <Field label="Ano"><Input type="number" value={form.ano} onChange={(e) => set("ano", e.target.value)} /></Field>
             <Field label="Cor"><Input value={form.cor} onChange={(e) => set("cor", e.target.value)} /></Field>
-            <Field label="Tamanho"><Input value={form.tamanho} onChange={(e) => set("tamanho", e.target.value)} /></Field>
+            <Field label="Tamanho">
+              <TamanhoSelect
+                value={form.tamanho ?? ""}
+                onChange={(v) => set("tamanho", v)}
+              />
+            </Field>
             <Field label="Número de série"><Input value={form.numero_serie} onChange={(e) => set("numero_serie", e.target.value)} /></Field>
             <Field label="Data da compra"><Input type="date" value={form.data_compra ?? ""} onChange={(e) => set("data_compra", e.target.value)} /></Field>
             <Field label="Valor pago"><CurrencyInput value={form.valor_pago} onChange={(v) => set("valor_pago", v)} /></Field>

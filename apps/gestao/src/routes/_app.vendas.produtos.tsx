@@ -21,13 +21,22 @@ export const Route = createFileRoute("/_app/vendas/produtos")({
  * Mantém categoria, marca, preços e foto para acelerar variantes (ex.: cor).
  */
 function montarDuplicata(p: any) {
-  const { id: _id, created_at: _c, updated_at: _u, created_by: _cb, ...rest } = p;
+  const {
+    id: _id,
+    created_at: _c,
+    updated_at: _u,
+    created_by: _cb,
+    produto_variantes: _pv,
+    tamanho_grades: _tg,
+    ...rest
+  } = p;
   const nomeBase = String(p.nome ?? "").replace(/\s*\(cópia\)\s*$/i, "").trim();
   return {
     ...rest,
     nome: nomeBase ? `${nomeBase} (cópia)` : "Produto (cópia)",
     sku: "",
     estoque_atual: 0,
+    grade_id: p.grade_id ?? null,
   };
 }
 
@@ -47,7 +56,7 @@ function ProdutosPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("produtos")
-        .select("*")
+        .select("*, tamanho_grades(nome, slug), produto_variantes(id, tamanho, estoque, ativo)")
         .order("nome");
       if (error) throw error;
       return data ?? [];
@@ -140,12 +149,31 @@ function ProdutosPage() {
                           Showroom
                         </Badge>
                       )}
+                      {p.grade_id && (
+                        <Badge variant="outline">
+                          {p.tamanho_grades?.nome ?? "Com tamanhos"}
+                        </Badge>
+                      )}
                       {!p.ativo && <Badge variant="outline">Inativo</Badge>}
                     </div>
                     <div className="mt-0.5 text-xs text-muted-foreground">
                       {[p.marca, p.modelo, p.sku && `SKU ${p.sku}`].filter(Boolean).join(" · ")}
                     </div>
                     <div className="mt-2 font-semibold">{fmtBRL(Number(p.preco_venda) || 0)}</div>
+                    <div className="text-xs text-muted-foreground">
+                      Estoque: {Number(p.estoque_atual) || 0}
+                      {p.grade_id && Array.isArray(p.produto_variantes) && (
+                        <>
+                          {" "}
+                          (
+                          {p.produto_variantes
+                            .filter((v: any) => v.ativo)
+                            .map((v: any) => `${v.tamanho}:${Number(v.estoque) || 0}`)
+                            .join(" · ") || "sem variantes"}
+                          )
+                        </>
+                      )}
+                    </div>
                     {Number(p.valor_mercado) > 0 && (
                       <div className="text-xs text-muted-foreground">
                         Mercado: {fmtBRL(Number(p.valor_mercado))}

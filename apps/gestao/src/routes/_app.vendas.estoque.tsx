@@ -21,6 +21,7 @@ function EstoquePage() {
   const { isAdmin } = useAuth();
   const [q, setQ] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("");
+  const [tamanhoFilter, setTamanhoFilter] = useState<string>("");
 
   const { data, isLoading } = useQuery({
     queryKey: ["bikes-estoque-list"],
@@ -33,14 +34,26 @@ function EstoquePage() {
     },
   });
 
+  /** Tamanhos distintos presentes no estoque (para o filtro). */
+  const tamanhosDisponiveis = useMemo(() => {
+    if (!data) return [];
+    const set = new Set<string>();
+    for (const b of data.bikes as any[]) {
+      const t = String(b.tamanho ?? "").trim();
+      if (t) set.add(t);
+    }
+    return [...set].sort((a, b) => a.localeCompare(b, "pt-BR", { numeric: true }));
+  }, [data]);
+
   const filtered = useMemo(() => {
     if (!data) return [];
     return data.bikes.filter((b: any) => {
-      const matchesQ = !q || `${b.marca} ${b.modelo} ${b.sku ?? ""} ${b.numero_serie ?? ""}`.toLowerCase().includes(q.toLowerCase());
+      const matchesQ = !q || `${b.marca} ${b.modelo} ${b.sku ?? ""} ${b.numero_serie ?? ""} ${b.tamanho ?? ""}`.toLowerCase().includes(q.toLowerCase());
       const matchesStatus = !statusFilter || b.status === statusFilter;
-      return matchesQ && matchesStatus;
+      const matchesTam = !tamanhoFilter || String(b.tamanho ?? "") === tamanhoFilter;
+      return matchesQ && matchesStatus && matchesTam;
     });
-  }, [data, q, statusFilter]);
+  }, [data, q, statusFilter, tamanhoFilter]);
 
   return (
     <div className="space-y-4">
@@ -76,6 +89,18 @@ function EstoquePage() {
           className="rounded-md border bg-background px-3 text-sm">
           <option value="">Todos status</option>
           {Object.entries(statusLabel).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+        </select>
+        <select
+          value={tamanhoFilter}
+          onChange={(e) => setTamanhoFilter(e.target.value)}
+          className="rounded-md border bg-background px-3 text-sm"
+        >
+          <option value="">Todos tamanhos</option>
+          {tamanhosDisponiveis.map((t) => (
+            <option key={t} value={t}>
+              Tam {t}
+            </option>
+          ))}
         </select>
       </div>
 

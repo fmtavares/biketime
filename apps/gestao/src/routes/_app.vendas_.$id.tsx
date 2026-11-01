@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { Trash2, Send, ArrowLeft, Sparkles, Loader2 } from "lucide-react";
 import { ImageCropDialog } from "@/components/ImageCropDialog";
 import { CategoriaBikeSelect } from "@/components/CategoriaBikeSelect";
+import { TamanhoSelect } from "@/components/TamanhoSelect";
 
 export const Route = createFileRoute("/_app/vendas_/$id")({ component: BikeEstoqueDetail });
 
@@ -393,11 +394,19 @@ function BikeEstoqueDetail() {
                   {Object.entries(statusLabel).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
                 </select>
               </div>
-              {["marca","modelo","tamanho","ano","cor","material_quadro","fornecedor","grupo","modelo_grupo","relacao","freios","rodas","suspensao"].map((k) => (
+              {["marca","modelo","ano","cor","material_quadro","fornecedor","grupo","modelo_grupo","relacao","freios","rodas","suspensao"].map((k) => (
                 <div key={k}><Label className="text-xs uppercase">{k.replace("_"," ")}</Label>
                   <Input disabled={!isAdmin} value={edit[k] ?? ""} onChange={(e) => setEdf(k, e.target.value)} />
                 </div>
               ))}
+              <div>
+                <Label className="text-xs uppercase">tamanho</Label>
+                <TamanhoSelect
+                  disabled={!isAdmin}
+                  value={edit.tamanho ?? ""}
+                  onChange={(v) => setEdf("tamanho", v || null)}
+                />
+              </div>
               <div>
                 <Label className="text-xs uppercase">categoria</Label>
                 <CategoriaBikeSelect

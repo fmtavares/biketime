@@ -53,6 +53,8 @@ type Produto = {
   marca_id: string;
   modelo: string;
   categoria_id: string;
+  /** Grade de tamanho; vazio = produto único sem variantes. */
+  grade_id: string;
   descricao: string;
   preco_venda: number;
   custo: number;
@@ -68,11 +70,20 @@ type Produto = {
   observacoes: string;
 };
 
+/** Linha editável de variante (tamanho + estoque) no formulário. */
+type VarianteForm = {
+  id?: string;
+  tamanho: string;
+  estoque: number;
+  ativo: boolean;
+};
+
 const empty: Produto = {
   nome: "",
   marca_id: "",
   modelo: "",
   categoria_id: "",
+  grade_id: "",
   descricao: "",
   preco_venda: 0,
   custo: 0,
@@ -125,6 +136,9 @@ export function ProdutoFormDialog({
   const [marcaSelect, setMarcaSelect] = useState("");
   const [novaCategoriaNome, setNovaCategoriaNome] = useState("");
   const [novaMarcaNome, setNovaMarcaNome] = useState("");
+  const [variantes, setVariantes] = useState<VarianteForm[]>([]);
+  /** Snapshot do banco para remountar a matriz quando a grade carregar. */
+  const [variantesDb, setVariantesDb] = useState<VarianteForm[]>([]);
 
   const { data: categorias = [] } = useQuery({
     queryKey: ["produto-categorias"],
@@ -156,44 +170,138 @@ export function ProdutoFormDialog({
     },
   });
 
+  const { data: grades = [] } = useQuery({
+    queryKey: ["tamanho-grades"],
+    enabled: open,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("tamanho_grades")
+        .select("id, slug, nome, ordem, tamanho_grade_itens(valor, ordem)")
+        .eq("ativo", true)
+        .order("ordem");
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  /**
+   * Monta linhas de variantes a partir da grade, preservando estoque/id já existentes.
+   */
+  function montarVariantesDaGrade(
+    gradeId: string,
+    existentes: VarianteForm[] = [],
+  ): VarianteForm[] {
+    const grade = grades.find((g: any) => g.id === gradeId);
+    const itens = [...(grade?.tamanho_grade_itens ?? [])].sort(
+      (a: any, b: any) => (a.ordem ?? 0) - (b.ordem ?? 0),
+    );
+    return itens.map((item: any) => {
+      const prev = existentes.find((v) => v.tamanho === item.valor);
+      return {
+        id: prev?.id,
+        tamanho: item.valor as string,
+        estoque: prev?.estoque ?? 0,
+        ativo: prev?.ativo ?? true,
+      };
+    });
+  }
+
   useEffect(() => {
     if (!open) return;
-    if (produto) {
-      const catId = produto.categoria_id ?? "";
-      const marcaId = produto.marca_id ?? "";
-      const custo = Number(produto.custo) || 0;
-      const preco_venda = Number(produto.preco_venda) || 0;
-      const valor_mercado = Number(produto.valor_mercado) || 0;
-      // Duplicata: nunca carrega id (sempre cria novo no save)
-      const { id: _ignoreId, ...rest } = produto;
-      setForm({
-        ...empty,
-        ...rest,
-        ...(duplicata || !produto.id ? { id: undefined } : { id: produto.id }),
-        fotos: produto.fotos ?? [],
-        modelo: produto.modelo ?? "",
-        descricao: produto.descricao ?? "",
-        sku: duplicata ? "" : (produto.sku ?? ""),
-        observacoes: produto.observacoes ?? "",
-        categoria_id: catId,
-        marca_id: marcaId,
-        custo,
-        preco_venda,
-        valor_mercado,
-        markup_pct: markupFrom(custo, preco_venda),
-      });
-      setCatSelect(catId);
-      setMarcaSelect(marcaId);
-      setNovaCategoriaNome("");
-      setNovaMarcaNome("");
-    } else {
-      setForm(empty);
-      setCatSelect("");
-      setMarcaSelect("");
-      setNovaCategoriaNome("");
-      setNovaMarcaNome("");
+    let cancelled = false;
+
+    async function carregar() {
+      if (produto) {
+        const catId = produto.categoria_id ?? "";
+        const marcaId = produto.marca_id ?? "";
+        const gradeId = produto.grade_id ?? "";
+        const custo = Number(produto.custo) || 0;
+        const preco_venda = Number(produto.preco_venda) || 0;
+        const valor_mercado = Number(produto.valor_mercado) || 0;
+        // Duplicata: nunca carrega id (sempre cria novo no save)
+        const { id: _ignoreId, ...rest } = produto;
+        setForm({
+          ...empty,
+          ...rest,
+          ...(duplicata || !produto.id ? { id: undefined } : { id: produto.id }),
+          fotos: produto.fotos ?? [],
+          modelo: produto.modelo ?? "",
+          descricao: produto.descricao ?? "",
+          sku: duplicata ? "" : (produto.sku ?? ""),
+          observacoes: produto.observacoes ?? "",
+          categoria_id: catId,
+          marca_id: marcaId,
+          grade_id: gradeId,
+          estoque_atual: duplicata ? 0 : Number(produto.estoque_atual) || 0,
+          custo,
+          preco_venda,
+          valor_mercado,
+          markup_pct: markupFrom(custo, preco_venda),
+        });
+        setCatSelect(catId);
+        setMarcaSelect(marcaId);
+        setNovaCategoriaNome("");
+        setNovaMarcaNome("");
+
+        if (produto.id && !duplicata) {
+          const { data: vars } = await supabase
+            .from("produto_variantes")
+            .select("id, tamanho, estoque, ativo")
+            .eq("produto_id", produto.id);
+          if (cancelled) return;
+          const existentes: VarianteForm[] = (vars ?? []).map((v: any) => ({
+            id: v.id,
+            tamanho: v.tamanho,
+            estoque: Number(v.estoque) || 0,
+            ativo: !!v.ativo,
+          }));
+          setVariantesDb(existentes);
+          if (gradeId) {
+            setVariantes(montarVariantesDaGrade(gradeId, existentes));
+          } else {
+            setVariantes([]);
+          }
+        } else if (gradeId) {
+          setVariantesDb([]);
+          setVariantes(montarVariantesDaGrade(gradeId, []));
+        } else {
+          setVariantesDb([]);
+          setVariantes([]);
+        }
+      } else {
+        setForm(empty);
+        setCatSelect("");
+        setMarcaSelect("");
+        setNovaCategoriaNome("");
+        setNovaMarcaNome("");
+        setVariantesDb([]);
+        setVariantes([]);
+      }
     }
+
+    void carregar();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, produto, duplicata]);
+
+  /**
+   * Quando as grades terminam de carregar e a matriz ainda está vazia/incompleta,
+   * remonta a partir do snapshot do banco (evita race no open do dialog).
+   */
+  useEffect(() => {
+    if (!open || !form.grade_id || grades.length === 0) return;
+    const grade = grades.find((g: any) => g.id === form.grade_id);
+    const expected = grade?.tamanho_grade_itens?.length ?? 0;
+    if (!expected) return;
+    setVariantes((prev) => {
+      if (prev.length === expected) return prev;
+      const base = prev.length ? prev : variantesDb;
+      return montarVariantesDaGrade(form.grade_id, base);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [grades, open, form.grade_id, variantesDb]);
 
   /** Define categoria padrão (Capacete) quando a lista carrega em produto novo. */
   useEffect(() => {
@@ -377,6 +485,9 @@ export function ProdutoFormDialog({
       }
     }
 
+    const gradeId = form.grade_id || null;
+    const temGrade = !!gradeId;
+
     const base = {
       nome: form.nome.trim(),
       marca_id: marca.id,
@@ -384,30 +495,118 @@ export function ProdutoFormDialog({
       modelo: form.modelo || null,
       categoria_id: cat.id,
       categoria: cat.nome || null,
+      grade_id: gradeId,
       descricao: form.descricao || null,
       preco_venda: Number(form.preco_venda) || 0,
       custo: Number(form.custo) || 0,
       valor_mercado: Number(form.valor_mercado) || null,
       sku,
-      estoque_atual: Number(form.estoque_atual) || 0,
+      // Com grade o trigger recalcula; sem grade usa o campo manual
+      estoque_atual: temGrade
+        ? variantes.filter((v) => v.ativo).reduce((s, v) => s + (Number(v.estoque) || 0), 0)
+        : Number(form.estoque_atual) || 0,
       fotos: form.fotos ?? [],
       ativo: !!form.ativo,
       visivel_ecommerce: !!form.visivel_ecommerce,
       observacoes: form.observacoes || null,
     };
 
-    const { error } = form.id
-      ? await supabase.from("produtos").update(base).eq("id", form.id)
-      : await supabase
-          .from("produtos")
-          .insert({ ...base, created_by: user?.id ?? null });
+    let produtoId = form.id ?? null;
+
+    if (form.id) {
+      const { error } = await supabase.from("produtos").update(base).eq("id", form.id);
+      if (error) {
+        setBusy(false);
+        return toast.error(error.message);
+      }
+    } else {
+      const { data, error } = await supabase
+        .from("produtos")
+        .insert({ ...base, created_by: user?.id ?? null })
+        .select("id")
+        .single();
+      if (error) {
+        setBusy(false);
+        return toast.error(error.message);
+      }
+      produtoId = data.id;
+    }
+
+    if (produtoId) {
+      const syncErr = await syncVariantes(produtoId, temGrade, variantes);
+      if (syncErr) {
+        setBusy(false);
+        return toast.error(syncErr);
+      }
+    }
 
     setBusy(false);
-    if (error) return toast.error(error.message);
     toast.success(form.id ? "Produto atualizado" : "Produto criado");
     onSaved?.();
     onOpenChange(false);
   };
+
+  /**
+   * Persiste variantes do produto: upsert por tamanho; desativa as que saíram da grade.
+   */
+  async function syncVariantes(
+    produtoId: string,
+    temGrade: boolean,
+    rows: VarianteForm[],
+  ): Promise<string | null> {
+    const { data: existentes, error: listErr } = await supabase
+      .from("produto_variantes")
+      .select("id, tamanho")
+      .eq("produto_id", produtoId);
+    if (listErr) return listErr.message;
+
+    if (!temGrade) {
+      if ((existentes ?? []).length > 0) {
+        const { error } = await supabase
+          .from("produto_variantes")
+          .update({ ativo: false })
+          .eq("produto_id", produtoId);
+        if (error) return error.message;
+      }
+      return null;
+    }
+
+    const porTamanho = new Map((existentes ?? []).map((v: any) => [v.tamanho, v.id as string]));
+    const tamanhosAtivos = new Set(rows.map((r) => r.tamanho));
+
+    for (const row of rows) {
+      const payload = {
+        produto_id: produtoId,
+        tamanho: row.tamanho,
+        estoque: Number(row.estoque) || 0,
+        ativo: !!row.ativo,
+      };
+      const existingId = porTamanho.get(row.tamanho);
+      if (existingId) {
+        const { error } = await supabase
+          .from("produto_variantes")
+          .update(payload)
+          .eq("id", existingId);
+        if (error) return error.message;
+      } else {
+        const { error } = await supabase.from("produto_variantes").insert(payload);
+        if (error) return error.message;
+      }
+    }
+
+    const paraDesativar = (existentes ?? [])
+      .filter((v: any) => !tamanhosAtivos.has(v.tamanho))
+      .map((v: any) => v.id as string);
+    if (paraDesativar.length > 0) {
+      const { error } = await supabase
+        .from("produto_variantes")
+        .update({ ativo: false })
+        .in("id", paraDesativar);
+      if (error) return error.message;
+    }
+
+    return null;
+  }
 
   const foto = form.fotos?.[0] ?? null;
 
@@ -588,13 +787,94 @@ export function ProdutoFormDialog({
               />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs">Estoque</Label>
-              <Input
-                type="number"
-                value={form.estoque_atual}
-                onChange={(e) => set("estoque_atual", Number(e.target.value) || 0)}
-              />
+              <Label className="text-xs">Grade de tamanho</Label>
+              <select
+                value={form.grade_id}
+                onChange={(e) => {
+                  const grade_id = e.target.value;
+                  setForm((f) => ({ ...f, grade_id }));
+                  if (!grade_id) {
+                    setVariantes([]);
+                  } else {
+                    setVariantes((prev) => montarVariantesDaGrade(grade_id, prev));
+                  }
+                }}
+                className="h-9 w-full rounded-md border bg-background px-3 text-sm"
+              >
+                <option value="">Nenhuma (item único)</option>
+                {grades.map((g: any) => (
+                  <option key={g.id} value={g.id}>
+                    {g.nome}
+                  </option>
+                ))}
+              </select>
+              <p className="text-[11px] text-muted-foreground">
+                Roupa, sapatilha etc. — ou deixe vazio se o item não tem tamanho
+              </p>
             </div>
+            {!form.grade_id ? (
+              <div className="space-y-1.5">
+                <Label className="text-xs">Estoque</Label>
+                <Input
+                  type="number"
+                  value={form.estoque_atual}
+                  onChange={(e) => set("estoque_atual", Number(e.target.value) || 0)}
+                />
+              </div>
+            ) : (
+              <div className="space-y-1.5 sm:col-span-2">
+                <Label className="text-xs">Estoque por tamanho</Label>
+                <div className="overflow-hidden rounded-md border">
+                  <table className="w-full text-sm">
+                    <thead className="bg-secondary/40 text-left text-xs text-muted-foreground">
+                      <tr>
+                        <th className="px-3 py-2 font-medium">Tamanho</th>
+                        <th className="px-3 py-2 font-medium">Estoque</th>
+                        <th className="px-3 py-2 font-medium">Ativo</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {variantes.map((v, idx) => (
+                        <tr key={v.tamanho} className="border-t">
+                          <td className="px-3 py-2 font-medium">{v.tamanho}</td>
+                          <td className="px-3 py-2">
+                            <Input
+                              type="number"
+                              min={0}
+                              className="h-8 w-24"
+                              value={v.estoque}
+                              onChange={(e) => {
+                                const estoque = Number(e.target.value) || 0;
+                                setVariantes((rows) =>
+                                  rows.map((r, i) => (i === idx ? { ...r, estoque } : r)),
+                                );
+                              }}
+                            />
+                          </td>
+                          <td className="px-3 py-2">
+                            <Switch
+                              checked={v.ativo}
+                              onCheckedChange={(ativo) => {
+                                setVariantes((rows) =>
+                                  rows.map((r, i) => (i === idx ? { ...r, ativo } : r)),
+                                );
+                              }}
+                            />
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  Total:{" "}
+                  {variantes
+                    .filter((v) => v.ativo)
+                    .reduce((s, v) => s + (Number(v.estoque) || 0), 0)}{" "}
+                  un.
+                </p>
+              </div>
+            )}
             <div className="space-y-1.5 sm:col-span-2">
               <Label className="text-xs">Descrição</Label>
               <Textarea

@@ -1,3 +1,4 @@
+import { useMemo, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowLeft, MessageCircle, Package } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -14,6 +15,13 @@ import {
   type LojaProduto,
 } from "@/lib/loja";
 
+export type ProdutoVarianteShowroom = {
+  id: string;
+  tamanho: string;
+  estoque: number;
+  ativo: boolean;
+};
+
 export const Route = createFileRoute("/loja_/produto/$id")({
   loader: async ({ params }) => {
     const { data, error } = await supabase
@@ -22,7 +30,28 @@ export const Route = createFileRoute("/loja_/produto/$id")({
       .eq("id", params.id)
       .maybeSingle();
     if (error) throw error;
-    return { produto: (data as LojaProduto | null) ?? null };
+
+    const produto = (data as LojaProduto | null) ?? null;
+    let variantes: ProdutoVarianteShowroom[] = [];
+
+    if (produto) {
+      const { data: vars } = await supabase
+        .from("produto_variantes")
+        .select("id, tamanho, estoque, ativo")
+        .eq("produto_id", params.id)
+        .eq("ativo", true);
+
+      variantes = (vars ?? [])
+        .map((v) => ({
+          id: v.id,
+          tamanho: v.tamanho,
+          estoque: Number(v.estoque) || 0,
+          ativo: !!v.ativo,
+        }))
+        .sort((a, b) => a.tamanho.localeCompare(b.tamanho, "pt-BR", { numeric: true }));
+    }
+
+    return { produto, variantes };
   },
   head: ({ loaderData, params }) => {
     const produto = loaderData?.produto;
@@ -49,9 +78,17 @@ export const Route = createFileRoute("/loja_/produto/$id")({
 
 /**
  * Detalhe de um produto/acessório do showroom + CTA WhatsApp e compartilhar.
+ * Se houver variantes, permite escolher o tamanho antes do WhatsApp.
  */
 function LojaProdutoDetalhePage() {
-  const { produto } = Route.useLoaderData();
+  const { produto, variantes } = Route.useLoaderData();
+  const [tamanho, setTamanho] = useState<string>("");
+
+  const temVariantes = variantes.length > 0;
+  const disponiveis = useMemo(
+    () => variantes.filter((v) => v.estoque > 0),
+    [variantes],
+  );
 
   if (!produto) {
     return (
@@ -68,8 +105,10 @@ function LojaProdutoDetalhePage() {
   }
 
   const foto = fotoProduto(produto);
-  const wa = whatsappInteresseProduto(produto);
+  const tamanhoEfetivo = tamanho || (disponiveis.length === 1 ? disponiveis[0].tamanho : "");
+  const wa = whatsappInteresseProduto(produto, temVariantes ? tamanhoEfetivo || null : null);
   const nome = tituloCompartilharProduto(produto);
+  const precisaTamanho = temVariantes && !tamanhoEfetivo;
 
   return (
     <div className="container-px mx-auto max-w-7xl py-12 md:py-20">
@@ -116,6 +155,43 @@ function LojaProdutoDetalhePage() {
             />
           </div>
 
+          {temVariantes && (
+            <div className="mt-8">
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Tamanho
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {variantes.map((v) => {
+                  const esgotado = v.estoque <= 0;
+                  const selected = tamanhoEfetivo === v.tamanho;
+                  return (
+                    <button
+                      key={v.id}
+                      type="button"
+                      disabled={esgotado}
+                      onClick={() => setTamanho(v.tamanho)}
+                      className={[
+                        "min-w-[3rem] rounded-md border px-3 py-2 text-sm font-medium transition",
+                        selected
+                          ? "border-primary bg-primary text-primary-foreground"
+                          : "border-border bg-background hover:border-foreground",
+                        esgotado ? "cursor-not-allowed opacity-40 line-through" : "",
+                      ].join(" ")}
+                      title={esgotado ? "Esgotado" : `Estoque: ${v.estoque}`}
+                    >
+                      {v.tamanho}
+                    </button>
+                  );
+                })}
+              </div>
+              {disponiveis.length === 0 && (
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Tamanhos esgotados no momento — fale conosco pelo WhatsApp.
+                </p>
+              )}
+            </div>
+          )}
+
           {produto.descricao && (
             <div className="mt-8 whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
               {produto.descricao}
@@ -130,13 +206,22 @@ function LojaProdutoDetalhePage() {
 
           <div className="mt-10 flex flex-wrap items-center gap-3">
             <a
-              href={wa}
+              href={precisaTamanho ? undefined : wa}
+              onClick={(e) => {
+                if (precisaTamanho) {
+                  e.preventDefault();
+                }
+              }}
               target="_blank"
               rel="noreferrer"
-              className="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground transition hover:opacity-90"
+              aria-disabled={precisaTamanho}
+              className={[
+                "inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground transition",
+                precisaTamanho ? "cursor-not-allowed opacity-60" : "hover:opacity-90",
+              ].join(" ")}
             >
               <MessageCircle size={18} />
-              Tenho interesse no WhatsApp
+              {precisaTamanho ? "Escolha o tamanho" : "Tenho interesse no WhatsApp"}
             </a>
             <CompartilharShowroom
               title={`${nome} · Showroom BikeTime`}
