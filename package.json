@@ -10,5 +10,8 @@
     "build:site": "npm run build -w @biketime/site",
     "build:gestao": "npm run build -w @biketime/gestao",
     "lint": "npm run lint -w @biketime/site && npm run lint -w @biketime/gestao"
+  },
+  "overrides": {
+    "@tanstack/react-start": "1.168.61"
   }
 }
