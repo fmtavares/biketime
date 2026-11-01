@@ -176,7 +176,10 @@ function LojaPage() {
     },
   });
 
-  /** Categorias de produto presentes no catálogo publicado. */
+  /**
+   * Categorias de produto presentes no catálogo publicado.
+   * Mantém ordem alfabética; "Outro" vira "Outros" e fica sempre por último.
+   */
   const categoriasProduto = useMemo(() => {
     const map = new Map<string, string>();
     for (const p of produtos) {
@@ -184,9 +187,20 @@ function LojaPage() {
         map.set(p.categoria_slug, p.categoria);
       }
     }
+    const isOutro = (slug: string, nome: string) =>
+      slug === "outro" || nome.toLowerCase() === "outro";
+
     return Array.from(map.entries())
-      .map(([slug, nome]) => ({ slug, nome }))
-      .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+      .map(([slug, nome]) => ({
+        slug,
+        nome: isOutro(slug, nome) ? "Outros" : nome,
+      }))
+      .sort((a, b) => {
+        const aOutro = isOutro(a.slug, a.nome) || a.nome === "Outros";
+        const bOutro = isOutro(b.slug, b.nome) || b.nome === "Outros";
+        if (aOutro !== bOutro) return aOutro ? 1 : -1;
+        return a.nome.localeCompare(b.nome, "pt-BR");
+      });
   }, [produtos]);
 
   /**
