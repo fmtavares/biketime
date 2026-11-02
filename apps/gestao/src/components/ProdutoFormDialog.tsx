@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
@@ -21,6 +21,27 @@ import { gerarProximoSku } from "@/lib/produto-sku";
 
 const NOVA_CATEGORIA = "__nova_cat__";
 const NOVA_MARCA = "__nova_marca__";
+
+/**
+ * Ordena itens pelo nome, A–Z em português, sem diferenciar maiúsculas.
+ */
+function ordenarPorNome<T extends { nome: string }>(lista: T[]): T[] {
+  return [...lista].sort((a, b) =>
+    a.nome.localeCompare(b.nome, "pt-BR", { sensitivity: "base" }),
+  );
+}
+
+/**
+ * Ordena marcas de A a Z. "Outra" fica no final, fora das marcas reais.
+ */
+function ordenarMarcasPorNome<T extends { nome: string; slug?: string }>(lista: T[]): T[] {
+  return [...lista].sort((a, b) => {
+    const aOutra = a.slug === "outra" || a.nome.toLowerCase() === "outra";
+    const bOutra = b.slug === "outra" || b.nome.toLowerCase() === "outra";
+    if (aOutra !== bOutra) return aOutra ? 1 : -1;
+    return a.nome.localeCompare(b.nome, "pt-BR", { sensitivity: "base" });
+  });
+}
 
 const brl = (n: number) =>
   n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -148,10 +169,9 @@ export function ProdutoFormDialog({
         .from("produto_categorias")
         .select("id, nome, slug, ativo, ordem")
         .eq("ativo", true)
-        .order("ordem")
         .order("nome");
       if (error) throw error;
-      return data ?? [];
+      return ordenarPorNome(data ?? []);
     },
   });
 
@@ -165,14 +185,7 @@ export function ProdutoFormDialog({
         .eq("ativo", true)
         .order("nome");
       if (error) throw error;
-      // A–Z; "Outra" fica no final para não misturar com marcas reais
-      const lista = data ?? [];
-      return [...lista].sort((a, b) => {
-        const aOutra = a.slug === "outra" || a.nome.toLowerCase() === "outra";
-        const bOutra = b.slug === "outra" || b.nome.toLowerCase() === "outra";
-        if (aOutra !== bOutra) return aOutra ? 1 : -1;
-        return a.nome.localeCompare(b.nome, "pt-BR", { sensitivity: "base" });
-      });
+      return ordenarMarcasPorNome(data ?? []);
     },
   });
 
@@ -320,6 +333,10 @@ export function ProdutoFormDialog({
   const set = (k: keyof Produto, v: any) => setForm((f) => ({ ...f, [k]: v }));
   const criandoNovaCat = catSelect === NOVA_CATEGORIA;
   const criandoNovaMarca = marcaSelect === NOVA_MARCA;
+  /** Combo de categoria em ordem alfabética, independente da coluna ordem. */
+  const categoriasOrdenadas = useMemo(() => ordenarPorNome(categorias), [categorias]);
+  /** Combo de marca em ordem alfabética, com "Outra" no final. */
+  const marcasOrdenadas = useMemo(() => ordenarMarcasPorNome(marcas), [marcas]);
 
   /** Abre cropper 4:3 para a foto principal. */
   function onPickFile(file: File) {
@@ -654,7 +671,7 @@ export function ProdutoFormDialog({
                 <option value="" disabled>
                   Selecione…
                 </option>
-                {categorias.map((c) => (
+                {categoriasOrdenadas.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.nome}
                   </option>
@@ -714,7 +731,7 @@ export function ProdutoFormDialog({
                 <option value="" disabled>
                   Selecione…
                 </option>
-                {marcas.map((m) => (
+                {marcasOrdenadas.map((m) => (
                   <option key={m.id} value={m.id}>
                     {m.nome}
                   </option>
