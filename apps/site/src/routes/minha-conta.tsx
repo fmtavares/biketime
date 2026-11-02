@@ -34,7 +34,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { cn, formatPhoneBr } from "@/lib/utils";
+import { cn, cpfValido, formatCpf, formatPhoneBr } from "@/lib/utils";
 
 const STATUS_PEDIDO: Record<string, string> = {
   aguardando_loja: "Aguardando a loja",
@@ -92,11 +92,12 @@ type ClienteCadastro = {
   instagram: string | null;
 };
 
-/** Campos que o cliente pode editar no portal (nunca email/cpf/vip/origem/obs/user_id). */
+/** Campos que o cliente pode editar no portal. E-mail nunca. CPF só se ainda estiver vazio. */
 type FormEditavel = {
   nome: string;
   whatsapp: string;
   telefone_secundario: string;
+  cpf: string;
   data_nascimento: string;
   cep: string;
   endereco: string;
@@ -225,6 +226,7 @@ function formFromCliente(c: ClienteCadastro): FormEditavel {
     nome: c.nome ?? "",
     whatsapp: formatPhoneBr(c.whatsapp ?? ""),
     telefone_secundario: formatPhoneBr(c.telefone_secundario ?? ""),
+    cpf: formatCpf(c.cpf ?? ""),
     data_nascimento: c.data_nascimento ?? "",
     cep: c.cep ?? "",
     endereco: c.endereco ?? "",
@@ -437,7 +439,8 @@ function MinhaContaPage() {
   }
 
   /**
-   * Salva apenas campos cadastrais permitidos (nunca email/cpf/vip/origem/obs/user_id).
+   * Salva contato e endereço. E-mail não entra.
+   * CPF só é enviado quando o cadastro ainda não tem um, e precisa ser válido.
    */
   async function salvarDados() {
     if (!cliente || !form) return;
@@ -445,11 +448,18 @@ function MinhaContaPage() {
       toast.error("Nome é obrigatório");
       return;
     }
+    const cpfAindaVazio = !cliente.cpf?.replace(/\D/g, "");
+    const cpfDigitado = form.cpf.replace(/\D/g, "");
+    if (cpfAindaVazio && cpfDigitado && !cpfValido(form.cpf)) {
+      toast.error("Informe um CPF válido.");
+      return;
+    }
     setSaving(true);
     const payload = {
       nome: form.nome.trim(),
       whatsapp: form.whatsapp.trim() || null,
       telefone_secundario: form.telefone_secundario.trim() || null,
+      ...(cpfAindaVazio && cpfDigitado ? { cpf: cpfDigitado } : {}),
       data_nascimento: form.data_nascimento || null,
       cep: form.cep.trim() || null,
       endereco: form.endereco.trim() || null,
@@ -594,7 +604,9 @@ function MinhaContaPage() {
                   <h2 className="font-display text-lg font-semibold text-primary">Meus Dados</h2>
                   <p className="mt-1 text-sm text-muted-foreground">
                     {editando
-                      ? "Atualize seus dados de contato e endereço. E-mail e CPF só pela loja."
+                      ? cliente.cpf?.replace(/\D/g, "")
+                        ? "Atualize seus dados de contato e endereço. E-mail e CPF já informado só pela loja."
+                        : "Atualize seus dados de contato e endereço. Se o CPF estiver vazio, você pode informá-lo uma vez. O e-mail só pela loja."
                       : "Informações do seu cadastro na Bike Time"}
                   </p>
                 </div>
@@ -638,7 +650,7 @@ function MinhaContaPage() {
                   <Campo label="E-mail" value={cliente.email} destaque />
                   <Campo label="WhatsApp" value={cliente.whatsapp} destaque />
                   <Campo label="Telefone" value={cliente.telefone_secundario} destaque />
-                  <Campo label="CPF" value={cliente.cpf} destaque />
+                  <Campo label="CPF" value={cliente.cpf ? formatCpf(cliente.cpf) : null} destaque />
                   <Campo
                     label="Nascimento"
                     value={
@@ -691,8 +703,19 @@ function MinhaContaPage() {
                         maxLength={15}
                       />
                     </Field>
-                    <Field label="CPF (somente loja)">
-                      <Input className="portal-field" value={cliente.cpf ?? ""} disabled readOnly />
+                    <Field label={cliente.cpf?.replace(/\D/g, "") ? "CPF (somente loja)" : "CPF"}>
+                      {cliente.cpf?.replace(/\D/g, "") ? (
+                        <Input className="portal-field" value={formatCpf(cliente.cpf)} disabled readOnly />
+                      ) : (
+                        <Input
+                          className="portal-field"
+                          value={form.cpf}
+                          onChange={(e) => set("cpf", formatCpf(e.target.value))}
+                          inputMode="numeric"
+                          maxLength={14}
+                          placeholder="000.000.000-00"
+                        />
+                      )}
                     </Field>
                     <Field label="Nascimento">
                       <Input
