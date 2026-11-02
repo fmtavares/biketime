@@ -248,7 +248,7 @@ function NovaBike() {
       </Card>
 
       <div className="flex justify-end gap-2">
-        <Button type="button" variant="outline" onClick={() => navigate({ to: "/vendas/estoque" })}>Cancelar</Button>
+        <Button type="button" variant="outline" onClick={() => navigate({ to: "/vendas/produtos", search: { categoria: "Bikes" } })}>Cancelar</Button>
         <Button type="submit" disabled={saving}>{saving ? "Salvando…" : "Cadastrar bike"}</Button>
       </div>
     </form>

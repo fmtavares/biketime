@@ -73,7 +73,6 @@ const estoqueSection: NavSection = {
   label: "Estoque",
   items: [
     { to: "/vendas/produtos", label: "Produtos", icon: Package },
-    { to: "/vendas/estoque", label: "Bikes", icon: Bike },
     { to: "/fornecedores", label: "Fornecedores", icon: Truck },
     { to: "/compras", label: "Compras", icon: Receipt },
   ],

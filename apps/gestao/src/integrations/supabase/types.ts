@@ -1409,6 +1409,7 @@ export type Database = {
       produtos: {
         Row: {
           ativo: boolean
+          bike_estoque_id: string | null
           categoria: string | null
           categoria_id: string | null
           codigo_barras: string | null
@@ -1437,6 +1438,7 @@ export type Database = {
         }
         Insert: {
           ativo?: boolean
+          bike_estoque_id?: string | null
           categoria?: string | null
           categoria_id?: string | null
           codigo_barras?: string | null
@@ -1465,6 +1467,7 @@ export type Database = {
         }
         Update: {
           ativo?: boolean
+          bike_estoque_id?: string | null
           categoria?: string | null
           categoria_id?: string | null
           codigo_barras?: string | null
@@ -1492,6 +1495,13 @@ export type Database = {
           visivel_ecommerce?: boolean
         }
         Relationships: [
+          {
+            foreignKeyName: "produtos_bike_estoque_id_fkey"
+            columns: ["bike_estoque_id"]
+            isOneToOne: true
+            referencedRelation: "bikes_estoque"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "produtos_categoria_id_fkey"
             columns: ["categoria_id"]

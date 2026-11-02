@@ -9,49 +9,49 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppRouteImport } from './routes/_app'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppIndexRouteImport } from './routes/_app.index'
-import { Route as AppVendasRouteImport } from './routes/_app.vendas'
-import { Route as AppTiposAtividadeRouteImport } from './routes/_app.tipos-atividade'
-import { Route as AppRelatoriosRouteImport } from './routes/_app.relatorios'
-import { Route as AppPrecosRouteImport } from './routes/_app.precos'
-import { Route as AppPendenciasRouteImport } from './routes/_app.pendencias'
-import { Route as AppParametrosNfeRouteImport } from './routes/_app.parametros-nfe'
-import { Route as AppParametrosFinanceirosRouteImport } from './routes/_app.parametros-financeiros'
-import { Route as AppOficinaRouteImport } from './routes/_app.oficina'
-import { Route as AppMarketingRouteImport } from './routes/_app.marketing'
-import { Route as AppMarcasRouteImport } from './routes/_app.marcas'
-import { Route as AppFornecedoresRouteImport } from './routes/_app.fornecedores'
-import { Route as AppFechamentoRouteImport } from './routes/_app.fechamento'
-import { Route as AppDespesasRouteImport } from './routes/_app.despesas'
-import { Route as AppContasAPagarRouteImport } from './routes/_app.contas-a-pagar'
-import { Route as AppConfiguracoesRouteImport } from './routes/_app.configuracoes'
-import { Route as AppComprasRouteImport } from './routes/_app.compras'
-import { Route as AppClientesRouteImport } from './routes/_app.clientes'
 import { Route as AppBikesRouteImport } from './routes/_app.bikes'
-import { Route as AppVendasIndexRouteImport } from './routes/_app.vendas.index'
-import { Route as AppVendasIdRouteImport } from './routes/_app.vendas_.$id'
-import { Route as AppVendasProdutosRouteImport } from './routes/_app.vendas.produtos'
-import { Route as AppVendasNovaRouteImport } from './routes/_app.vendas.nova'
-import { Route as AppVendasLojaVirtualRouteImport } from './routes/_app.vendas.loja-virtual'
-import { Route as AppVendasEstoqueRouteImport } from './routes/_app.vendas.estoque'
-import { Route as AppOsNumeroRouteImport } from './routes/_app.os.$numero'
-import { Route as AppOficinaOrdensRouteImport } from './routes/_app.oficina_.ordens'
-import { Route as AppOficinaNovaRouteImport } from './routes/_app.oficina_.nova'
-import { Route as AppFornecedoresIdRouteImport } from './routes/_app.fornecedores_.$id'
-import { Route as AppClientesNovaRouteImport } from './routes/_app.clientes_.nova'
-import { Route as AppClientesIdRouteImport } from './routes/_app.clientes_.$id'
-import { Route as AppBikesIdRouteImport } from './routes/_app.bikes_.$id'
+import { Route as AppClientesRouteImport } from './routes/_app.clientes'
+import { Route as AppComprasRouteImport } from './routes/_app.compras'
+import { Route as AppConfiguracoesRouteImport } from './routes/_app.configuracoes'
+import { Route as AppContasAPagarRouteImport } from './routes/_app.contas-a-pagar'
+import { Route as AppDespesasRouteImport } from './routes/_app.despesas'
+import { Route as AppFechamentoRouteImport } from './routes/_app.fechamento'
+import { Route as AppFornecedoresRouteImport } from './routes/_app.fornecedores'
+import { Route as AppMarcasRouteImport } from './routes/_app.marcas'
+import { Route as AppMarketingRouteImport } from './routes/_app.marketing'
+import { Route as AppOficinaRouteImport } from './routes/_app.oficina'
+import { Route as AppParametrosFinanceirosRouteImport } from './routes/_app.parametros-financeiros'
+import { Route as AppParametrosNfeRouteImport } from './routes/_app.parametros-nfe'
+import { Route as AppPendenciasRouteImport } from './routes/_app.pendencias'
+import { Route as AppPrecosRouteImport } from './routes/_app.precos'
+import { Route as AppRelatoriosRouteImport } from './routes/_app.relatorios'
+import { Route as AppTiposAtividadeRouteImport } from './routes/_app.tipos-atividade'
+import { Route as AppVendasRouteImport } from './routes/_app.vendas'
 import { Route as AppBCodigoRouteImport } from './routes/_app.b.$codigo'
+import { Route as AppBikesIdRouteImport } from './routes/_app.bikes_.$id'
+import { Route as AppClientesIdRouteImport } from './routes/_app.clientes_.$id'
+import { Route as AppClientesNovaRouteImport } from './routes/_app.clientes_.nova'
+import { Route as AppFornecedoresIdRouteImport } from './routes/_app.fornecedores_.$id'
+import { Route as AppOficinaNovaRouteImport } from './routes/_app.oficina_.nova'
+import { Route as AppOficinaOrdensRouteImport } from './routes/_app.oficina_.ordens'
+import { Route as AppOsNumeroRouteImport } from './routes/_app.os.$numero'
+import { Route as AppVendasIndexRouteImport } from './routes/_app.vendas.index'
+import { Route as AppVendasEstoqueRouteImport } from './routes/_app.vendas.estoque'
+import { Route as AppVendasLojaVirtualRouteImport } from './routes/_app.vendas.loja-virtual'
+import { Route as AppVendasNovaRouteImport } from './routes/_app.vendas.nova'
+import { Route as AppVendasProdutosRouteImport } from './routes/_app.vendas.produtos'
+import { Route as AppVendasIdRouteImport } from './routes/_app.vendas_.$id'
 
+const AppRoute = AppRouteImport.update({
+  id: '/_app',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AppRoute = AppRouteImport.update({
-  id: '/_app',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppIndexRoute = AppIndexRouteImport.update({
@@ -59,34 +59,59 @@ const AppIndexRoute = AppIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AppRoute,
 } as any)
-const AppVendasRoute = AppVendasRouteImport.update({
-  id: '/vendas',
-  path: '/vendas',
+const AppBikesRoute = AppBikesRouteImport.update({
+  id: '/bikes',
+  path: '/bikes',
   getParentRoute: () => AppRoute,
 } as any)
-const AppTiposAtividadeRoute = AppTiposAtividadeRouteImport.update({
-  id: '/tipos-atividade',
-  path: '/tipos-atividade',
+const AppClientesRoute = AppClientesRouteImport.update({
+  id: '/clientes',
+  path: '/clientes',
   getParentRoute: () => AppRoute,
 } as any)
-const AppRelatoriosRoute = AppRelatoriosRouteImport.update({
-  id: '/relatorios',
-  path: '/relatorios',
+const AppComprasRoute = AppComprasRouteImport.update({
+  id: '/compras',
+  path: '/compras',
   getParentRoute: () => AppRoute,
 } as any)
-const AppPrecosRoute = AppPrecosRouteImport.update({
-  id: '/precos',
-  path: '/precos',
+const AppConfiguracoesRoute = AppConfiguracoesRouteImport.update({
+  id: '/configuracoes',
+  path: '/configuracoes',
   getParentRoute: () => AppRoute,
 } as any)
-const AppPendenciasRoute = AppPendenciasRouteImport.update({
-  id: '/pendencias',
-  path: '/pendencias',
+const AppContasAPagarRoute = AppContasAPagarRouteImport.update({
+  id: '/contas-a-pagar',
+  path: '/contas-a-pagar',
   getParentRoute: () => AppRoute,
 } as any)
-const AppParametrosNfeRoute = AppParametrosNfeRouteImport.update({
-  id: '/parametros-nfe',
-  path: '/parametros-nfe',
+const AppDespesasRoute = AppDespesasRouteImport.update({
+  id: '/despesas',
+  path: '/despesas',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppFechamentoRoute = AppFechamentoRouteImport.update({
+  id: '/fechamento',
+  path: '/fechamento',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppFornecedoresRoute = AppFornecedoresRouteImport.update({
+  id: '/fornecedores',
+  path: '/fornecedores',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppMarcasRoute = AppMarcasRouteImport.update({
+  id: '/marcas',
+  path: '/marcas',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppMarketingRoute = AppMarketingRouteImport.update({
+  id: '/marketing',
+  path: '/marketing',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppOficinaRoute = AppOficinaRouteImport.update({
+  id: '/oficina',
+  path: '/oficina',
   getParentRoute: () => AppRoute,
 } as any)
 const AppParametrosFinanceirosRoute =
@@ -95,119 +120,39 @@ const AppParametrosFinanceirosRoute =
     path: '/parametros-financeiros',
     getParentRoute: () => AppRoute,
   } as any)
-const AppOficinaRoute = AppOficinaRouteImport.update({
-  id: '/oficina',
-  path: '/oficina',
+const AppParametrosNfeRoute = AppParametrosNfeRouteImport.update({
+  id: '/parametros-nfe',
+  path: '/parametros-nfe',
   getParentRoute: () => AppRoute,
 } as any)
-const AppMarketingRoute = AppMarketingRouteImport.update({
-  id: '/marketing',
-  path: '/marketing',
+const AppPendenciasRoute = AppPendenciasRouteImport.update({
+  id: '/pendencias',
+  path: '/pendencias',
   getParentRoute: () => AppRoute,
 } as any)
-const AppMarcasRoute = AppMarcasRouteImport.update({
-  id: '/marcas',
-  path: '/marcas',
+const AppPrecosRoute = AppPrecosRouteImport.update({
+  id: '/precos',
+  path: '/precos',
   getParentRoute: () => AppRoute,
 } as any)
-const AppFornecedoresRoute = AppFornecedoresRouteImport.update({
-  id: '/fornecedores',
-  path: '/fornecedores',
+const AppRelatoriosRoute = AppRelatoriosRouteImport.update({
+  id: '/relatorios',
+  path: '/relatorios',
   getParentRoute: () => AppRoute,
 } as any)
-const AppFechamentoRoute = AppFechamentoRouteImport.update({
-  id: '/fechamento',
-  path: '/fechamento',
+const AppTiposAtividadeRoute = AppTiposAtividadeRouteImport.update({
+  id: '/tipos-atividade',
+  path: '/tipos-atividade',
   getParentRoute: () => AppRoute,
 } as any)
-const AppDespesasRoute = AppDespesasRouteImport.update({
-  id: '/despesas',
-  path: '/despesas',
+const AppVendasRoute = AppVendasRouteImport.update({
+  id: '/vendas',
+  path: '/vendas',
   getParentRoute: () => AppRoute,
 } as any)
-const AppContasAPagarRoute = AppContasAPagarRouteImport.update({
-  id: '/contas-a-pagar',
-  path: '/contas-a-pagar',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppConfiguracoesRoute = AppConfiguracoesRouteImport.update({
-  id: '/configuracoes',
-  path: '/configuracoes',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppComprasRoute = AppComprasRouteImport.update({
-  id: '/compras',
-  path: '/compras',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppClientesRoute = AppClientesRouteImport.update({
-  id: '/clientes',
-  path: '/clientes',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppBikesRoute = AppBikesRouteImport.update({
-  id: '/bikes',
-  path: '/bikes',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppVendasIndexRoute = AppVendasIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => AppVendasRoute,
-} as any)
-const AppVendasIdRoute = AppVendasIdRouteImport.update({
-  id: '/vendas_/$id',
-  path: '/vendas/$id',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppVendasProdutosRoute = AppVendasProdutosRouteImport.update({
-  id: '/produtos',
-  path: '/produtos',
-  getParentRoute: () => AppVendasRoute,
-} as any)
-const AppVendasNovaRoute = AppVendasNovaRouteImport.update({
-  id: '/nova',
-  path: '/nova',
-  getParentRoute: () => AppVendasRoute,
-} as any)
-const AppVendasLojaVirtualRoute = AppVendasLojaVirtualRouteImport.update({
-  id: '/loja-virtual',
-  path: '/loja-virtual',
-  getParentRoute: () => AppVendasRoute,
-} as any)
-const AppVendasEstoqueRoute = AppVendasEstoqueRouteImport.update({
-  id: '/estoque',
-  path: '/estoque',
-  getParentRoute: () => AppVendasRoute,
-} as any)
-const AppOsNumeroRoute = AppOsNumeroRouteImport.update({
-  id: '/os/$numero',
-  path: '/os/$numero',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppOficinaOrdensRoute = AppOficinaOrdensRouteImport.update({
-  id: '/oficina_/ordens',
-  path: '/oficina/ordens',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppOficinaNovaRoute = AppOficinaNovaRouteImport.update({
-  id: '/oficina_/nova',
-  path: '/oficina/nova',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppFornecedoresIdRoute = AppFornecedoresIdRouteImport.update({
-  id: '/fornecedores_/$id',
-  path: '/fornecedores/$id',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppClientesNovaRoute = AppClientesNovaRouteImport.update({
-  id: '/clientes_/nova',
-  path: '/clientes/nova',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppClientesIdRoute = AppClientesIdRouteImport.update({
-  id: '/clientes_/$id',
-  path: '/clientes/$id',
+const AppBCodigoRoute = AppBCodigoRouteImport.update({
+  id: '/b/$codigo',
+  path: '/b/$codigo',
   getParentRoute: () => AppRoute,
 } as any)
 const AppBikesIdRoute = AppBikesIdRouteImport.update({
@@ -215,9 +160,64 @@ const AppBikesIdRoute = AppBikesIdRouteImport.update({
   path: '/bikes/$id',
   getParentRoute: () => AppRoute,
 } as any)
-const AppBCodigoRoute = AppBCodigoRouteImport.update({
-  id: '/b/$codigo',
-  path: '/b/$codigo',
+const AppClientesIdRoute = AppClientesIdRouteImport.update({
+  id: '/clientes_/$id',
+  path: '/clientes/$id',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppClientesNovaRoute = AppClientesNovaRouteImport.update({
+  id: '/clientes_/nova',
+  path: '/clientes/nova',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppFornecedoresIdRoute = AppFornecedoresIdRouteImport.update({
+  id: '/fornecedores_/$id',
+  path: '/fornecedores/$id',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppOficinaNovaRoute = AppOficinaNovaRouteImport.update({
+  id: '/oficina_/nova',
+  path: '/oficina/nova',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppOficinaOrdensRoute = AppOficinaOrdensRouteImport.update({
+  id: '/oficina_/ordens',
+  path: '/oficina/ordens',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppOsNumeroRoute = AppOsNumeroRouteImport.update({
+  id: '/os/$numero',
+  path: '/os/$numero',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppVendasIndexRoute = AppVendasIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppVendasRoute,
+} as any)
+const AppVendasEstoqueRoute = AppVendasEstoqueRouteImport.update({
+  id: '/estoque',
+  path: '/estoque',
+  getParentRoute: () => AppVendasRoute,
+} as any)
+const AppVendasLojaVirtualRoute = AppVendasLojaVirtualRouteImport.update({
+  id: '/loja-virtual',
+  path: '/loja-virtual',
+  getParentRoute: () => AppVendasRoute,
+} as any)
+const AppVendasNovaRoute = AppVendasNovaRouteImport.update({
+  id: '/nova',
+  path: '/nova',
+  getParentRoute: () => AppVendasRoute,
+} as any)
+const AppVendasProdutosRoute = AppVendasProdutosRouteImport.update({
+  id: '/produtos',
+  path: '/produtos',
+  getParentRoute: () => AppVendasRoute,
+} as any)
+const AppVendasIdRoute = AppVendasIdRouteImport.update({
+  id: '/vendas_/$id',
+  path: '/vendas/$id',
   getParentRoute: () => AppRoute,
 } as any)
 
@@ -448,18 +448,18 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/login': {
-      id: '/login'
-      path: '/login'
-      fullPath: '/login'
-      preLoaderRoute: typeof LoginRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/_app': {
       id: '/_app'
       path: ''
       fullPath: '/'
       preLoaderRoute: typeof AppRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_app/': {
@@ -469,116 +469,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppIndexRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/vendas': {
-      id: '/_app/vendas'
-      path: '/vendas'
-      fullPath: '/vendas'
-      preLoaderRoute: typeof AppVendasRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/tipos-atividade': {
-      id: '/_app/tipos-atividade'
-      path: '/tipos-atividade'
-      fullPath: '/tipos-atividade'
-      preLoaderRoute: typeof AppTiposAtividadeRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/relatorios': {
-      id: '/_app/relatorios'
-      path: '/relatorios'
-      fullPath: '/relatorios'
-      preLoaderRoute: typeof AppRelatoriosRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/precos': {
-      id: '/_app/precos'
-      path: '/precos'
-      fullPath: '/precos'
-      preLoaderRoute: typeof AppPrecosRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/pendencias': {
-      id: '/_app/pendencias'
-      path: '/pendencias'
-      fullPath: '/pendencias'
-      preLoaderRoute: typeof AppPendenciasRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/parametros-nfe': {
-      id: '/_app/parametros-nfe'
-      path: '/parametros-nfe'
-      fullPath: '/parametros-nfe'
-      preLoaderRoute: typeof AppParametrosNfeRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/parametros-financeiros': {
-      id: '/_app/parametros-financeiros'
-      path: '/parametros-financeiros'
-      fullPath: '/parametros-financeiros'
-      preLoaderRoute: typeof AppParametrosFinanceirosRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/oficina': {
-      id: '/_app/oficina'
-      path: '/oficina'
-      fullPath: '/oficina'
-      preLoaderRoute: typeof AppOficinaRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/marketing': {
-      id: '/_app/marketing'
-      path: '/marketing'
-      fullPath: '/marketing'
-      preLoaderRoute: typeof AppMarketingRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/marcas': {
-      id: '/_app/marcas'
-      path: '/marcas'
-      fullPath: '/marcas'
-      preLoaderRoute: typeof AppMarcasRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/fornecedores': {
-      id: '/_app/fornecedores'
-      path: '/fornecedores'
-      fullPath: '/fornecedores'
-      preLoaderRoute: typeof AppFornecedoresRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/fechamento': {
-      id: '/_app/fechamento'
-      path: '/fechamento'
-      fullPath: '/fechamento'
-      preLoaderRoute: typeof AppFechamentoRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/despesas': {
-      id: '/_app/despesas'
-      path: '/despesas'
-      fullPath: '/despesas'
-      preLoaderRoute: typeof AppDespesasRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/contas-a-pagar': {
-      id: '/_app/contas-a-pagar'
-      path: '/contas-a-pagar'
-      fullPath: '/contas-a-pagar'
-      preLoaderRoute: typeof AppContasAPagarRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/configuracoes': {
-      id: '/_app/configuracoes'
-      path: '/configuracoes'
-      fullPath: '/configuracoes'
-      preLoaderRoute: typeof AppConfiguracoesRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/compras': {
-      id: '/_app/compras'
-      path: '/compras'
-      fullPath: '/compras'
-      preLoaderRoute: typeof AppComprasRouteImport
+    '/_app/bikes': {
+      id: '/_app/bikes'
+      path: '/bikes'
+      fullPath: '/bikes'
+      preLoaderRoute: typeof AppBikesRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/clientes': {
@@ -588,95 +483,123 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppClientesRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/bikes': {
-      id: '/_app/bikes'
-      path: '/bikes'
-      fullPath: '/bikes'
-      preLoaderRoute: typeof AppBikesRouteImport
+    '/_app/compras': {
+      id: '/_app/compras'
+      path: '/compras'
+      fullPath: '/compras'
+      preLoaderRoute: typeof AppComprasRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/vendas/': {
-      id: '/_app/vendas/'
-      path: '/'
-      fullPath: '/vendas/'
-      preLoaderRoute: typeof AppVendasIndexRouteImport
-      parentRoute: typeof AppVendasRoute
-    }
-    '/_app/vendas_/$id': {
-      id: '/_app/vendas_/$id'
-      path: '/vendas/$id'
-      fullPath: '/vendas/$id'
-      preLoaderRoute: typeof AppVendasIdRouteImport
+    '/_app/configuracoes': {
+      id: '/_app/configuracoes'
+      path: '/configuracoes'
+      fullPath: '/configuracoes'
+      preLoaderRoute: typeof AppConfiguracoesRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/vendas/produtos': {
-      id: '/_app/vendas/produtos'
-      path: '/produtos'
-      fullPath: '/vendas/produtos'
-      preLoaderRoute: typeof AppVendasProdutosRouteImport
-      parentRoute: typeof AppVendasRoute
-    }
-    '/_app/vendas/nova': {
-      id: '/_app/vendas/nova'
-      path: '/nova'
-      fullPath: '/vendas/nova'
-      preLoaderRoute: typeof AppVendasNovaRouteImport
-      parentRoute: typeof AppVendasRoute
-    }
-    '/_app/vendas/loja-virtual': {
-      id: '/_app/vendas/loja-virtual'
-      path: '/loja-virtual'
-      fullPath: '/vendas/loja-virtual'
-      preLoaderRoute: typeof AppVendasLojaVirtualRouteImport
-      parentRoute: typeof AppVendasRoute
-    }
-    '/_app/vendas/estoque': {
-      id: '/_app/vendas/estoque'
-      path: '/estoque'
-      fullPath: '/vendas/estoque'
-      preLoaderRoute: typeof AppVendasEstoqueRouteImport
-      parentRoute: typeof AppVendasRoute
-    }
-    '/_app/os/$numero': {
-      id: '/_app/os/$numero'
-      path: '/os/$numero'
-      fullPath: '/os/$numero'
-      preLoaderRoute: typeof AppOsNumeroRouteImport
+    '/_app/contas-a-pagar': {
+      id: '/_app/contas-a-pagar'
+      path: '/contas-a-pagar'
+      fullPath: '/contas-a-pagar'
+      preLoaderRoute: typeof AppContasAPagarRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/oficina_/ordens': {
-      id: '/_app/oficina_/ordens'
-      path: '/oficina/ordens'
-      fullPath: '/oficina/ordens'
-      preLoaderRoute: typeof AppOficinaOrdensRouteImport
+    '/_app/despesas': {
+      id: '/_app/despesas'
+      path: '/despesas'
+      fullPath: '/despesas'
+      preLoaderRoute: typeof AppDespesasRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/oficina_/nova': {
-      id: '/_app/oficina_/nova'
-      path: '/oficina/nova'
-      fullPath: '/oficina/nova'
-      preLoaderRoute: typeof AppOficinaNovaRouteImport
+    '/_app/fechamento': {
+      id: '/_app/fechamento'
+      path: '/fechamento'
+      fullPath: '/fechamento'
+      preLoaderRoute: typeof AppFechamentoRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/fornecedores_/$id': {
-      id: '/_app/fornecedores_/$id'
-      path: '/fornecedores/$id'
-      fullPath: '/fornecedores/$id'
-      preLoaderRoute: typeof AppFornecedoresIdRouteImport
+    '/_app/fornecedores': {
+      id: '/_app/fornecedores'
+      path: '/fornecedores'
+      fullPath: '/fornecedores'
+      preLoaderRoute: typeof AppFornecedoresRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/clientes_/nova': {
-      id: '/_app/clientes_/nova'
-      path: '/clientes/nova'
-      fullPath: '/clientes/nova'
-      preLoaderRoute: typeof AppClientesNovaRouteImport
+    '/_app/marcas': {
+      id: '/_app/marcas'
+      path: '/marcas'
+      fullPath: '/marcas'
+      preLoaderRoute: typeof AppMarcasRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/clientes_/$id': {
-      id: '/_app/clientes_/$id'
-      path: '/clientes/$id'
-      fullPath: '/clientes/$id'
-      preLoaderRoute: typeof AppClientesIdRouteImport
+    '/_app/marketing': {
+      id: '/_app/marketing'
+      path: '/marketing'
+      fullPath: '/marketing'
+      preLoaderRoute: typeof AppMarketingRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/oficina': {
+      id: '/_app/oficina'
+      path: '/oficina'
+      fullPath: '/oficina'
+      preLoaderRoute: typeof AppOficinaRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/parametros-financeiros': {
+      id: '/_app/parametros-financeiros'
+      path: '/parametros-financeiros'
+      fullPath: '/parametros-financeiros'
+      preLoaderRoute: typeof AppParametrosFinanceirosRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/parametros-nfe': {
+      id: '/_app/parametros-nfe'
+      path: '/parametros-nfe'
+      fullPath: '/parametros-nfe'
+      preLoaderRoute: typeof AppParametrosNfeRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/pendencias': {
+      id: '/_app/pendencias'
+      path: '/pendencias'
+      fullPath: '/pendencias'
+      preLoaderRoute: typeof AppPendenciasRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/precos': {
+      id: '/_app/precos'
+      path: '/precos'
+      fullPath: '/precos'
+      preLoaderRoute: typeof AppPrecosRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/relatorios': {
+      id: '/_app/relatorios'
+      path: '/relatorios'
+      fullPath: '/relatorios'
+      preLoaderRoute: typeof AppRelatoriosRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/tipos-atividade': {
+      id: '/_app/tipos-atividade'
+      path: '/tipos-atividade'
+      fullPath: '/tipos-atividade'
+      preLoaderRoute: typeof AppTiposAtividadeRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/vendas': {
+      id: '/_app/vendas'
+      path: '/vendas'
+      fullPath: '/vendas'
+      preLoaderRoute: typeof AppVendasRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/b/$codigo': {
+      id: '/_app/b/$codigo'
+      path: '/b/$codigo'
+      fullPath: '/b/$codigo'
+      preLoaderRoute: typeof AppBCodigoRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/bikes_/$id': {
@@ -686,11 +609,88 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppBikesIdRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/b/$codigo': {
-      id: '/_app/b/$codigo'
-      path: '/b/$codigo'
-      fullPath: '/b/$codigo'
-      preLoaderRoute: typeof AppBCodigoRouteImport
+    '/_app/clientes_/$id': {
+      id: '/_app/clientes_/$id'
+      path: '/clientes/$id'
+      fullPath: '/clientes/$id'
+      preLoaderRoute: typeof AppClientesIdRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/clientes_/nova': {
+      id: '/_app/clientes_/nova'
+      path: '/clientes/nova'
+      fullPath: '/clientes/nova'
+      preLoaderRoute: typeof AppClientesNovaRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/fornecedores_/$id': {
+      id: '/_app/fornecedores_/$id'
+      path: '/fornecedores/$id'
+      fullPath: '/fornecedores/$id'
+      preLoaderRoute: typeof AppFornecedoresIdRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/oficina_/nova': {
+      id: '/_app/oficina_/nova'
+      path: '/oficina/nova'
+      fullPath: '/oficina/nova'
+      preLoaderRoute: typeof AppOficinaNovaRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/oficina_/ordens': {
+      id: '/_app/oficina_/ordens'
+      path: '/oficina/ordens'
+      fullPath: '/oficina/ordens'
+      preLoaderRoute: typeof AppOficinaOrdensRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/os/$numero': {
+      id: '/_app/os/$numero'
+      path: '/os/$numero'
+      fullPath: '/os/$numero'
+      preLoaderRoute: typeof AppOsNumeroRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/vendas/': {
+      id: '/_app/vendas/'
+      path: '/'
+      fullPath: '/vendas/'
+      preLoaderRoute: typeof AppVendasIndexRouteImport
+      parentRoute: typeof AppVendasRoute
+    }
+    '/_app/vendas/estoque': {
+      id: '/_app/vendas/estoque'
+      path: '/estoque'
+      fullPath: '/vendas/estoque'
+      preLoaderRoute: typeof AppVendasEstoqueRouteImport
+      parentRoute: typeof AppVendasRoute
+    }
+    '/_app/vendas/loja-virtual': {
+      id: '/_app/vendas/loja-virtual'
+      path: '/loja-virtual'
+      fullPath: '/vendas/loja-virtual'
+      preLoaderRoute: typeof AppVendasLojaVirtualRouteImport
+      parentRoute: typeof AppVendasRoute
+    }
+    '/_app/vendas/nova': {
+      id: '/_app/vendas/nova'
+      path: '/nova'
+      fullPath: '/vendas/nova'
+      preLoaderRoute: typeof AppVendasNovaRouteImport
+      parentRoute: typeof AppVendasRoute
+    }
+    '/_app/vendas/produtos': {
+      id: '/_app/vendas/produtos'
+      path: '/produtos'
+      fullPath: '/vendas/produtos'
+      preLoaderRoute: typeof AppVendasProdutosRouteImport
+      parentRoute: typeof AppVendasRoute
+    }
+    '/_app/vendas_/$id': {
+      id: '/_app/vendas_/$id'
+      path: '/vendas/$id'
+      fullPath: '/vendas/$id'
+      preLoaderRoute: typeof AppVendasIdRouteImport
       parentRoute: typeof AppRoute
     }
   }

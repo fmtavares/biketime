@@ -157,7 +157,7 @@ function BikeEstoqueDetail() {
     if (!confirm("Excluir esta bike?")) return;
     const { error } = await supabase.from("bikes_estoque").delete().eq("id", id);
     if (error) return toast.error(error.message);
-    toast.success("Excluída"); navigate({ to: "/vendas/estoque" });
+    toast.success("Excluída"); navigate({ to: "/vendas/produtos", search: { categoria: "Bikes" } });
   }
   async function postObs() {
     const texto = obsTexto.trim();
@@ -186,8 +186,8 @@ function BikeEstoqueDetail() {
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
-      <Link to="/vendas/estoque" className="text-sm text-muted-foreground hover:text-foreground inline-flex items-center gap-1">
-        <ArrowLeft className="size-4" /> Estoque
+      <Link to="/vendas/produtos" search={{ categoria: "Bikes" }} className="text-sm text-muted-foreground hover:text-foreground inline-flex items-center gap-1">
+        <ArrowLeft className="size-4" /> Produtos
       </Link>
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div>

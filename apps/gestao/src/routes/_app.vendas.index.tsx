@@ -73,7 +73,7 @@ function VendasDashboard() {
         </div>
         <div className="flex flex-wrap gap-2">
           <Button asChild size="lg" variant="outline">
-            <Link to="/vendas/estoque">
+            <Link to="/vendas/produtos" search={{ categoria: "Bikes" }}>
               <Boxes className="h-4 w-4" />
               Ver estoque
             </Link>
