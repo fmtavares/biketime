@@ -11,12 +11,77 @@ const itemSchema = z.object({
   quantidade: z.number().int().min(1).max(99),
 });
 
-const cadastroSchema = z.object({
+const fichaSchema = z.object({
+  whatsapp: z.string().trim().min(8, "Informe o WhatsApp"),
+  telefone_secundario: z.string().trim().max(20).optional().or(z.literal("")),
+  data_nascimento: z.string().trim().optional().or(z.literal("")),
+  cep: z.string().trim().refine((v) => v.replace(/\D/g, "").length === 8, "Informe o CEP"),
+  endereco: z.string().trim().min(1, "Informe o endereço"),
+  numero: z.string().trim().min(1, "Informe o número"),
+  apto: z.string().trim().max(40).optional().or(z.literal("")),
+  bairro: z.string().trim().min(1, "Informe o bairro"),
+  cidade: z.string().trim().min(1, "Informe a cidade"),
+  estado: z.string().trim().length(2, "Informe o estado"),
+  instagram: z.string().trim().max(40).optional().or(z.literal("")),
+});
+
+const cadastroSchema = fichaSchema.extend({
   nome: z.string().trim().min(2, "Informe o nome"),
   email: z.string().trim().email("E-mail inválido"),
   password: z.string().min(6, "Senha deve ter pelo menos 6 caracteres"),
-  whatsapp: z.string().trim().min(8, "Informe o WhatsApp"),
 });
+
+type FichaCadastro = z.infer<typeof fichaSchema>;
+
+/** Texto vazio vira nulo para coluna opcional. */
+function textoOuNulo(v?: string | null) {
+  const t = v?.trim();
+  return t ? t : null;
+}
+
+/**
+ * Campos de contato e endereço gravados na ficha.
+ * CEP fica só com dígitos. Estado em duas letras.
+ */
+function gravarFicha(data: FichaCadastro) {
+  return {
+    whatsapp: data.whatsapp.trim(),
+    telefone_secundario: textoOuNulo(data.telefone_secundario),
+    data_nascimento: textoOuNulo(data.data_nascimento),
+    cep: data.cep.replace(/\D/g, ""),
+    endereco: data.endereco.trim(),
+    numero: data.numero.trim(),
+    apto: textoOuNulo(data.apto),
+    bairro: data.bairro.trim(),
+    cidade: data.cidade.trim(),
+    estado: data.estado.trim().toUpperCase(),
+    instagram: textoOuNulo(data.instagram),
+  };
+}
+
+/**
+ * WhatsApp e endereço completos. Sem isso o pedido não fecha.
+ */
+function fichaCompleta(c: {
+  whatsapp?: string | null;
+  cep?: string | null;
+  endereco?: string | null;
+  numero?: string | null;
+  bairro?: string | null;
+  cidade?: string | null;
+  estado?: string | null;
+}) {
+  const ok = (v?: string | null) => Boolean(v && String(v).trim());
+  return (
+    ok(c.whatsapp) &&
+    String(c.cep ?? "").replace(/\D/g, "").length === 8 &&
+    ok(c.endereco) &&
+    ok(c.numero) &&
+    ok(c.bairro) &&
+    ok(c.cidade) &&
+    ok(c.estado)
+  );
+}
 
 type ItemEntrada = z.infer<typeof itemSchema>;
 
@@ -207,10 +272,11 @@ export const cadastrarClienteShowroom = createServerFn({ method: "POST" })
     }
 
     const userId = created.user.id;
+    const ficha = { ...gravarFicha(data), nome, email };
     if (existente?.id) {
       const { error } = await db
         .from("clientes")
-        .update({ user_id: userId, nome, email, whatsapp: data.whatsapp })
+        .update({ ...ficha, user_id: userId })
         .eq("id", existente.id);
       if (error) {
         await supabaseAdmin.auth.admin.deleteUser(userId);
@@ -218,10 +284,8 @@ export const cadastrarClienteShowroom = createServerFn({ method: "POST" })
       }
     } else {
       const { error } = await db.from("clientes").insert({
+        ...ficha,
         user_id: userId,
-        nome,
-        email,
-        whatsapp: data.whatsapp,
       });
       if (error) {
         await supabaseAdmin.auth.admin.deleteUser(userId);
@@ -279,11 +343,14 @@ export const confirmarPedido = createServerFn({ method: "POST" })
 
     const { data: cliente } = await db
       .from("clientes")
-      .select("id")
+      .select("id, whatsapp, cep, endereco, numero, bairro, cidade, estado")
       .eq("user_id", context.userId)
       .maybeSingle();
     if (!cliente) {
       return { ok: false as const, error: "Cadastre-se para fechar o pedido." };
+    }
+    if (!fichaCompleta(cliente)) {
+      return { ok: false as const, error: "Complete o WhatsApp e o endereço para fechar o pedido." };
     }
 
     const { data: pedido, error } = await db
