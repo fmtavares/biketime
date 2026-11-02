@@ -42,6 +42,17 @@ const STATUS_PEDIDO: Record<string, string> = {
   cancelado: "Cancelado",
 };
 
+/**
+ * Cor da etiqueta de status em Minhas compras.
+ * Aguardando fica amarelo, confirmado verde e cancelado vermelho.
+ */
+function corStatusPedido(status: string) {
+  if (status === "cancelado") return "bg-red-500/20 text-red-400";
+  if (status === "confirmado") return "bg-emerald-500/20 text-emerald-400";
+  if (status === "aguardando_loja") return "bg-yellow-500/20 text-yellow-300";
+  return "bg-secondary text-muted-foreground";
+}
+
 const STATUS_OS: Record<string, string> = {
   fila: "Fila de entrada",
   avaliacao: "Avaliação",
@@ -1039,9 +1050,7 @@ function MinhaContaPage() {
                               <span
                                 className={cn(
                                   "inline-block whitespace-nowrap rounded-full px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider",
-                                  pedido.status === "cancelado"
-                                    ? "bg-secondary text-muted-foreground"
-                                    : "bg-primary/20 text-primary",
+                                  corStatusPedido(pedido.status),
                                 )}
                               >
                                 {STATUS_PEDIDO[pedido.status] ?? pedido.status}

@@ -1,5 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState, type FormEvent } from "react";
+import { useRef, useEffect, useState, type FormEvent } from "react";
+import { Calendar } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { fmtPreco } from "@/lib/loja";
@@ -33,8 +34,9 @@ type FichaCliente = {
 };
 
 /**
- * Fecha o pedido do showroom.
- * Sem conta, cadastra contato e endereço. Quem já entrou completa só o que falta.
+ * Fecha o pedido do showroom em duas etapas.
+ * Sem conta, primeiro pede e-mail, senha e WhatsApp; depois nome e endereço.
+ * Quem já entrou completa só o que falta na ficha.
  */
 function CheckoutPage() {
   const navigate = useNavigate();
@@ -43,6 +45,7 @@ function CheckoutPage() {
   const [logado, setLogado] = useState(false);
   const [clienteId, setClienteId] = useState<string | null>(null);
   const [fichaOk, setFichaOk] = useState(false);
+  const [etapa, setEtapa] = useState<1 | 2>(1);
   const [nome, setNome] = useState("");
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
@@ -166,11 +169,37 @@ function CheckoutPage() {
   }
 
   /**
+   * Primeira etapa: e-mail, senha e WhatsApp. Ainda não cria a conta.
+   */
+  function onContinuar(e: FormEvent) {
+    e.preventDefault();
+    const falta = validarAcesso();
+    if (falta) {
+      toast.error(falta);
+      return;
+    }
+    setEtapa(2);
+  }
+
+  /** Mensagem se e-mail, senha ou WhatsApp da primeira etapa estiver inválido. */
+  function validarAcesso() {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return "Informe um e-mail válido.";
+    if (senha.length < 6) return "A senha deve ter pelo menos 6 caracteres.";
+    if (whatsapp.replace(/\D/g, "").length < 8) return "Informe o WhatsApp.";
+    return null;
+  }
+
+  /**
    * Cria a conta se preciso, grava o endereço que faltar e fecha o pedido.
+   * A conta só nasce depois da segunda etapa, com o endereço completo.
    */
   async function onConfirmar(e: FormEvent) {
     e.preventDefault();
     if (!itens.length) return;
+    if (!logado && nome.trim().length < 2) {
+      toast.error("Informe o nome.");
+      return;
+    }
     const falta = validarFicha();
     if ((!logado || !fichaOk) && falta) {
       toast.error(falta);
@@ -184,6 +213,7 @@ function CheckoutPage() {
         });
         if (!criado.ok) {
           toast.error(criado.error);
+          if (/conta com este e-mail/i.test(criado.error)) setEtapa(1);
           return;
         }
         const { error } = await supabase.auth.signInWithPassword({
@@ -253,7 +283,9 @@ function CheckoutPage() {
   }
 
   const total = Math.max(0, subtotal - desconto);
-  const pedeFicha = !logado || !fichaOk;
+  const etapaAcesso = pronto && !logado && etapa === 1;
+  const etapaDados = pronto && ((!logado && etapa === 2) || (logado && !fichaOk));
+  const podeFechar = pronto && logado && fichaOk;
 
   return (
     <div className="container-px mx-auto max-w-xl py-12">
@@ -315,94 +347,129 @@ function CheckoutPage() {
         </div>
       </div>
 
-      <form onSubmit={onConfirmar} className="mt-8 space-y-3">
-        {!pronto ? (
-          <p className="text-sm text-muted-foreground">Carregando cadastro…</p>
-        ) : (
-          <>
-            {!logado && (
-              <>
-                <p className="text-sm">
-                  Crie sua conta para acompanhar o pedido.{" "}
-                  <Link to="/login" search={{ redirect: "/loja/checkout" }} className="font-semibold text-primary">
-                    Já tenho conta
-                  </Link>
-                </p>
-                <Campo label="Nome" value={nome} onChange={setNome} required />
-                <Campo label="E-mail" value={email} onChange={setEmail} type="email" required />
-                <Campo label="Senha" value={senha} onChange={setSenha} type="password" required />
-              </>
-            )}
-            {logado && !fichaOk && (
-              <p className="text-sm text-muted-foreground">
-                Complete o contato e o endereço para fechar o pedido.
+      {!pronto ? (
+        <p className="mt-8 text-sm text-muted-foreground">Carregando cadastro…</p>
+      ) : (
+        <div className="mt-8 space-y-3">
+          {!logado && <Passos etapa={etapa} />}
+
+          {etapaAcesso && (
+            <form onSubmit={onContinuar} className="space-y-3">
+              <p className="text-sm">
+                Crie sua conta para acompanhar o pedido.{" "}
+                <Link to="/login" search={{ redirect: "/loja/checkout" }} className="font-semibold text-primary">
+                  Já tenho conta
+                </Link>
               </p>
-            )}
-            {pedeFicha && (
-              <>
-                <Campo
-                  label="WhatsApp"
-                  value={whatsapp}
-                  onChange={(v) => setWhatsapp(formatPhoneBr(v))}
-                  required
-                />
-                {!logado && (
-                  <>
+              <Campo label="E-mail" value={email} onChange={setEmail} type="email" required />
+              <Campo label="Senha" value={senha} onChange={setSenha} type="password" required />
+              <Campo
+                label="WhatsApp"
+                value={whatsapp}
+                onChange={(v) => setWhatsapp(formatPhoneBr(v))}
+                required
+              />
+              <button
+                type="submit"
+                className="inline-flex w-full items-center justify-center rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground"
+              >
+                Continuar
+              </button>
+            </form>
+          )}
+
+          {(etapaDados || podeFechar) && (
+            <form onSubmit={onConfirmar} className="space-y-3">
+              {etapaDados && !logado && (
+                <p className="text-sm text-muted-foreground">
+                  {email.trim()} · {whatsapp}. Agora o nome e o endereço da retirada.
+                </p>
+              )}
+              {logado && !fichaOk && (
+                <p className="text-sm text-muted-foreground">
+                  Complete o contato e o endereço para fechar o pedido.
+                </p>
+              )}
+              {etapaDados && (
+                <>
+                  {!logado && <Campo label="Nome" value={nome} onChange={setNome} required />}
+                  {logado && (
                     <Campo
-                      label="Telefone"
-                      value={telefone}
-                      onChange={(v) => setTelefone(formatPhoneBr(v))}
-                    />
-                    <Campo label="Nascimento" value={nascimento} onChange={setNascimento} type="date" />
-                  </>
-                )}
-                <Campo
-                  label={buscandoCep ? "CEP (buscando…)" : "CEP"}
-                  value={cep}
-                  onChange={(v) => {
-                    setCep(v);
-                    if (v.replace(/\D/g, "").length === 8) void buscarCep(v);
-                  }}
-                  required
-                />
-                <Campo label="Endereço" value={endereco} onChange={setEndereco} required />
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <Campo label="Número" value={numero} onChange={setNumero} required />
-                  <Campo label="Complemento" value={apto} onChange={setApto} />
-                </div>
-                <Campo label="Bairro" value={bairro} onChange={setBairro} required />
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <Campo label="Cidade" value={cidade} onChange={setCidade} required />
-                  <label className="block space-y-1 text-sm">
-                    <span className="text-xs uppercase tracking-wider text-muted-foreground">Estado</span>
-                    <select
+                      label="WhatsApp"
+                      value={whatsapp}
+                      onChange={(v) => setWhatsapp(formatPhoneBr(v))}
                       required
-                      value={estado}
-                      onChange={(e) => setEstado(e.target.value)}
-                      className="h-10 w-full rounded-md border bg-background px-3"
-                    >
-                      <option value="">UF</option>
-                      {ESTADOS.map((uf) => (
-                        <option key={uf} value={uf}>
-                          {uf}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                </div>
-                {!logado && <Campo label="Instagram" value={instagram} onChange={setInstagram} />}
-              </>
-            )}
-          </>
-        )}
-        <button
-          type="submit"
-          disabled={busy || !pronto}
-          className="inline-flex w-full items-center justify-center rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground disabled:opacity-60"
-        >
-          {busy ? "Enviando…" : "Confirmar pedido"}
-        </button>
-      </form>
+                    />
+                  )}
+                  {!logado && (
+                    <>
+                      <Campo
+                        label="Telefone"
+                        value={telefone}
+                        onChange={(v) => setTelefone(formatPhoneBr(v))}
+                      />
+                      <Campo label="Nascimento" value={nascimento} onChange={setNascimento} type="date" />
+                    </>
+                  )}
+                  <Campo
+                    label={buscandoCep ? "CEP (buscando…)" : "CEP"}
+                    value={cep}
+                    onChange={(v) => {
+                      setCep(v);
+                      if (v.replace(/\D/g, "").length === 8) void buscarCep(v);
+                    }}
+                    required
+                  />
+                  <Campo label="Endereço" value={endereco} onChange={setEndereco} required />
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <Campo label="Número" value={numero} onChange={setNumero} required />
+                    <Campo label="Complemento" value={apto} onChange={setApto} />
+                  </div>
+                  <Campo label="Bairro" value={bairro} onChange={setBairro} required />
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <Campo label="Cidade" value={cidade} onChange={setCidade} required />
+                    <label className="block space-y-1 text-sm">
+                      <span className="text-xs uppercase tracking-wider text-muted-foreground">Estado</span>
+                      <select
+                        required
+                        value={estado}
+                        onChange={(e) => setEstado(e.target.value)}
+                        className="h-10 w-full rounded-md border bg-background px-3"
+                      >
+                        <option value="">UF</option>
+                        {ESTADOS.map((uf) => (
+                          <option key={uf} value={uf}>
+                            {uf}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  </div>
+                  {!logado && <Campo label="Instagram" value={instagram} onChange={setInstagram} />}
+                </>
+              )}
+              <div className="flex gap-2">
+                {!logado && etapa === 2 && (
+                  <button
+                    type="button"
+                    onClick={() => setEtapa(1)}
+                    className="rounded-full border px-6 py-3 text-sm font-semibold"
+                  >
+                    Voltar
+                  </button>
+                )}
+                <button
+                  type="submit"
+                  disabled={busy}
+                  className="inline-flex flex-1 items-center justify-center rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground disabled:opacity-60"
+                >
+                  {busy ? "Enviando…" : "Confirmar pedido"}
+                </button>
+              </div>
+            </form>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -423,7 +490,43 @@ function enderecoCompleto(c: Omit<FichaCliente, "id">) {
   );
 }
 
-/** Campo simples do cadastro no checkout. */
+/** Indicador das duas etapas de quem ainda não tem conta. */
+function Passos({ etapa }: { etapa: 1 | 2 }) {
+  const itens = [
+    { n: 1 as const, label: "Acesso" },
+    { n: 2 as const, label: "Seus dados" },
+  ];
+  return (
+    <ol className="flex gap-4 text-xs uppercase tracking-wider">
+      {itens.map((item) => (
+        <li
+          key={item.n}
+          className={item.n === etapa ? "font-semibold text-foreground" : "text-muted-foreground"}
+          aria-current={item.n === etapa ? "step" : undefined}
+        >
+          {item.n}. {item.label}
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+/**
+ * Abre o calendário nativo do campo de data.
+ * O clique no ícone ou no próprio campo dispara o seletor do navegador.
+ */
+function abrirCalendario(input: HTMLInputElement | null) {
+  if (!input) return;
+  input.focus();
+  if (typeof input.showPicker !== "function") return;
+  try {
+    input.showPicker();
+  } catch {
+    /* alguns navegadores só abrem o calendário ao focar o campo */
+  }
+}
+
+/** Campo simples do cadastro no checkout. Data ganha botão de calendário. */
 function Campo({
   label,
   value,
@@ -437,16 +540,43 @@ function Campo({
   type?: string;
   required?: boolean;
 }) {
+  const campoRef = useRef<HTMLInputElement>(null);
+  const data = type === "date";
+
   return (
     <label className="block space-y-1 text-sm">
       <span className="text-xs uppercase tracking-wider text-muted-foreground">{label}</span>
-      <input
-        type={type}
-        required={required}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="h-10 w-full rounded-md border bg-background px-3"
-      />
+      <span className="relative block">
+        <input
+          ref={campoRef}
+          type={type}
+          required={required}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          onClick={() => {
+            if (data) abrirCalendario(campoRef.current);
+          }}
+          className={`h-10 w-full rounded-md border bg-background px-3 ${
+            data
+              ? "pr-10 [color-scheme:light] dark:[color-scheme:dark] [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-0 [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:w-10 [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-0"
+              : ""
+          }`}
+        />
+        {data && (
+          <button
+            type="button"
+            aria-label={`Abrir calendário de ${label}`}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              abrirCalendario(campoRef.current);
+            }}
+            className="absolute inset-y-0 right-0 flex w-10 items-center justify-center text-muted-foreground"
+          >
+            <Calendar size={16} />
+          </button>
+        )}
+      </span>
     </label>
   );
 }
