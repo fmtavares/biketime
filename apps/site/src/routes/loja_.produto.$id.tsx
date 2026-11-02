@@ -1,6 +1,8 @@
 import { useMemo, useState } from "react";
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowLeft, MessageCircle, Package } from "lucide-react";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { ArrowLeft, MessageCircle, Package, ShoppingBag } from "lucide-react";
+import { toast } from "sonner";
+import { chaveProduto, useCarrinho } from "@/lib/carrinho";
 import { supabase } from "@/integrations/supabase/client";
 import { PrecoShowroom } from "@/components/preco-showroom";
 import { CompartilharShowroom } from "@/components/compartilhar-showroom";
@@ -77,12 +79,16 @@ export const Route = createFileRoute("/loja_/produto/$id")({
 });
 
 /**
- * Detalhe de um produto/acessório do showroom + CTA WhatsApp e compartilhar.
- * Se houver variantes, permite escolher o tamanho antes do WhatsApp.
+ * Detalhe de um produto do showroom.
+ * O botão principal adiciona ao carrinho; o WhatsApp fica como contato.
+ * Se houver variantes, o tamanho é obrigatório antes de adicionar.
  */
 function LojaProdutoDetalhePage() {
-  const { produto, variantes } = Route.useLoaderData();
+  const { produto, variantes: variantesLoader } = Route.useLoaderData();
+  const navigate = useNavigate();
+  const { adicionar } = useCarrinho();
   const [tamanho, setTamanho] = useState<string>("");
+  const variantes: ProdutoVarianteShowroom[] = variantesLoader ?? [];
 
   const temVariantes = variantes.length > 0;
   const disponiveis = useMemo(
@@ -205,23 +211,49 @@ function LojaProdutoDetalhePage() {
           )}
 
           <div className="mt-10 flex flex-wrap items-center gap-3">
-            <a
-              href={precisaTamanho ? undefined : wa}
-              onClick={(e) => {
-                if (precisaTamanho) {
-                  e.preventDefault();
-                }
+            <button
+              type="button"
+              disabled={precisaTamanho}
+              onClick={() => {
+                if (!produto || precisaTamanho) return;
+                const variante = variantes.find((v) => v.tamanho === tamanhoEfetivo);
+                adicionar({
+                  chave: chaveProduto(produto.id, variante?.id),
+                  tipo: "produto",
+                  produtoId: produto.id,
+                  varianteId: variante?.id ?? null,
+                  nome: produto.nome,
+                  tamanho: tamanhoEfetivo || null,
+                  quantidade: 1,
+                  preco: Number(produto.preco_venda) || 0,
+                  foto,
+                });
+                toast.success("Produto adicionado ao carrinho");
+                navigate({ to: "/loja/carrinho" });
               }}
-              target="_blank"
-              rel="noreferrer"
-              aria-disabled={precisaTamanho}
               className={[
                 "inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground transition",
                 precisaTamanho ? "cursor-not-allowed opacity-60" : "hover:opacity-90",
               ].join(" ")}
             >
+              <ShoppingBag size={18} />
+              {precisaTamanho ? "Escolha o tamanho" : "Adicionar ao carrinho"}
+            </button>
+            <a
+              href={precisaTamanho ? undefined : wa}
+              onClick={(e) => {
+                if (precisaTamanho) e.preventDefault();
+              }}
+              target="_blank"
+              rel="noreferrer"
+              aria-disabled={precisaTamanho}
+              className={[
+                "inline-flex items-center gap-2 rounded-full border border-border px-6 py-3 text-sm font-semibold transition",
+                precisaTamanho ? "cursor-not-allowed opacity-60" : "hover:bg-secondary",
+              ].join(" ")}
+            >
               <MessageCircle size={18} />
-              {precisaTamanho ? "Escolha o tamanho" : "Tenho interesse no WhatsApp"}
+              WhatsApp
             </a>
             <CompartilharShowroom
               title={`${nome} · Showroom BikeTime`}
@@ -230,7 +262,7 @@ function LojaProdutoDetalhePage() {
             />
           </div>
           <p className="mt-3 text-xs text-muted-foreground">
-            Sem pagamento online, vamos falar pelo WhatsApp sobre disponibilidade e entrega.
+            Sem pagamento online. A loja confirma a disponibilidade e a retirada.
           </p>
         </div>
       </div>

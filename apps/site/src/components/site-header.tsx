@@ -1,8 +1,9 @@
 import { Link, useNavigate } from "@tanstack/react-router";
-import { CircleUser, LogOut, Menu, Store, User, X } from "lucide-react";
+import { CircleUser, LogOut, Menu, ShoppingBag, Store, User, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import logo from "@/assets/logo.png";
 import { supabase } from "@/integrations/supabase/client";
+import { useCarrinho } from "@/lib/carrinho";
 
 /** Links à esquerda do Showroom no menu. */
 const linksAntes = [
@@ -110,6 +111,7 @@ function ShowroomLink({
  */
 export function SiteHeader() {
   const navigate = useNavigate();
+  const { quantidade } = useCarrinho();
   const [open, setOpen] = useState(false);
   const [logado, setLogado] = useState(false);
 
@@ -161,6 +163,7 @@ export function SiteHeader() {
         </nav>
 
         <div className="hidden items-center gap-2 md:flex">
+          <LinkCarrinho quantidade={quantidade} />
           {logado ? (
             <>
               {/* Ícone só — verde suave indica sessão ativa e leva à Minha conta */}
@@ -192,6 +195,7 @@ export function SiteHeader() {
         </div>
 
         <div className="flex items-center gap-1 md:hidden">
+          <LinkCarrinho quantidade={quantidade} />
           {logado && (
             <Link
               to="/minha-conta"
@@ -251,5 +255,32 @@ export function SiteHeader() {
         </div>
       )}
     </header>
+  );
+}
+
+/**
+ * Atalho do carrinho do showroom, com a quantidade de itens.
+ */
+function LinkCarrinho({ quantidade }: { quantidade: number }) {
+  return (
+    <Link
+      to="/loja/carrinho"
+      aria-label={
+        quantidade === 1
+          ? "Carrinho com 1 item"
+          : quantidade
+            ? `Carrinho com ${quantidade} itens`
+            : "Carrinho"
+      }
+      title="Carrinho"
+      className="relative inline-flex size-9 items-center justify-center rounded-full text-foreground hover:bg-secondary"
+    >
+      <ShoppingBag size={20} strokeWidth={1.75} />
+      {quantidade > 0 && (
+        <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold text-primary-foreground">
+          {quantidade}
+        </span>
+      )}
+    </Link>
   );
 }

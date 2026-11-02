@@ -9,6 +9,7 @@ import {
   Fingerprint,
   Loader2,
   Pencil,
+  ShoppingBag,
   Trash2,
   UserRound,
   X,
@@ -34,6 +35,12 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { cn, formatPhoneBr } from "@/lib/utils";
+
+const STATUS_PEDIDO: Record<string, string> = {
+  aguardando_loja: "Aguardando a loja",
+  confirmado: "Confirmado",
+  cancelado: "Cancelado",
+};
 
 const STATUS_OS: Record<string, string> = {
   fila: "Fila de entrada",
@@ -90,7 +97,28 @@ type FormEditavel = {
   instagram: string;
 };
 
-type PainelAtivo = "dados" | "bikes" | "os";
+type PainelAtivo = "dados" | "bikes" | "os" | "compras";
+
+type ItemPedidoCompra = {
+  id: string;
+  nome: string;
+  tamanho: string | null;
+  quantidade: number;
+  preco_unitario: number;
+};
+
+/** Pedido do showroom visível para o próprio cliente. */
+type PedidoCompra = {
+  id: string;
+  numero: number;
+  status: string;
+  subtotal: number;
+  desconto: number;
+  total: number;
+  codigo_cupom: string | null;
+  created_at: string;
+  pedido_itens: ItemPedidoCompra[] | null;
+};
 
 type BikeCliente = {
   id: string;
@@ -199,6 +227,22 @@ function formFromCliente(c: ClienteCadastro): FormEditavel {
 }
 
 /**
+ * Lê as compras do showroom deste cliente, da mais recente para a mais antiga.
+ * A política do banco só devolve pedido de quem está logado.
+ */
+async function listarPedidosDoCliente(clienteId: string): Promise<PedidoCompra[]> {
+  const { data, error } = await (supabase as any)
+    .from("pedidos")
+    .select(
+      "id, numero, status, subtotal, desconto, total, codigo_cupom, created_at, pedido_itens(id, nome, tamanho, quantidade, preco_unitario)",
+    )
+    .eq("cliente_id", clienteId)
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return (data ?? []) as PedidoCompra[];
+}
+
+/**
  * Área logada do cliente — mesma diagramação de espaço das demais páginas do site.
  */
 function MinhaContaPage() {
@@ -213,6 +257,8 @@ function MinhaContaPage() {
   const [buscandoCep, setBuscandoCep] = useState(false);
   const [bikes, setBikes] = useState<BikeCliente[]>([]);
   const [ordens, setOrdens] = useState<OsCliente[]>([]);
+  const [pedidos, setPedidos] = useState<PedidoCompra[]>([]);
+  const [erroPedidos, setErroPedidos] = useState<string | null>(null);
   const [loadingListas, setLoadingListas] = useState(false);
   const [osDetalhe, setOsDetalhe] = useState<OsCliente | null>(null);
   const [bikeDetalhe, setBikeDetalhe] = useState<BikeCliente | null>(null);
@@ -304,9 +350,10 @@ function MinhaContaPage() {
       setLoading(false);
       void carregarPasskeys();
 
-      // Bikes e OS do próprio cliente
+      // Bikes, OS e compras do showroom do próprio cliente
       setLoadingListas(true);
-      const [bikesRes, osRes] = await Promise.all([
+      setErroPedidos(null);
+      const [bikesRes, osRes, pedidosRes] = await Promise.all([
         (supabase as any)
           .from("bikes")
           .select(
@@ -321,10 +368,19 @@ function MinhaContaPage() {
           )
           .eq("cliente_id", c.id)
           .order("created_at", { ascending: false }),
+        listarPedidosDoCliente(c.id).then(
+          (lista) => ({ data: lista, error: null as string | null }),
+          (err: { message?: string }) => ({
+            data: [] as PedidoCompra[],
+            error: err?.message || "Não foi possível carregar as compras.",
+          }),
+        ),
       ]);
       if (cancelled) return;
       setBikes((bikesRes.data as BikeCliente[]) ?? []);
       setOrdens((osRes.data as OsCliente[]) ?? []);
+      setPedidos(pedidosRes.data);
+      setErroPedidos(pedidosRes.error);
       setLoadingListas(false);
     }
 
@@ -460,11 +516,11 @@ function MinhaContaPage() {
             Olá, <span className="text-gradient-yellow">{primeiroNome}</span>
           </h1>
           <p className="mt-5 max-w-2xl text-lg text-muted-foreground">
-            Acompanhe seus dados, bikes e ordens de serviço em um só lugar.
+            Acompanhe seus dados, bikes, ordens de serviço e compras do showroom.
           </p>
         </div>
 
-        <div className="mt-12 grid gap-4 md:grid-cols-3">
+        <div className="mt-12 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <CardMenu
             ativo={painel === "dados"}
             onClick={() => setPainel("dados")}
@@ -498,6 +554,22 @@ function MinhaContaPage() {
                 : ordens.length === 1
                   ? "1 ordem"
                   : `${ordens.length} ordens`
+            }
+            badge="Ativo"
+          />
+          <CardMenu
+            ativo={painel === "compras"}
+            onClick={() => setPainel("compras")}
+            icon={ShoppingBag}
+            titulo="Minhas compras"
+            descricao={
+              loadingListas
+                ? "Carregando…"
+                : erroPedidos
+                  ? "Não carregou"
+                  : pedidos.length === 1
+                    ? "1 pedido"
+                    : `${pedidos.length} pedidos`
             }
             badge="Ativo"
           />
@@ -919,6 +991,87 @@ function MinhaContaPage() {
                       </li>
                     );
                   })}
+                </ul>
+              )}
+            </div>
+          )}
+
+          {painel === "compras" && (
+            <div className="portal-panel-miolo rounded-2xl border p-6 md:p-8">
+              <h2 className="font-display text-lg font-semibold text-primary">Minhas compras</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Pedidos do showroom, do mais recente ao mais antigo. A loja confirma a disponibilidade.
+              </p>
+              {loadingListas ? (
+                <div className="flex justify-center py-16">
+                  <Loader2 className="size-6 animate-spin text-primary" />
+                </div>
+              ) : erroPedidos ? (
+                <p className="mt-10 py-8 text-center text-muted-foreground">{erroPedidos}</p>
+              ) : pedidos.length === 0 ? (
+                <div className="mt-10 py-8 text-center text-muted-foreground">
+                  <p>Nenhuma compra no showroom ainda.</p>
+                  <Link to="/loja" className="mt-4 inline-block text-sm font-semibold text-primary">
+                    Ir ao showroom
+                  </Link>
+                </div>
+              ) : (
+                <ul className="mt-8 space-y-3">
+                  {pedidos.map((pedido) => (
+                    <li key={pedido.id}>
+                      <Link
+                        to="/loja/pedido/$id"
+                        params={{ id: pedido.id }}
+                        className="portal-item flex w-full items-start gap-3 rounded-xl border px-5 py-4 text-left transition-colors"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-start justify-between gap-3">
+                            <div>
+                              <p className="font-mono text-sm font-semibold text-primary">
+                                Pedido {pedido.numero}
+                              </p>
+                              <p className="mt-1 text-xs text-muted-foreground">
+                                {fmtData(pedido.created_at)}
+                                {pedido.codigo_cupom ? ` · Cupom ${pedido.codigo_cupom}` : ""}
+                              </p>
+                            </div>
+                            <div className="text-right">
+                              <span
+                                className={cn(
+                                  "inline-block whitespace-nowrap rounded-full px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider",
+                                  pedido.status === "cancelado"
+                                    ? "bg-secondary text-muted-foreground"
+                                    : "bg-primary/20 text-primary",
+                                )}
+                              >
+                                {STATUS_PEDIDO[pedido.status] ?? pedido.status}
+                              </span>
+                              <p className="mt-2 whitespace-nowrap text-sm font-medium">
+                                {fmtMoeda(Number(pedido.total)) ?? "R$ 0,00"}
+                              </p>
+                            </div>
+                          </div>
+                          <ul className="mt-3 space-y-1 text-sm text-muted-foreground">
+                            {(pedido.pedido_itens ?? []).map((item) => (
+                              <li key={item.id}>
+                                {item.nome}
+                                {item.tamanho ? ` · ${item.tamanho}` : ""} × {Number(item.quantidade)}
+                              </li>
+                            ))}
+                          </ul>
+                          {Number(pedido.desconto) > 0 && (
+                            <p className="mt-2 text-xs text-muted-foreground">
+                              Desconto {fmtMoeda(Number(pedido.desconto))}
+                            </p>
+                          )}
+                        </div>
+                        <ChevronRight
+                          className="mt-1 size-5 shrink-0 text-muted-foreground"
+                          aria-hidden
+                        />
+                      </Link>
+                    </li>
+                  ))}
                 </ul>
               )}
             </div>

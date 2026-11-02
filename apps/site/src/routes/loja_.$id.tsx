@@ -1,5 +1,7 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowLeft, Bike, MessageCircle } from "lucide-react";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { ArrowLeft, Bike, MessageCircle, ShoppingBag } from "lucide-react";
+import { toast } from "sonner";
+import { chaveBike, useCarrinho } from "@/lib/carrinho";
 import { supabase } from "@/integrations/supabase/client";
 import { PrecoShowroom } from "@/components/preco-showroom";
 import { CompartilharShowroom } from "@/components/compartilhar-showroom";
@@ -52,6 +54,8 @@ export const Route = createFileRoute("/loja_/$id")({
  */
 function LojaDetalhePage() {
   const { bike } = Route.useLoaderData();
+  const navigate = useNavigate();
+  const { adicionar } = useCarrinho();
 
   if (!bike) {
     return (
@@ -134,14 +138,35 @@ function LojaDetalhePage() {
           )}
 
           <div className="mt-10 flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              onClick={() => {
+                adicionar({
+                  chave: chaveBike(bike.id),
+                  tipo: "bike",
+                  bikeEstoqueId: bike.id,
+                  nome,
+                  tamanho: bike.tamanho,
+                  quantidade: 1,
+                  preco: Number(bike.valor_proposto) || 0,
+                  foto: bike.foto_completa,
+                });
+                toast.success("Bike adicionada ao carrinho");
+                navigate({ to: "/loja/carrinho" });
+              }}
+              className="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground transition hover:opacity-90"
+            >
+              <ShoppingBag size={18} />
+              Adicionar ao carrinho
+            </button>
             <a
               href={wa}
               target="_blank"
               rel="noreferrer"
-              className="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground transition hover:opacity-90"
+              className="inline-flex items-center gap-2 rounded-full border border-border px-6 py-3 text-sm font-semibold transition hover:bg-secondary"
             >
               <MessageCircle size={18} />
-              Tenho interesse no WhatsApp
+              WhatsApp
             </a>
             <CompartilharShowroom
               title={`${nome} · Showroom BikeTime`}
@@ -150,7 +175,7 @@ function LojaDetalhePage() {
             />
           </div>
           <p className="mt-3 text-xs text-muted-foreground">
-            Sem pagamento online, vamos falar pelo WhatsApp sobre disponibilidade e entrega.
+            Sem pagamento online. A loja confirma a disponibilidade e a retirada.
           </p>
         </div>
       </div>

@@ -39,9 +39,12 @@ import { Route as AppOficinaNovaRouteImport } from './routes/_app.oficina_.nova'
 import { Route as AppOficinaOrdensRouteImport } from './routes/_app.oficina_.ordens'
 import { Route as AppOsNumeroRouteImport } from './routes/_app.os.$numero'
 import { Route as AppVendasIndexRouteImport } from './routes/_app.vendas.index'
+import { Route as AppVendasCuponsRouteImport } from './routes/_app.vendas.cupons'
 import { Route as AppVendasEstoqueRouteImport } from './routes/_app.vendas.estoque'
+import { Route as AppVendasIndicacoesRouteImport } from './routes/_app.vendas.indicacoes'
 import { Route as AppVendasLojaVirtualRouteImport } from './routes/_app.vendas.loja-virtual'
 import { Route as AppVendasNovaRouteImport } from './routes/_app.vendas.nova'
+import { Route as AppVendasPedidosRouteImport } from './routes/_app.vendas.pedidos'
 import { Route as AppVendasProdutosRouteImport } from './routes/_app.vendas.produtos'
 import { Route as AppVendasIdRouteImport } from './routes/_app.vendas_.$id'
 
@@ -195,9 +198,19 @@ const AppVendasIndexRoute = AppVendasIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AppVendasRoute,
 } as any)
+const AppVendasCuponsRoute = AppVendasCuponsRouteImport.update({
+  id: '/cupons',
+  path: '/cupons',
+  getParentRoute: () => AppVendasRoute,
+} as any)
 const AppVendasEstoqueRoute = AppVendasEstoqueRouteImport.update({
   id: '/estoque',
   path: '/estoque',
+  getParentRoute: () => AppVendasRoute,
+} as any)
+const AppVendasIndicacoesRoute = AppVendasIndicacoesRouteImport.update({
+  id: '/indicacoes',
+  path: '/indicacoes',
   getParentRoute: () => AppVendasRoute,
 } as any)
 const AppVendasLojaVirtualRoute = AppVendasLojaVirtualRouteImport.update({
@@ -208,6 +221,11 @@ const AppVendasLojaVirtualRoute = AppVendasLojaVirtualRouteImport.update({
 const AppVendasNovaRoute = AppVendasNovaRouteImport.update({
   id: '/nova',
   path: '/nova',
+  getParentRoute: () => AppVendasRoute,
+} as any)
+const AppVendasPedidosRoute = AppVendasPedidosRouteImport.update({
+  id: '/pedidos',
+  path: '/pedidos',
   getParentRoute: () => AppVendasRoute,
 } as any)
 const AppVendasProdutosRoute = AppVendasProdutosRouteImport.update({
@@ -250,9 +268,12 @@ export interface FileRoutesByFullPath {
   '/oficina/nova': typeof AppOficinaNovaRoute
   '/oficina/ordens': typeof AppOficinaOrdensRoute
   '/os/$numero': typeof AppOsNumeroRoute
+  '/vendas/cupons': typeof AppVendasCuponsRoute
   '/vendas/estoque': typeof AppVendasEstoqueRoute
+  '/vendas/indicacoes': typeof AppVendasIndicacoesRoute
   '/vendas/loja-virtual': typeof AppVendasLojaVirtualRoute
   '/vendas/nova': typeof AppVendasNovaRoute
+  '/vendas/pedidos': typeof AppVendasPedidosRoute
   '/vendas/produtos': typeof AppVendasProdutosRoute
   '/vendas/$id': typeof AppVendasIdRoute
   '/vendas/': typeof AppVendasIndexRoute
@@ -285,9 +306,12 @@ export interface FileRoutesByTo {
   '/oficina/nova': typeof AppOficinaNovaRoute
   '/oficina/ordens': typeof AppOficinaOrdensRoute
   '/os/$numero': typeof AppOsNumeroRoute
+  '/vendas/cupons': typeof AppVendasCuponsRoute
   '/vendas/estoque': typeof AppVendasEstoqueRoute
+  '/vendas/indicacoes': typeof AppVendasIndicacoesRoute
   '/vendas/loja-virtual': typeof AppVendasLojaVirtualRoute
   '/vendas/nova': typeof AppVendasNovaRoute
+  '/vendas/pedidos': typeof AppVendasPedidosRoute
   '/vendas/produtos': typeof AppVendasProdutosRoute
   '/vendas/$id': typeof AppVendasIdRoute
   '/vendas': typeof AppVendasIndexRoute
@@ -323,9 +347,12 @@ export interface FileRoutesById {
   '/_app/oficina_/nova': typeof AppOficinaNovaRoute
   '/_app/oficina_/ordens': typeof AppOficinaOrdensRoute
   '/_app/os/$numero': typeof AppOsNumeroRoute
+  '/_app/vendas/cupons': typeof AppVendasCuponsRoute
   '/_app/vendas/estoque': typeof AppVendasEstoqueRoute
+  '/_app/vendas/indicacoes': typeof AppVendasIndicacoesRoute
   '/_app/vendas/loja-virtual': typeof AppVendasLojaVirtualRoute
   '/_app/vendas/nova': typeof AppVendasNovaRoute
+  '/_app/vendas/pedidos': typeof AppVendasPedidosRoute
   '/_app/vendas/produtos': typeof AppVendasProdutosRoute
   '/_app/vendas_/$id': typeof AppVendasIdRoute
   '/_app/vendas/': typeof AppVendasIndexRoute
@@ -361,9 +388,12 @@ export interface FileRouteTypes {
     | '/oficina/nova'
     | '/oficina/ordens'
     | '/os/$numero'
+    | '/vendas/cupons'
     | '/vendas/estoque'
+    | '/vendas/indicacoes'
     | '/vendas/loja-virtual'
     | '/vendas/nova'
+    | '/vendas/pedidos'
     | '/vendas/produtos'
     | '/vendas/$id'
     | '/vendas/'
@@ -396,9 +426,12 @@ export interface FileRouteTypes {
     | '/oficina/nova'
     | '/oficina/ordens'
     | '/os/$numero'
+    | '/vendas/cupons'
     | '/vendas/estoque'
+    | '/vendas/indicacoes'
     | '/vendas/loja-virtual'
     | '/vendas/nova'
+    | '/vendas/pedidos'
     | '/vendas/produtos'
     | '/vendas/$id'
     | '/vendas'
@@ -433,9 +466,12 @@ export interface FileRouteTypes {
     | '/_app/oficina_/nova'
     | '/_app/oficina_/ordens'
     | '/_app/os/$numero'
+    | '/_app/vendas/cupons'
     | '/_app/vendas/estoque'
+    | '/_app/vendas/indicacoes'
     | '/_app/vendas/loja-virtual'
     | '/_app/vendas/nova'
+    | '/_app/vendas/pedidos'
     | '/_app/vendas/produtos'
     | '/_app/vendas_/$id'
     | '/_app/vendas/'
@@ -658,11 +694,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppVendasIndexRouteImport
       parentRoute: typeof AppVendasRoute
     }
+    '/_app/vendas/cupons': {
+      id: '/_app/vendas/cupons'
+      path: '/cupons'
+      fullPath: '/vendas/cupons'
+      preLoaderRoute: typeof AppVendasCuponsRouteImport
+      parentRoute: typeof AppVendasRoute
+    }
     '/_app/vendas/estoque': {
       id: '/_app/vendas/estoque'
       path: '/estoque'
       fullPath: '/vendas/estoque'
       preLoaderRoute: typeof AppVendasEstoqueRouteImport
+      parentRoute: typeof AppVendasRoute
+    }
+    '/_app/vendas/indicacoes': {
+      id: '/_app/vendas/indicacoes'
+      path: '/indicacoes'
+      fullPath: '/vendas/indicacoes'
+      preLoaderRoute: typeof AppVendasIndicacoesRouteImport
       parentRoute: typeof AppVendasRoute
     }
     '/_app/vendas/loja-virtual': {
@@ -677,6 +727,13 @@ declare module '@tanstack/react-router' {
       path: '/nova'
       fullPath: '/vendas/nova'
       preLoaderRoute: typeof AppVendasNovaRouteImport
+      parentRoute: typeof AppVendasRoute
+    }
+    '/_app/vendas/pedidos': {
+      id: '/_app/vendas/pedidos'
+      path: '/pedidos'
+      fullPath: '/vendas/pedidos'
+      preLoaderRoute: typeof AppVendasPedidosRouteImport
       parentRoute: typeof AppVendasRoute
     }
     '/_app/vendas/produtos': {
@@ -697,17 +754,23 @@ declare module '@tanstack/react-router' {
 }
 
 interface AppVendasRouteChildren {
+  AppVendasCuponsRoute: typeof AppVendasCuponsRoute
   AppVendasEstoqueRoute: typeof AppVendasEstoqueRoute
+  AppVendasIndicacoesRoute: typeof AppVendasIndicacoesRoute
   AppVendasLojaVirtualRoute: typeof AppVendasLojaVirtualRoute
   AppVendasNovaRoute: typeof AppVendasNovaRoute
+  AppVendasPedidosRoute: typeof AppVendasPedidosRoute
   AppVendasProdutosRoute: typeof AppVendasProdutosRoute
   AppVendasIndexRoute: typeof AppVendasIndexRoute
 }
 
 const AppVendasRouteChildren: AppVendasRouteChildren = {
+  AppVendasCuponsRoute: AppVendasCuponsRoute,
   AppVendasEstoqueRoute: AppVendasEstoqueRoute,
+  AppVendasIndicacoesRoute: AppVendasIndicacoesRoute,
   AppVendasLojaVirtualRoute: AppVendasLojaVirtualRoute,
   AppVendasNovaRoute: AppVendasNovaRoute,
+  AppVendasPedidosRoute: AppVendasPedidosRoute,
   AppVendasProdutosRoute: AppVendasProdutosRoute,
   AppVendasIndexRoute: AppVendasIndexRoute,
 }

@@ -13,6 +13,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 export const Route = createFileRoute("/login")({
+  validateSearch: (s: Record<string, unknown>) => ({
+    redirect:
+      typeof s.redirect === "string" && s.redirect.startsWith("/") && !s.redirect.startsWith("//")
+        ? s.redirect
+        : undefined,
+  }),
   head: () => ({
     meta: [
       { title: "Login — BikeTime" },
@@ -24,10 +30,12 @@ export const Route = createFileRoute("/login")({
 
 /**
  * Login do portal do cliente: e-mail + senha e/ou biometria (passkey / Face ID).
- * Contas são criadas apenas no Gestão.
+ * A conta pode vir do Gestão ou do cadastro no checkout do showroom.
+ * Se a busca `redirect` for o checkout, volta para lá depois de entrar.
  */
 function LoginClientePage() {
   const navigate = useNavigate();
+  const { redirect } = Route.useSearch();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
@@ -38,9 +46,15 @@ function LoginClientePage() {
     supabase.auth.getSession().then(async ({ data }) => {
       if (!data.session?.user) return;
       const ok = await clienteVinculado(data.session.user.id);
-      if (ok) navigate({ to: "/minha-conta" });
+      if (ok) irDepoisDoLogin();
     });
   }, [navigate]);
+
+  /** Volta ao checkout do showroom, ou segue para a conta. */
+  function irDepoisDoLogin() {
+    if (redirect === "/loja/checkout") navigate({ to: "/loja/checkout" });
+    else navigate({ to: "/minha-conta" });
+  }
 
   /**
    * Após login Auth, valida vínculo com `clientes` e redireciona ou bloqueia.
@@ -63,7 +77,7 @@ function LoginClientePage() {
       }
       return false;
     }
-    navigate({ to: "/minha-conta" });
+    irDepoisDoLogin();
     return true;
   }
 

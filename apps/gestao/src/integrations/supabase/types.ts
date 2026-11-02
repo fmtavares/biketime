@@ -1282,6 +1282,182 @@ export type Database = {
         }
         Relationships: []
       }
+      parceiros: {
+        Row: {
+          id: string
+          nome: string
+          ativo: boolean
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          nome: string
+          ativo?: boolean
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          nome?: string
+          ativo?: boolean
+          created_at?: string
+        }
+        Relationships: []
+      }
+      cupons: {
+        Row: {
+          id: string
+          codigo: string
+          tipo: string
+          valor: number
+          ativo: boolean
+          valido_ate: string | null
+          limite_usos: number | null
+          parceiro_id: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          codigo: string
+          tipo: string
+          valor: number
+          ativo?: boolean
+          valido_ate?: string | null
+          limite_usos?: number | null
+          parceiro_id: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          codigo?: string
+          tipo?: string
+          valor?: number
+          ativo?: boolean
+          valido_ate?: string | null
+          limite_usos?: number | null
+          parceiro_id?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cupons_parceiro_id_fkey"
+            columns: ["parceiro_id"]
+            isOneToOne: false
+            referencedRelation: "parceiros"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pedidos: {
+        Row: {
+          id: string
+          numero: number
+          cliente_id: string
+          status: string
+          subtotal: number
+          desconto: number
+          total: number
+          cupom_id: string | null
+          parceiro_id: string | null
+          codigo_cupom: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          numero?: number
+          cliente_id: string
+          status?: string
+          subtotal?: number
+          desconto?: number
+          total?: number
+          cupom_id?: string | null
+          parceiro_id?: string | null
+          codigo_cupom?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          numero?: number
+          cliente_id?: string
+          status?: string
+          subtotal?: number
+          desconto?: number
+          total?: number
+          cupom_id?: string | null
+          parceiro_id?: string | null
+          codigo_cupom?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pedidos_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pedidos_cupom_id_fkey"
+            columns: ["cupom_id"]
+            isOneToOne: false
+            referencedRelation: "cupons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pedidos_parceiro_id_fkey"
+            columns: ["parceiro_id"]
+            isOneToOne: false
+            referencedRelation: "parceiros"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pedido_itens: {
+        Row: {
+          id: string
+          pedido_id: string
+          tipo: string
+          bike_estoque_id: string | null
+          produto_id: string | null
+          produto_variante_id: string | null
+          nome: string
+          tamanho: string | null
+          quantidade: number
+          preco_unitario: number
+        }
+        Insert: {
+          id?: string
+          pedido_id: string
+          tipo: string
+          bike_estoque_id?: string | null
+          produto_id?: string | null
+          produto_variante_id?: string | null
+          nome: string
+          tamanho?: string | null
+          quantidade: number
+          preco_unitario: number
+        }
+        Update: {
+          id?: string
+          pedido_id?: string
+          tipo?: string
+          bike_estoque_id?: string | null
+          produto_id?: string | null
+          produto_variante_id?: string | null
+          nome?: string
+          tamanho?: string | null
+          quantidade?: number
+          preco_unitario?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pedido_itens_pedido_id_fkey"
+            columns: ["pedido_id"]
+            isOneToOne: false
+            referencedRelation: "pedidos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       produto_marcas: {
         Row: {
           id: string

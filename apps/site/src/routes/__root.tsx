@@ -10,6 +10,7 @@ import {
 
 import appCss from "../styles.css?url";
 import { SiteHeader } from "@/components/site-header";
+import { CarrinhoProvider } from "@/lib/carrinho";
 import { SiteFooter } from "@/components/site-footer";
 import { SprintChat } from "@/components/sprint-chat";
 import { Toaster } from "@/components/ui/sonner";
@@ -125,15 +126,17 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <div className="flex min-h-screen flex-col">
-        <SiteHeader />
-        <main className="flex-1">
-          <Outlet />
-        </main>
-        <SiteFooter />
-        <SprintChat />
-        <Toaster richColors position="top-right" />
-      </div>
+      <CarrinhoProvider>
+        <div className="flex min-h-screen flex-col">
+          <SiteHeader />
+          <main className="flex-1">
+            <Outlet />
+          </main>
+          <SiteFooter />
+          <SprintChat />
+          <Toaster richColors position="top-right" />
+        </div>
+      </CarrinhoProvider>
     </QueryClientProvider>
   );
 }
