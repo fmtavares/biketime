@@ -184,21 +184,21 @@ async function emitir(
   const discriminacao = montarDiscriminacao(os, settings.discriminacao_padrao);
   const codigoMunicipio = digits(settings.codigo_municipio) || IBGE_SP;
   const optanteSimples = !!settings.optante_simples_nacional;
-
+  const dataEmissao = dataEmissaoSp();
   /**
-   * Pref. SP: Simples Nacional deve usar leiaute 1 (só ISS), sem campos IBS/CBS/NBS.
-   * Regime normal pode usar leiaute 2 com campos da reforma.
+   * Até 31/10/2026 o Simples em SP usa leiaute 1 (só ISS).
+   * A partir de 01/11/2026 a prefeitura exige leiaute 2 também para o Simples.
    */
-  if (!optanteSimples) {
-    const codigoNbs = String(settings.codigo_nbs ?? "").trim();
-    const codigoIndOp = String(settings.codigo_indicador_operacao ?? "").trim();
-    const cClassTrib = String(settings.ibs_cbs_classificacao_tributaria ?? "").trim();
-    if (!codigoNbs || !codigoIndOp || !cClassTrib) {
-      return {
-        error:
-          "Fora do Simples: preencha NBS, indicador de operação e classificação IBS/CBS em Parâmetro NFe.",
-      };
-    }
+  const leiaute2 = usaLeiaute2(optanteSimples, dataEmissao);
+
+  const codigoNbs = String(settings.codigo_nbs ?? "").trim();
+  const codigoIndOp = String(settings.codigo_indicador_operacao ?? "").trim();
+  const cClassTrib = String(settings.ibs_cbs_classificacao_tributaria ?? "").trim();
+  if (leiaute2 && (!codigoNbs || !codigoIndOp || !cClassTrib)) {
+    return {
+      error:
+        "A partir de 01/11/2026 a nota usa o leiaute 2. Preencha NBS, indicador de operação e classificação IBS/CBS em Parâmetro NFe.",
+    };
   }
 
   /** Nova ref se a anterior falhou; senão reutiliza para idempotência. */
@@ -229,46 +229,36 @@ async function emitir(
     codigo_municipio: codigoMunicipio,
   };
 
-  const payload = optanteSimples
-    ? montarPayloadLayout1({
-      valor,
-      itemLista,
-      discriminacao,
-      codigoMunicipio,
-      aliquotaPct,
-      natureza: String(settings.natureza_operacao || "1"),
-      regimeEspecial: settings.regime_especial_tributacao
-        ? String(settings.regime_especial_tributacao)
-        : null,
-      codigoTributario: settings.codigo_tributario_municipio
-        ? String(settings.codigo_tributario_municipio)
-        : null,
-      prestador,
-      tomador,
-    })
-    : montarPayloadLayout2({
-      valor,
-      itemLista,
-      discriminacao,
-      codigoMunicipio,
-      aliquotaPct,
-      natureza: String(settings.natureza_operacao || "1"),
-      regimeEspecial: settings.regime_especial_tributacao
-        ? String(settings.regime_especial_tributacao)
-        : null,
-      codigoTributario: settings.codigo_tributario_municipio
-        ? String(settings.codigo_tributario_municipio)
-        : null,
-      codigoNbs: String(settings.codigo_nbs ?? "").trim(),
-      codigoIndOp: String(settings.codigo_indicador_operacao ?? "").trim(),
-      cClassTrib: String(settings.ibs_cbs_classificacao_tributaria ?? "").trim(),
+  const basePayload = {
+    valor,
+    itemLista,
+    discriminacao,
+    codigoMunicipio,
+    aliquotaPct,
+    natureza: String(settings.natureza_operacao || "1"),
+    regimeEspecial: settings.regime_especial_tributacao
+      ? String(settings.regime_especial_tributacao)
+      : null,
+    codigoTributario: settings.codigo_tributario_municipio
+      ? String(settings.codigo_tributario_municipio)
+      : null,
+    prestador,
+    tomador,
+    dataEmissao,
+  };
+  const payload = leiaute2
+    ? montarPayloadLayout2({
+      ...basePayload,
+      optanteSimples,
+      codigoNbs,
+      codigoIndOp,
+      cClassTrib,
       exigibilidadeSuspensa: Number(settings.exigibilidade_suspensa ?? 0),
       finalidadeEmissao: Number(settings.finalidade_emissao ?? 0),
       consumidorFinal: Number(settings.consumidor_final ?? 0),
       indicadorDestinatario: Number(settings.indicador_destinatario ?? 0),
-      prestador,
-      tomador,
-    });
+    })
+    : montarPayloadLayout1(basePayload);
 
   const emitRes = await focusPost(baseUrl, focusToken, ref, payload);
   if (emitRes.http >= 400 && emitRes.body?.codigo) {
@@ -335,7 +325,7 @@ async function emitir(
   if (patch.nfse_status === "erro_autorizacao") {
     return { error: patch.nfse_erro || "Nota rejeitada.", os: updated, focus: focusBody };
   }
-  return { ok: true, os: updated, focus: focusBody, layout: optanteSimples ? "1" : "2" };
+  return { ok: true, os: updated, focus: focusBody, layout: leiaute2 ? "2" : "1" };
 }
 
 /** Mapeia resposta Focus → colunas da OS. */
@@ -410,25 +400,32 @@ function digits(v: string | null | undefined) {
  */
 function normalizarErroFocus(msg: string): string {
   const m = msg.toLowerCase();
+  if (m.includes("leiaute 2") && m.includes("simples")) {
+    return (
+      `${msg} — A emissão com fato gerador a partir de 01/11/2026 já pede o leiaute 2. ` +
+      `Confira NBS, indicador de operação e classificação IBS/CBS em Parâmetro NFe.`
+    );
+  }
   if (
     m.includes("versão do schema") ||
     m.includes("versao do schema") ||
     (m.includes("ibs/cbs") && m.includes("endereço"))
   ) {
     return (
-      `${msg} — Nosso envio à Focus já é leiaute 1 (Simples, sem IBS/CBS). ` +
-      `A Focus ainda gera XML v2 e/ou usa o webservice antigo da Pref. SP. ` +
-      `No painel Focus: Empresas → Documentos fiscais → desmarque “Ambiente da NFSe Nacional” ` +
-      `e abra chamado pedindo uso de nfews.prefeitura.sp.gov.br (ou leiaute 1 para Simples).`
-    );
-  }
-  if (m.includes("deverá ser utilizado o leiaute 1")) {
-    return (
-      `${msg} — Confirme Optante Simples em Parâmetro NFe. ` +
-      `Se já estiver marcado, o ajuste precisa ser na Focus (eles ainda montam leiaute 2).`
+      `${msg} — O envio já usa o leiaute 2 da Pref. SP (NBS e IBS/CBS). ` +
+      `No painel Focus, mantenha a NFS-e municipal habilitada em Empresas → Documentos fiscais.`
     );
   }
   return msg;
+}
+
+/**
+ * Simples Nacional em SP usa leiaute 1 só até 31/10/2026.
+ * Depois disso, e no regime normal, a nota vai no leiaute 2.
+ */
+function usaLeiaute2(optanteSimples: boolean, dataEmissao: string) {
+  if (!optanteSimples) return true;
+  return dataEmissao.slice(0, 10) >= "2026-11-01";
 }
 
 /**
@@ -466,11 +463,13 @@ type PayloadBase = {
   codigoTributario: string | null;
   prestador: Record<string, unknown>;
   tomador: Record<string, unknown>;
+  dataEmissao: string;
 };
 
 /**
- * Leiaute 1 (Simples Nacional em SP): só ISS, sem campos IBS/CBS/NBS.
- * CCM em SP no layout 1 costuma ter 8 dígitos; tributacao_rps=T = tributado em SP.
+ * Leiaute 1: só ISS, sem IBS/CBS/NBS.
+ * Vale para Simples Nacional em SP com fato gerador até 31/10/2026.
+ * CCM em SP costuma ter 8 dígitos; tributacao_rps=T = tributado em SP.
  */
 function montarPayloadLayout1(p: PayloadBase): Record<string, unknown> {
   const servico: Record<string, unknown> = {
@@ -493,7 +492,7 @@ function montarPayloadLayout1(p: PayloadBase): Record<string, unknown> {
   };
 
   const payload: Record<string, unknown> = {
-    data_emissao: dataEmissaoSp(),
+    data_emissao: p.dataEmissao,
     natureza_operacao: p.natureza,
     optante_simples_nacional: true,
     incentivador_cultural: false,
@@ -508,10 +507,13 @@ function montarPayloadLayout1(p: PayloadBase): Record<string, unknown> {
 }
 
 /**
- * Leiaute 2 (reforma): ISS + campos IBS/CBS exigidos pela Focus em SP.
+ * Leiaute 2 (reforma): ISS + NBS e IBS/CBS.
+ * Obrigatório para o Simples em SP a partir de 01/11/2026, e para o regime normal.
+ * tributacao_rps=T mantém o serviço tributado em São Paulo.
  */
 function montarPayloadLayout2(
   p: PayloadBase & {
+    optanteSimples: boolean;
     codigoNbs: string;
     codigoIndOp: string;
     cClassTrib: string;
@@ -538,9 +540,11 @@ function montarPayloadLayout2(
   if (p.codigoTributario) servico.codigo_tributario_municipio = p.codigoTributario;
 
   const payload: Record<string, unknown> = {
-    data_emissao: dataEmissaoSp(),
+    data_emissao: p.dataEmissao,
     natureza_operacao: p.natureza,
-    optante_simples_nacional: false,
+    optante_simples_nacional: p.optanteSimples,
+    /** T = tributado em São Paulo. */
+    tributacao_rps: "T",
     exigibilidade_suspensa: p.exigibilidadeSuspensa,
     finalidade_emissao: p.finalidadeEmissao,
     consumidor_final: p.consumidorFinal,

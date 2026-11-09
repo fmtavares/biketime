@@ -117,8 +117,9 @@ function ParametrosNfePage() {
             <h2 className="font-display font-bold">Prestador (NFS-e)</h2>
           </div>
           <p className="text-sm text-muted-foreground mt-1">
-            Em SP use o código municipal no item (ex.: <code className="text-xs">07498</code>). No{" "}
-            <b>Simples Nacional</b> a Pref. exige leiaute 1 (só ISS) — NBS/IBS-CBS são ignorados na emissão.
+            Em SP use o código municipal no item (ex.: <code className="text-xs">07498</code>). A partir de{" "}
+            <b>01/11/2026</b> o Simples Nacional também emite no leiaute 2: NBS, indicador de operação e
+            classificação IBS/CBS passam a ser obrigatórios.
           </p>
         </div>
         <div className="p-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -220,9 +221,8 @@ function ParametrosNfePage() {
         </div>
         <div className="px-5 py-4 border-t flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-[11px] text-muted-foreground max-w-xl">
-            Erro de schema v2 / leiaute 1: no painel Focus → Empresas → Documentos fiscais, deixe só
-            NFS-e (não “Ambiente da NFSe Nacional”) e abra chamado pedindo{" "}
-            <code>nfews.prefeitura.sp.gov.br</code> ou leiaute 1 para Simples.
+            Desde 01/11/2026 o Simples em SP sai no leiaute 2. Mantenha a NFS-e municipal habilitada no
+            painel Focus e preencha NBS, indicador e classificação IBS/CBS antes de emitir.
           </p>
           <Button onClick={() => void salvar()} disabled={busy}>
             {busy ? "Salvando…" : "Salvar"}
