@@ -609,6 +609,7 @@ export type Database = {
           item_lista_servico: string
           natureza_operacao: string
           optante_simples_nacional: boolean
+          percentual_simples: number | null
           regime_especial_tributacao: string | null
           updated_at: string
         }
@@ -631,6 +632,7 @@ export type Database = {
           item_lista_servico?: string
           natureza_operacao?: string
           optante_simples_nacional?: boolean
+          percentual_simples?: number | null
           regime_especial_tributacao?: string | null
           updated_at?: string
         }
@@ -653,6 +655,7 @@ export type Database = {
           item_lista_servico?: string
           natureza_operacao?: string
           optante_simples_nacional?: boolean
+          percentual_simples?: number | null
           regime_especial_tributacao?: string | null
           updated_at?: string
         }

@@ -93,7 +93,7 @@ async function consultarEAtualizar(
   if (!os) return { error: "OS não encontrada." };
   if (!os.nfse_ref) return { error: "Esta OS ainda não possui emissão de NFS-e." };
 
-  const focus = await focusGet(baseUrl, focusToken, os.nfse_ref);
+  const focus = await focusGet(baseUrl, focusToken, recursoDaRef(os.nfse_ref), os.nfse_ref);
   if (focus.error && !focus.body) return { error: focus.error };
 
   const patch = mapFocusToOs(focus.body, os.nfse_ref);
@@ -186,25 +186,45 @@ async function emitir(
   const optanteSimples = !!settings.optante_simples_nacional;
   const dataEmissao = dataEmissaoSp();
   /**
-   * Até 31/10/2026 o Simples em SP usa leiaute 1 (só ISS).
-   * A partir de 01/11/2026 a prefeitura exige leiaute 2 também para o Simples.
+   * A partir de 01/11/2026 o Simples não consegue emitir no webservice municipal:
+   * o leiaute 1 pede o 2, e o leiaute 2 devolve que o Simples deve usar o 1.
+   * A Focus manda esse caso para a NFS-e nacional (POST /nfsen).
    */
-  const leiaute2 = usaLeiaute2(optanteSimples, dataEmissao);
+  const nacional = usaAmbienteNacional(optanteSimples, dataEmissao);
+  const leiaute2 = !nacional && usaLeiaute2(optanteSimples);
 
   const codigoNbs = String(settings.codigo_nbs ?? "").trim();
   const codigoIndOp = String(settings.codigo_indicador_operacao ?? "").trim();
   const cClassTrib = String(settings.ibs_cbs_classificacao_tributaria ?? "").trim();
-  if (leiaute2 && (!codigoNbs || !codigoIndOp || !cClassTrib)) {
+  const codigoNacionalIss = codigoTributacaoNacionalIss(itemLista);
+  if ((nacional || leiaute2) && (!codigoNbs || !codigoIndOp || !cClassTrib)) {
     return {
       error:
-        "A partir de 01/11/2026 a nota usa o leiaute 2. Preencha NBS, indicador de operação e classificação IBS/CBS em Parâmetro NFe.",
+        "Preencha NBS, indicador de operação e classificação IBS/CBS em Parâmetro NFe.",
+    };
+  }
+  if (nacional && !codigoNacionalIss) {
+    return {
+      error:
+        "Não há código nacional de ISS para o item da lista cadastrado. O código municipal 07498 corresponde a 140101.",
+    };
+  }
+  const percentualSimples = Number(settings.percentual_simples);
+  if (
+    nacional &&
+    (!Number.isFinite(percentualSimples) || percentualSimples <= 0 || percentualSimples > 100)
+  ) {
+    return {
+      error:
+        "Informe o percentual aproximado da alíquota do Simples Nacional em Parâmetro NFe. A nota de ME/EPP exige esse percentual.",
     };
   }
 
   /** Nova ref se a anterior falhou; senão reutiliza para idempotência. */
   let ref = os.nfse_ref;
   if (!ref || os.nfse_status === "erro_autorizacao" || os.nfse_status === "erro") {
-    ref = `os-${os.id.replace(/-/g, "")}-${Date.now().toString(36)}`;
+    const sufixo = `${os.id.replace(/-/g, "")}-${Date.now().toString(36)}`;
+    ref = nacional ? `nfsen-${sufixo}` : `os-${sufixo}`;
   }
 
   const aliquotaPct = aliquotaParaSp(settings.aliquota);
@@ -246,7 +266,25 @@ async function emitir(
     tomador,
     dataEmissao,
   };
-  const payload = leiaute2
+  const payload = nacional
+    ? montarPayloadNacional({
+      dataEmissao,
+      cnpj,
+      im,
+      codigoMunicipio,
+      valor,
+      codigoNacionalIss: codigoNacionalIss!,
+      codigoNbs,
+      codigoIndOp,
+      cClassTrib,
+      discriminacao,
+      tomador,
+      finalidadeEmissao: Number(settings.finalidade_emissao ?? 0),
+      consumidorFinal: Number(settings.consumidor_final ?? 0),
+      indicadorDestinatario: Number(settings.indicador_destinatario ?? 0),
+      percentualSimples,
+    })
+    : leiaute2
     ? montarPayloadLayout2({
       ...basePayload,
       optanteSimples,
@@ -260,7 +298,8 @@ async function emitir(
     })
     : montarPayloadLayout1(basePayload);
 
-  const emitRes = await focusPost(baseUrl, focusToken, ref, payload);
+  const recurso = recursoDaRef(ref);
+  const emitRes = await focusPost(baseUrl, focusToken, recurso, ref, payload);
   if (emitRes.http >= 400 && emitRes.body?.codigo) {
     const patch = {
       nfse_ref: ref,
@@ -298,7 +337,7 @@ async function emitir(
   /** Uma consulta rápida para pegar autorizado/PDF quando a Pref. responde rápido. */
   for (let i = 0; i < 3; i++) {
     await sleep(1500);
-    const consult = await focusGet(baseUrl, focusToken, ref);
+    const consult = await focusGet(baseUrl, focusToken, recurso, ref);
     if (consult.body?.status) {
       focusBody = consult.body;
       if (
@@ -325,7 +364,12 @@ async function emitir(
   if (patch.nfse_status === "erro_autorizacao") {
     return { error: patch.nfse_erro || "Nota rejeitada.", os: updated, focus: focusBody };
   }
-  return { ok: true, os: updated, focus: focusBody, layout: leiaute2 ? "2" : "1" };
+  return {
+    ok: true,
+    os: updated,
+    focus: focusBody,
+    layout: nacional ? "nacional" : leiaute2 ? "2" : "1",
+  };
 }
 
 /** Mapeia resposta Focus → colunas da OS. */
@@ -346,10 +390,13 @@ function mapFocusToOs(body: Record<string, unknown> | null | undefined, ref: str
     nfse_numero: body?.numero != null ? String(body.numero) : null,
     nfse_codigo_verificacao:
       body?.codigo_verificacao != null ? String(body.codigo_verificacao) : null,
-    nfse_url_pdf: typeof body?.url === "string"
-      ? body.url
+    /** Na nacional, url é a consulta pública do gov.br; o PDF vem em url_danfse. */
+    nfse_url_pdf: typeof body?.url_danfse === "string"
+      ? body.url_danfse
       : typeof body?.caminho_pdf_nota_fiscal === "string"
       ? absoluteFocusUrl(String(body.caminho_pdf_nota_fiscal))
+      : typeof body?.url === "string"
+      ? body.url
       : null,
     nfse_url_xml: typeof body?.caminho_xml_nota_fiscal === "string"
       ? absoluteFocusUrl(String(body.caminho_xml_nota_fiscal))
@@ -400,32 +447,61 @@ function digits(v: string | null | undefined) {
  */
 function normalizarErroFocus(msg: string): string {
   const m = msg.toLowerCase();
-  if (m.includes("leiaute 2") && m.includes("simples")) {
-    return (
-      `${msg} — A emissão com fato gerador a partir de 01/11/2026 já pede o leiaute 2. ` +
-      `Confira NBS, indicador de operação e classificação IBS/CBS em Parâmetro NFe.`
-    );
-  }
   if (
-    m.includes("versão do schema") ||
-    m.includes("versao do schema") ||
-    (m.includes("ibs/cbs") && m.includes("endereço"))
+    m.includes("nfsen") ||
+    m.includes("ambiente nacional") ||
+    m.includes("habilita_nfsen")
   ) {
     return (
-      `${msg} — O envio já usa o leiaute 2 da Pref. SP (NBS e IBS/CBS). ` +
-      `No painel Focus, mantenha a NFS-e municipal habilitada em Empresas → Documentos fiscais.`
+      `${msg} — No painel Focus, em Empresas → Documentos fiscais, habilite ` +
+      `Ambiente da NFSe Nacional em produção. A municipal e a nacional não ficam as duas ligadas ao mesmo tempo.`
+    );
+  }
+  if (m.includes("leiaute 1") && m.includes("simples")) {
+    return (
+      `${msg} — O webservice municipal de SP recusa os dois leiautes para o Simples depois de 01/11/2026. ` +
+      `A emissão precisa ir pelo ambiente nacional (/nfsen).`
+    );
+  }
+  if (m.includes("leiaute 2") && m.includes("simples")) {
+    return (
+      `${msg} — A partir de 01/11/2026 o Simples emite no ambiente nacional da NFS-e, não no leiaute municipal.`
     );
   }
   return msg;
 }
 
 /**
- * Simples Nacional em SP usa leiaute 1 só até 31/10/2026.
- * Depois disso, e no regime normal, a nota vai no leiaute 2.
+ * Simples com fato gerador a partir de 01/11/2026 emite no ambiente nacional.
  */
-function usaLeiaute2(optanteSimples: boolean, dataEmissao: string) {
-  if (!optanteSimples) return true;
-  return dataEmissao.slice(0, 10) >= "2026-11-01";
+function usaAmbienteNacional(optanteSimples: boolean, dataEmissao: string) {
+  return optanteSimples && dataEmissao.slice(0, 10) >= "2026-11-01";
+}
+
+/**
+ * Fora do Simples a Pref. SP usa o leiaute municipal 2.
+ * Simples antes de 01/11/2026 continua no leiaute 1.
+ */
+function usaLeiaute2(optanteSimples: boolean) {
+  return !optanteSimples;
+}
+
+/**
+ * Prefixo nfsen- marca a ref consultada em /nfsen. As demais seguem em /nfse.
+ */
+function recursoDaRef(ref: string) {
+  return ref.startsWith("nfsen-") ? "nfsen" : "nfse";
+}
+
+/**
+ * Traduz o item municipal de SP para o código nacional de 6 dígitos.
+ * 07498 é o item 14.01 da Lei 13.701/2003 (manutenção de objetos, exceto veículos).
+ */
+function codigoTributacaoNacionalIss(itemLista: string): string | null {
+  const item = itemLista.replace(/\D/g, "");
+  if (item === "07498") return "140101";
+  if (/^\d{6}$/.test(item)) return item;
+  return null;
 }
 
 /**
@@ -557,6 +633,86 @@ function montarPayloadLayout2(
   return payload;
 }
 
+/**
+ * DPS do ambiente nacional (/v2/nfsen). codigo_opcao_simples_nacional 3 = ME/EPP.
+ * ME/EPP não pode enviar indicador_total_tributacao.
+ */
+function montarPayloadNacional(p: {
+  dataEmissao: string;
+  cnpj: string;
+  im: string;
+  codigoMunicipio: string;
+  valor: number;
+  codigoNacionalIss: string;
+  codigoNbs: string;
+  codigoIndOp: string;
+  cClassTrib: string;
+  discriminacao: string;
+  tomador: {
+    cpf: string;
+    razao_social: string;
+    email?: string;
+    telefone?: string;
+    endereco: {
+      logradouro: string;
+      numero: string;
+      complemento?: string;
+      bairro: string;
+      codigo_municipio: string;
+      cep: string;
+    };
+  };
+  finalidadeEmissao: number;
+  consumidorFinal: number;
+  indicadorDestinatario: number;
+  percentualSimples: number;
+}) {
+  const payload: Record<string, unknown> = {
+    data_emissao: p.dataEmissao,
+    serie_dps: 1,
+    numero_dps: Number(String(Date.now()).slice(-9)),
+    data_competencia: p.dataEmissao.slice(0, 10),
+    emitente_dps: 1,
+    codigo_municipio_emissora: Number(p.codigoMunicipio),
+    cnpj_prestador: p.cnpj,
+    inscricao_municipal_prestador: p.im,
+    codigo_opcao_simples_nacional: 3,
+    /** 1 = tributos federais e ISS pelo Simples. Obrigatório para ME/EPP. */
+    regime_tributario_simples_nacional: 1,
+    regime_especial_tributacao: 0,
+    cpf_tomador: p.tomador.cpf,
+    razao_social_tomador: p.tomador.razao_social,
+    codigo_municipio_tomador: Number(p.tomador.endereco.codigo_municipio),
+    cep_tomador: p.tomador.endereco.cep,
+    logradouro_tomador: p.tomador.endereco.logradouro,
+    numero_tomador: p.tomador.endereco.numero,
+    bairro_tomador: p.tomador.endereco.bairro,
+    codigo_municipio_prestacao: Number(p.codigoMunicipio),
+    codigo_tributacao_nacional_iss: p.codigoNacionalIss,
+    codigo_nbs: p.codigoNbs,
+    descricao_servico: p.discriminacao.slice(0, 1000),
+    valor_servico: p.valor,
+    tributacao_iss: 1,
+    tipo_retencao_iss: 1,
+    /** pTotTribSN. ME/EPP não pode usar o indicador de “não informar tributos”. */
+    percentual_total_tributos_simples_nacional: p.percentualSimples.toFixed(2),
+    finalidade_emissao: p.finalidadeEmissao,
+    consumidor_final: p.consumidorFinal,
+    codigo_indicador_operacao: p.codigoIndOp,
+    /** 0 = o destinatário é o próprio tomador. O XML exige indDest antes do grupo valores. */
+    indicador_destinatario: p.indicadorDestinatario,
+    /** CST 000 acompanha a classificação 000001 (tributação integral de IBS/CBS). */
+    ibs_cbs_situacao_tributaria: "000",
+    ibs_cbs_classificacao_tributaria: p.cClassTrib,
+  };
+  if (p.tomador.endereco.complemento) {
+    payload.complemento_tomador = p.tomador.endereco.complemento;
+  }
+  if (p.tomador.email) payload.email_tomador = p.tomador.email;
+  if (p.tomador.telefone) payload.telefone_tomador = p.tomador.telefone;
+  return payload;
+}
+
 function sleep(ms: number) {
   return new Promise((r) => setTimeout(r, ms));
 }
@@ -564,10 +720,11 @@ function sleep(ms: number) {
 async function focusPost(
   baseUrl: string,
   token: string,
+  recurso: string,
   ref: string,
   payload: Record<string, unknown>,
 ) {
-  const url = `${baseUrl}/nfse?ref=${encodeURIComponent(ref)}`;
+  const url = `${baseUrl}/${recurso}?ref=${encodeURIComponent(ref)}`;
   const res = await fetch(url, {
     method: "POST",
     headers: {
@@ -595,8 +752,8 @@ async function focusPost(
   return { http: res.status, body, error: null as string | null };
 }
 
-async function focusGet(baseUrl: string, token: string, ref: string) {
-  const url = `${baseUrl}/nfse/${encodeURIComponent(ref)}`;
+async function focusGet(baseUrl: string, token: string, recurso: string, ref: string) {
+  const url = `${baseUrl}/${recurso}/${encodeURIComponent(ref)}`;
   const res = await fetch(url, {
     headers: { Authorization: "Basic " + btoa(`${token}:`) },
   });

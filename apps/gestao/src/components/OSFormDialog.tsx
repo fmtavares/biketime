@@ -1330,7 +1330,7 @@ export function OSFormDialog({
                       Emitir NFS-e
                     </Button>
                   )}
-                  {form.nfse_ref && form.nfse_status !== "autorizado" && (
+                  {form.nfse_ref && (
                     <Button
                       type="button"
                       size="sm"

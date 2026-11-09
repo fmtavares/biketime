@@ -31,6 +31,7 @@ function ParametrosNfePage() {
     item_lista_servico: "",
     codigo_tributario_municipio: "",
     aliquota: "",
+    percentual_simples: "",
     discriminacao_padrao: "",
     codigo_nbs: "",
     codigo_indicador_operacao: "",
@@ -58,6 +59,7 @@ function ParametrosNfePage() {
         item_lista_servico: data.item_lista_servico ?? "",
         codigo_tributario_municipio: data.codigo_tributario_municipio ?? "",
         aliquota: data.aliquota != null ? String(data.aliquota) : "",
+        percentual_simples: data.percentual_simples != null ? String(data.percentual_simples) : "",
         discriminacao_padrao: data.discriminacao_padrao ?? "",
         codigo_nbs: data.codigo_nbs ?? "",
         codigo_indicador_operacao: data.codigo_indicador_operacao ?? "",
@@ -89,6 +91,8 @@ function ParametrosNfePage() {
           item_lista_servico: form.item_lista_servico.trim(),
           codigo_tributario_municipio: form.codigo_tributario_municipio.trim() || null,
           aliquota: form.aliquota === "" ? null : Number(form.aliquota),
+          percentual_simples:
+            form.percentual_simples === "" ? null : Number(form.percentual_simples),
           discriminacao_padrao: form.discriminacao_padrao.trim() || null,
           codigo_nbs: form.codigo_nbs.trim() || null,
           codigo_indicador_operacao: form.codigo_indicador_operacao.trim() || null,
@@ -118,7 +122,7 @@ function ParametrosNfePage() {
           </div>
           <p className="text-sm text-muted-foreground mt-1">
             Em SP use o código municipal no item (ex.: <code className="text-xs">07498</code>). A partir de{" "}
-            <b>01/11/2026</b> o Simples Nacional também emite no leiaute 2: NBS, indicador de operação e
+            <b>01/11/2026</b> o Simples Nacional emite no ambiente nacional da NFS-e: NBS, indicador de operação e
             classificação IBS/CBS passam a ser obrigatórios.
           </p>
         </div>
@@ -155,6 +159,18 @@ function ParametrosNfePage() {
               value={form.aliquota}
               onChange={(e) => setForm((f) => ({ ...f, aliquota: e.target.value }))}
               placeholder="5"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Percentual aproximado do Simples % *</Label>
+            <Input
+              type="number"
+              step="0.01"
+              min="0.01"
+              max="100"
+              value={form.percentual_simples}
+              onChange={(e) => setForm((f) => ({ ...f, percentual_simples: e.target.value }))}
+              placeholder="alíquota do DAS, confirme com o contador"
             />
           </div>
           <div className="space-y-1.5">
@@ -221,7 +237,7 @@ function ParametrosNfePage() {
         </div>
         <div className="px-5 py-4 border-t flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-[11px] text-muted-foreground max-w-xl">
-            Desde 01/11/2026 o Simples em SP sai no leiaute 2. Mantenha a NFS-e municipal habilitada no
+            Desde 01/11/2026 o Simples em SP sai no ambiente nacional. Habilite a NFSe Nacional no
             painel Focus e preencha NBS, indicador e classificação IBS/CBS antes de emitir.
           </p>
           <Button onClick={() => void salvar()} disabled={busy}>
