@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
-import { Bike, Package } from "lucide-react";
+import { useMemo, useRef, useState } from "react";
+import { Bike, ChevronLeft, ChevronRight, Package } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { PrecoShowroom } from "@/components/preco-showroom";
 import {
@@ -29,6 +29,8 @@ export const Route = createFileRoute("/loja")({
 });
 
 type FiltroPrincipal = "todas" | "bikes" | `prod:${string}`;
+
+const ITENS_POR_PAGINA = 12;
 /** Subfiltro de bike: todas ou slug da categoria cadastrada (ex.: eletrica, road). */
 type SubBike = "todas" | string;
 
@@ -146,6 +148,8 @@ function SubfiltroBike({
 function LojaPage() {
   const [principal, setPrincipal] = useState<FiltroPrincipal>("todas");
   const [subBike, setSubBike] = useState<SubBike>("todas");
+  const [pagina, setPagina] = useState(0);
+  const gradeRef = useRef<HTMLElement>(null);
 
   const { data: bikes = [], isLoading: loadingBikes, isError: errBikes } = useQuery({
     queryKey: ["loja-bikes"],
@@ -268,12 +272,30 @@ function LojaPage() {
   const total = bikes.length + produtos.length;
   const mostrandoBikes = principal === "bikes";
 
+  const totalPaginas = Math.max(1, Math.ceil(itens.length / ITENS_POR_PAGINA));
+  const atual = Math.min(pagina, totalPaginas - 1);
+  const visiveis = itens.slice(atual * ITENS_POR_PAGINA, (atual + 1) * ITENS_POR_PAGINA);
+
   /**
    * Troca o filtro principal; ao entrar em Bikes, reseta o subfiltro.
+   * Volta para a primeira página.
    */
   function onPrincipal(id: FiltroPrincipal) {
     setPrincipal(id);
+    setPagina(0);
     if (id === "bikes") setSubBike("todas");
+  }
+
+  /** Troca o tipo de bike e volta para a primeira página. */
+  function onSubBike(id: SubBike) {
+    setSubBike(id);
+    setPagina(0);
+  }
+
+  /** Vai para outra página e rola até o início da grade. */
+  function irParaPagina(n: number) {
+    setPagina(n);
+    gradeRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
   return (
@@ -307,12 +329,12 @@ function LojaPage() {
           <SubfiltroBike
             opcoes={subfiltrosBike}
             value={subBike}
-            onChange={setSubBike}
+            onChange={onSubBike}
           />
         )}
       </section>
 
-      <section className="container-px mx-auto max-w-7xl pb-24">
+      <section ref={gradeRef} className="container-px mx-auto max-w-7xl scroll-mt-24 pb-24">
         {isLoading && (
           <p className="text-muted-foreground">Carregando showroom…</p>
         )}
@@ -338,7 +360,7 @@ function LojaPage() {
         )}
         {itens.length > 0 && (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {itens.map((item) =>
+            {visiveis.map((item) =>
               item.kind === "bike" ? (
                 <BikeCard key={`bike-${item.data.id}`} bike={item.data} />
               ) : (
@@ -346,6 +368,40 @@ function LojaPage() {
               ),
             )}
           </div>
+        )}
+        {totalPaginas > 1 && (
+          <nav
+            aria-label="Páginas do showroom"
+            className="mt-10 flex flex-col items-center gap-3 sm:flex-row sm:justify-between"
+          >
+            <span className="text-sm text-muted-foreground">
+              {atual * ITENS_POR_PAGINA + 1}–
+              {Math.min((atual + 1) * ITENS_POR_PAGINA, itens.length)} de {itens.length} itens
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => irParaPagina(atual - 1)}
+                disabled={atual === 0}
+                className={`${chipClass(false)} inline-flex items-center gap-1 disabled:pointer-events-none disabled:opacity-40`}
+              >
+                <ChevronLeft className="h-4 w-4" />
+                Anterior
+              </button>
+              <span className="px-2 text-sm font-semibold">
+                {atual + 1}/{totalPaginas}
+              </span>
+              <button
+                type="button"
+                onClick={() => irParaPagina(atual + 1)}
+                disabled={atual >= totalPaginas - 1}
+                className={`${chipClass(true)} inline-flex items-center gap-1 disabled:pointer-events-none disabled:opacity-40`}
+              >
+                Próxima
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+          </nav>
         )}
       </section>
     </div>
