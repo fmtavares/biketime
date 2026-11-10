@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
@@ -15,13 +16,51 @@ const statusLabel: Record<string, string> = {
   cancelado: "Cancelado",
 };
 
+type FiltroPedido = "aguardando_loja" | "confirmado" | "cancelado" | "todos";
+
+const FILTROS: { id: FiltroPedido; label: string }[] = [
+  { id: "aguardando_loja", label: "Em aberto" },
+  { id: "confirmado", label: "Confirmados" },
+  { id: "cancelado", label: "Cancelados" },
+  { id: "todos", label: "Todos" },
+];
+
+/**
+ * Separa a lista pelo status escolhido no topo.
+ * A abertura fica só com o que ainda aguarda a loja.
+ */
+function filtrarPedidos<T extends { status: string }>(pedidos: T[], filtro: FiltroPedido) {
+  if (filtro === "todos") return pedidos;
+  return pedidos.filter((p) => p.status === filtro);
+}
+
+/** Texto quando o filtro atual não tem pedido. */
+function vazioDoFiltro(filtro: FiltroPedido) {
+  if (filtro === "aguardando_loja") return "Nenhum pedido aguardando a loja.";
+  if (filtro === "confirmado") return "Nenhum pedido confirmado.";
+  if (filtro === "cancelado") return "Nenhum pedido cancelado.";
+  return "Nenhum pedido ainda.";
+}
+
+/**
+ * Estilo do CTA de filtro. O ativo usa a cor primária.
+ */
+function chipClass(ativo: boolean) {
+  return `rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors ${
+    ativo
+      ? "border-primary bg-primary text-primary-foreground"
+      : "border-border bg-background text-muted-foreground hover:border-primary/40 hover:text-foreground"
+  }`;
+}
+
 /**
  * Lista os pedidos do showroom.
- * Mudar o status não baixa estoque nem altera a bike.
+ * A lista abre nos pedidos em aberto. Mudar o status não baixa estoque nem altera a bike.
  */
 function PedidosLojaPage() {
   const { isAdmin } = useAuth();
   const qc = useQueryClient();
+  const [filtro, setFiltro] = useState<FiltroPedido>("aguardando_loja");
   const { data = [], isLoading } = useQuery({
     queryKey: ["pedidos-loja"],
     queryFn: async () => {
@@ -44,6 +83,18 @@ function PedidosLojaPage() {
     qc.invalidateQueries({ queryKey: ["pedidos-loja"] });
   }
 
+  const visiveis = useMemo(() => filtrarPedidos(data, filtro), [data, filtro]);
+  const contagem = useMemo(() => {
+    const n = (status: FiltroPedido) =>
+      status === "todos" ? data.length : data.filter((p) => p.status === status).length;
+    return {
+      aguardando_loja: n("aguardando_loja"),
+      confirmado: n("confirmado"),
+      cancelado: n("cancelado"),
+      todos: n("todos"),
+    };
+  }, [data]);
+
   if (!isAdmin) return <p className="text-muted-foreground">Apenas administradores.</p>;
 
   return (
@@ -51,16 +102,29 @@ function PedidosLojaPage() {
       <header>
         <h1 className="text-xl font-display font-bold sm:text-2xl">Pedidos da loja</h1>
         <p className="text-sm text-muted-foreground">
-          Pedidos do showroom. Confirmar aqui não tira a peça da vitrine.
+          A lista abre nos pedidos que ainda aguardam a loja. Confirmar aqui não tira a peça da vitrine.
         </p>
       </header>
+      <div className="flex flex-wrap gap-2" role="group" aria-label="Filtros de pedidos">
+        {FILTROS.map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            className={chipClass(filtro === item.id)}
+            aria-pressed={filtro === item.id}
+            onClick={() => setFiltro(item.id)}
+          >
+            {item.label} ({contagem[item.id]})
+          </button>
+        ))}
+      </div>
       {isLoading ? (
         <p className="text-muted-foreground">Carregando…</p>
-      ) : data.length === 0 ? (
-        <p className="text-muted-foreground">Nenhum pedido ainda.</p>
+      ) : visiveis.length === 0 ? (
+        <p className="text-muted-foreground">{vazioDoFiltro(filtro)}</p>
       ) : (
         <div className="grid gap-3">
-          {data.map((p) => (
+          {visiveis.map((p) => (
             <article key={p.id} className="rounded-xl border p-4">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>

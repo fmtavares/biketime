@@ -1,8 +1,19 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import { useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/AppLayout";
-import { Bike, Wrench, AlertTriangle, Calendar, DollarSign, Cake } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  Bike,
+  Wrench,
+  AlertTriangle,
+  Calendar,
+  DollarSign,
+  Cake,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
 
 
 export const Route = createFileRoute("/_app/")({
@@ -194,37 +205,102 @@ function Dashboard() {
           <h3 className="font-display font-bold">Próximas revisões recomendadas</h3>
           <span className="text-xs text-muted-foreground ml-auto">Próximas 2 semanas</span>
         </div>
-        <div className="space-y-2 text-sm">
-          {(() => {
-            const hoje = new Date();
-            hoje.setHours(0, 0, 0, 0);
-            const limite = new Date(hoje);
-            limite.setDate(limite.getDate() + 14);
-            const proximas = ordens
-              .filter((o: any) => {
-                if (!o.proxima_revisao) return false;
-                const d = new Date(o.proxima_revisao);
-                return d >= hoje && d <= limite;
-              })
-              .sort((a: any, b: any) => new Date(a.proxima_revisao).getTime() - new Date(b.proxima_revisao).getTime());
-            if (proximas.length === 0) {
-              return <p className="text-muted-foreground">Sem revisões agendadas para os próximos 14 dias.</p>;
-            }
-            return proximas.map((o: any) => (
-              <div key={o.id} className="flex items-center justify-between py-2 border-b last:border-0">
-                <div className="flex items-center gap-3">
-                  <span className="font-mono text-xs px-2 py-1 rounded bg-secondary">{o.numero}</span>
-                  <span>{o.clientes?.nome}</span>
-                  <span className="text-muted-foreground">{o.bikes?.marca} {o.bikes?.modelo}</span>
-                </div>
-                <span className="text-xs uppercase tracking-wider px-2 py-1 rounded bg-accent/40">
-                  {new Date(o.proxima_revisao).toLocaleDateString("pt-BR", { timeZone: "UTC" })}
-                </span>
-              </div>
-            ));
-          })()}
-        </div>
+        <ProximasRevisoes ordens={ordens} />
       </div>
+    </div>
+  );
+}
+
+const REVISOES_POR_PAGINA = 10;
+
+/**
+ * Revisões dos próximos 14 dias, ordenadas pela data, mostradas de 10 em 10.
+ */
+function ProximasRevisoes({ ordens }: { ordens: any[] }) {
+  const [pagina, setPagina] = useState(0);
+
+  const proximas = useMemo(() => {
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+    const limite = new Date(hoje);
+    limite.setDate(limite.getDate() + 14);
+    return ordens
+      .filter((o) => {
+        if (!o.proxima_revisao) return false;
+        const d = new Date(o.proxima_revisao);
+        return d >= hoje && d <= limite;
+      })
+      .sort(
+        (a, b) => new Date(a.proxima_revisao).getTime() - new Date(b.proxima_revisao).getTime(),
+      );
+  }, [ordens]);
+
+  const totalPaginas = Math.max(1, Math.ceil(proximas.length / REVISOES_POR_PAGINA));
+  const atual = Math.min(pagina, totalPaginas - 1);
+  const visiveis = proximas.slice(
+    atual * REVISOES_POR_PAGINA,
+    (atual + 1) * REVISOES_POR_PAGINA,
+  );
+
+  if (proximas.length === 0) {
+    return (
+      <p className="text-sm text-muted-foreground">
+        Sem revisões agendadas para os próximos 14 dias.
+      </p>
+    );
+  }
+
+  return (
+    <div className="text-sm">
+      <div className="space-y-2">
+        {visiveis.map((o) => (
+          <div key={o.id} className="flex items-center justify-between py-2 border-b last:border-0">
+            <div className="flex items-center gap-3">
+              <span className="font-mono text-xs px-2 py-1 rounded bg-secondary">{o.numero}</span>
+              <span>{o.clientes?.nome}</span>
+              <span className="text-muted-foreground">
+                {o.bikes?.marca} {o.bikes?.modelo}
+              </span>
+            </div>
+            <span className="text-xs uppercase tracking-wider px-2 py-1 rounded bg-accent/40">
+              {new Date(o.proxima_revisao).toLocaleDateString("pt-BR", { timeZone: "UTC" })}
+            </span>
+          </div>
+        ))}
+      </div>
+      {totalPaginas > 1 && (
+        <div className="mt-3 flex items-center justify-between gap-2">
+          <span className="text-xs text-muted-foreground">
+            {atual * REVISOES_POR_PAGINA + 1}–
+            {Math.min((atual + 1) * REVISOES_POR_PAGINA, proximas.length)} de {proximas.length}
+          </span>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => setPagina(atual - 1)}
+              disabled={atual === 0}
+            >
+              <ChevronLeft className="size-4" />
+              Anterior
+            </Button>
+            <span className="text-xs text-muted-foreground">
+              {atual + 1}/{totalPaginas}
+            </span>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => setPagina(atual + 1)}
+              disabled={atual >= totalPaginas - 1}
+            >
+              Próxima
+              <ChevronRight className="size-4" />
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
