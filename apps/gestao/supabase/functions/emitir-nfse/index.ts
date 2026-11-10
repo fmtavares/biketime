@@ -374,10 +374,20 @@ async function emitir(
 
 /** Mapeia resposta Focus → colunas da OS. */
 function mapFocusToOs(body: Record<string, unknown> | null | undefined, ref: string) {
-  const status = String(body?.status ?? "processando_autorizacao");
+  /**
+   * Sem status e com código, a Focus recusou a consulta (ex.: nao_encontrado quando
+   * o envio foi rejeitado antes de registrar a ref). Vira erro para liberar nova emissão.
+   */
+  const status = body?.status
+    ? String(body.status)
+    : body?.codigo
+    ? "erro"
+    : "processando_autorizacao";
   const erros = body?.erros;
   let erroMsg: string | null = null;
-  if (typeof body?.mensagem === "string") erroMsg = body.mensagem;
+  if (body?.codigo === "nao_encontrado") {
+    erroMsg = "A Focus não tem nota com esta referência. Clique em Emitir NFS-e para enviar de novo.";
+  } else if (typeof body?.mensagem === "string") erroMsg = body.mensagem;
   if (Array.isArray(erros) && erros.length) {
     erroMsg = erros
       .map((e: { mensagem?: string }) => e?.mensagem)
