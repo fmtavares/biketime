@@ -4,8 +4,9 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader, SearchBar } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
-import { Plus, Crown, Phone } from "lucide-react";
+import { Plus, Crown, Phone, Printer } from "lucide-react";
 import { ClienteFormDialog } from "@/components/ClienteFormDialog";
+import { ClienteEtiquetaDialog } from "@/components/ClienteEtiquetaDialog";
 
 export const Route = createFileRoute("/_app/clientes")({
   component: ClientesPage,
@@ -14,6 +15,7 @@ export const Route = createFileRoute("/_app/clientes")({
 function ClientesPage() {
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
+  const [etiqueta, setEtiqueta] = useState<{ nome: string } | null>(null);
 
   const { data, refetch } = useQuery({
     queryKey: ["clientes"],
@@ -56,39 +58,54 @@ function ClientesPage() {
       {/* Mobile cards — min-w-0 evita invadir a borda direita com texto longo */}
       <div className="grid min-w-0 gap-3 lg:hidden">
         {filtered.map((c) => (
-          <Link
+          <div
             key={c.id}
-            to="/clientes/$id"
-            params={{ id: c.id }}
-            className="block min-w-0 max-w-full overflow-hidden rounded-xl border bg-card p-4 hover:shadow-md transition-shadow"
+            className="min-w-0 max-w-full overflow-hidden rounded-xl border bg-card p-4"
           >
-            <div className="flex items-center justify-between gap-2 min-w-0">
-              <div className="font-medium flex items-center gap-2 min-w-0">
-                {c.vip && <Crown className="size-3.5 text-accent fill-accent shrink-0" />}
-                <span className="truncate">{c.nome}</span>
-              </div>
-              <span className="text-xs text-muted-foreground shrink-0">
-                {(c as any).bikes?.length ?? 0} bikes
-              </span>
-            </div>
-            <div className="mt-1 min-w-0 space-y-0.5 text-xs text-muted-foreground">
-              {c.whatsapp && (
-                <div className="flex min-w-0 items-center gap-1">
-                  <Phone className="size-3 shrink-0" />
-                  <span className="truncate">{c.whatsapp}</span>
+            <div className="flex items-start justify-between gap-2 min-w-0">
+              <Link
+                to="/clientes/$id"
+                params={{ id: c.id }}
+                className="min-w-0 flex-1"
+              >
+                <div className="font-medium flex items-center gap-2 min-w-0">
+                  {c.vip && <Crown className="size-3.5 text-accent fill-accent shrink-0" />}
+                  <span className="truncate">{c.nome}</span>
+                  <span className="text-xs text-muted-foreground shrink-0 font-normal">
+                    {(c as any).bikes?.length ?? 0} bikes
+                  </span>
                 </div>
-              )}
-              {(c.cidade || c.estado) && (
-                <div className="truncate">
-                  {c.cidade}
-                  {c.estado ? `, ${c.estado}` : ""}
+                <div className="mt-1 min-w-0 space-y-0.5 text-xs text-muted-foreground">
+                  {c.whatsapp && (
+                    <div className="flex min-w-0 items-center gap-1">
+                      <Phone className="size-3 shrink-0" />
+                      <span className="truncate">{c.whatsapp}</span>
+                    </div>
+                  )}
+                  {(c.cidade || c.estado) && (
+                    <div className="truncate">
+                      {c.cidade}
+                      {c.estado ? `, ${c.estado}` : ""}
+                    </div>
+                  )}
+                  {c.origem_lead && (
+                    <div className="truncate">Origem: {c.origem_lead}</div>
+                  )}
                 </div>
-              )}
-              {c.origem_lead && (
-                <div className="truncate">Origem: {c.origem_lead}</div>
-              )}
+              </Link>
+              <Button
+                type="button"
+                size="icon"
+                variant="outline"
+                className="size-8 shrink-0"
+                title="Imprimir etiqueta"
+                aria-label={`Etiqueta de ${c.nome}`}
+                onClick={() => setEtiqueta({ nome: c.nome })}
+              >
+                <Printer className="size-4" />
+              </Button>
             </div>
-          </Link>
+          </div>
         ))}
         {filtered.length === 0 && (
           <div className="text-center py-12 text-muted-foreground border rounded-xl">
@@ -107,6 +124,7 @@ function ClientesPage() {
               <th className="text-left px-4 py-3">Cidade</th>
               <th className="text-left px-4 py-3">Bikes</th>
               <th className="text-left px-4 py-3">Origem</th>
+              <th className="text-right px-4 py-3">Ações</th>
             </tr>
           </thead>
           <tbody>
@@ -138,11 +156,23 @@ function ClientesPage() {
                 </td>
                 <td className="px-4 py-3">{(c as any).bikes?.length ?? 0}</td>
                 <td className="px-4 py-3 text-muted-foreground">{c.origem_lead}</td>
+                <td className="px-4 py-3 text-right">
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="ghost"
+                    title="Imprimir etiqueta"
+                    aria-label={`Etiqueta de ${c.nome}`}
+                    onClick={() => setEtiqueta({ nome: c.nome })}
+                  >
+                    <Printer className="size-4" />
+                  </Button>
+                </td>
               </tr>
             ))}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={5} className="text-center py-12 text-muted-foreground">
+                <td colSpan={6} className="text-center py-12 text-muted-foreground">
                   Nenhum cliente encontrado.
                 </td>
               </tr>
@@ -151,6 +181,13 @@ function ClientesPage() {
         </table>
       </div>
 
+      <ClienteEtiquetaDialog
+        open={!!etiqueta}
+        onOpenChange={(v) => {
+          if (!v) setEtiqueta(null);
+        }}
+        cliente={etiqueta}
+      />
       <ClienteFormDialog open={open} onOpenChange={setOpen} onSaved={() => refetch()} />
     </div>
   );

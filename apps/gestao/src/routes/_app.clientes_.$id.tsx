@@ -13,10 +13,12 @@ import {
   Phone,
   Instagram,
   MapPin,
+  Printer,
   Wrench,
   Trash2,
 } from "lucide-react";
 import { ClienteFormDialog } from "@/components/ClienteFormDialog";
+import { ClienteEtiquetaDialog } from "@/components/ClienteEtiquetaDialog";
 import { BikeFormDialog } from "@/components/BikeFormDialog";
 import { OSFormDialog } from "@/components/OSFormDialog";
 import { useAuth } from "@/lib/auth-context";
@@ -43,6 +45,7 @@ function ClienteDetail() {
   const [osOpen, setOsOpen] = useState(false);
   /** OS selecionada para edição; null = nova OS. */
   const [osEdit, setOsEdit] = useState<any>(null);
+  const [etiquetaOpen, setEtiquetaOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const { isAdmin } = useAuth();
@@ -118,6 +121,9 @@ function ClienteDetail() {
           <div className="flex gap-2 w-full sm:w-auto [&>button]:flex-1 sm:[&>button]:flex-none">
             <Button onClick={abrirNovaOs} disabled={!(bikes && bikes.length > 0)} title={bikes && bikes.length > 0 ? "Abrir nova OS para este cliente" : "Cadastre uma bike antes de abrir a OS"}>
               <Wrench className="size-4" /> Nova OS
+            </Button>
+            <Button variant="outline" onClick={() => setEtiquetaOpen(true)}>
+              <Printer className="size-4" /> Etiqueta
             </Button>
             <Button variant="outline" onClick={() => setEditOpen(true)}>
               <Edit className="size-4" /> Editar
@@ -244,6 +250,11 @@ function ClienteDetail() {
         )}
       </div>
 
+      <ClienteEtiquetaDialog
+        open={etiquetaOpen}
+        onOpenChange={setEtiquetaOpen}
+        cliente={{ nome: cliente.nome }}
+      />
       <ClienteFormDialog
         open={editOpen}
         onOpenChange={setEditOpen}
