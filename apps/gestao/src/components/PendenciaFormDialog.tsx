@@ -25,7 +25,7 @@ export function PendenciaFormDialog({
   pendencia?: any;
   onSaved?: () => void;
 }) {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const [form, setForm] = useState<any>({
     atividade: "",
     tipo_atividade: "",
@@ -75,6 +75,18 @@ export function PendenciaFormDialog({
     }
   }, [pendencia, open, user?.id]);
 
+  const responsavel = profiles.find((p) => p.id === form.responsavel_id);
+  const nomeResponsavel = responsavel?.full_name || responsavel?.email || "outro usuário";
+  /** Admin edita a pendência/tarefa sem tomar a autoria: o responsável só muda se ele alterar o campo. */
+  const editandoEmNomeDeOutro = Boolean(
+    pendencia && isAdmin && form.responsavel_id && form.responsavel_id !== user?.id,
+  );
+
+  /**
+   * Cria ou atualiza a pendência.
+   * Na edição, created_by permanece o criador original, então o admin
+   * grava a alteração em nome do responsável atual.
+   */
   async function submit() {
     if (!form.atividade.trim()) {
       toast.error("Informe a atividade");
@@ -117,6 +129,13 @@ export function PendenciaFormDialog({
         <DialogHeader>
           <DialogTitle>{pendencia ? "Editar pendência" : "Nova pendência"}</DialogTitle>
         </DialogHeader>
+
+        {editandoEmNomeDeOutro && (
+          <p className="text-sm text-muted-foreground">
+            Você está editando esta pendência em nome de {nomeResponsavel}. O responsável
+            só muda se você alterar o campo abaixo.
+          </p>
+        )}
 
         <div className="space-y-4">
           <div className="space-y-2">

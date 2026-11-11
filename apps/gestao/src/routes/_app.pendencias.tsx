@@ -46,8 +46,24 @@ function fmtDate(d: string | null) {
   return `${day}/${m}/${y}`;
 }
 
+/**
+ * Diz se o usuário logado pode concluir, editar ou excluir a pendência.
+ * Administrador altera qualquer pendência ou tarefa (qualquer tipo de atividade)
+ * em nome de qualquer responsável. Os demais só a própria: a do responsável,
+ * ou a do criador quando ainda não há responsável.
+ */
+function podeGerenciarPendencia(
+  pendencia: Pendencia,
+  userId: string | undefined,
+  isAdmin: boolean,
+): boolean {
+  if (isAdmin) return true;
+  if (pendencia.responsavel_id) return pendencia.responsavel_id === userId;
+  return pendencia.created_by === userId;
+}
+
 function PendenciasPage() {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const [items, setItems] = useState<Pendencia[]>([]);
   const [votos, setVotos] = useState<Voto[]>([]);
   const [profilesMap, setProfilesMap] = useState<Record<string, string>>({});
@@ -242,9 +258,8 @@ function PendenciasPage() {
               <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">Nenhuma pendência.</TableCell></TableRow>
             ) : filtered.map((p) => {
               const atrasada = !p.concluida && p.data_prevista && p.data_prevista < today;
-              const canManage = p.responsavel_id
-                ? p.responsavel_id === user?.id
-                : p.created_by === user?.id;
+              const canManage = podeGerenciarPendencia(p, user?.id, isAdmin);
+              const emNomeDeOutro = isAdmin && !!p.responsavel_id && p.responsavel_id !== user?.id;
               const mine = myCoins[p.id] ?? 0;
               const total = totalCoins[p.id] ?? 0;
               const canVote = !p.concluida && (!p.privado || p.created_by === user?.id);
@@ -312,7 +327,13 @@ function PendenciasPage() {
                         variant="ghost"
                         disabled={!canManage}
                         onClick={() => canManage && toggleConcluida(p)}
-                        title={canManage ? (p.concluida ? "Reabrir" : "Concluir") : "Somente o responsável pode alterar"}
+                        title={
+                          canManage
+                            ? (emNomeDeOutro
+                              ? (p.concluida ? "Reabrir em nome do responsável" : "Concluir em nome do responsável")
+                              : (p.concluida ? "Reabrir" : "Concluir"))
+                            : "Somente o responsável ou um administrador pode alterar"
+                        }
                       >
                         <CheckCircle2 className="size-4" />
                       </Button>
@@ -321,7 +342,11 @@ function PendenciasPage() {
                         variant="ghost"
                         disabled={!canManage}
                         onClick={() => { if (canManage) { setEditing(p); setOpenForm(true); } }}
-                        title={canManage ? "Editar" : "Somente o responsável pode editar"}
+                        title={
+                          canManage
+                            ? (emNomeDeOutro ? "Editar em nome do responsável" : "Editar")
+                            : "Somente o responsável ou um administrador pode editar"
+                        }
                       >
                         <Pencil className="size-4" />
                       </Button>
@@ -330,7 +355,11 @@ function PendenciasPage() {
                         variant="ghost"
                         disabled={!canManage}
                         onClick={() => canManage && setToDelete(p)}
-                        title={canManage ? "Excluir" : "Somente o responsável pode excluir"}
+                        title={
+                          canManage
+                            ? (emNomeDeOutro ? "Excluir em nome do responsável" : "Excluir")
+                            : "Somente o responsável ou um administrador pode excluir"
+                        }
                       >
                         <Trash2 className="size-4" />
                       </Button>
